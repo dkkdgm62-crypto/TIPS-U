@@ -99,6 +99,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
+      <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
+      <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
       <button onclick="exportPDF()" style="width:100%;padding:9px;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:8px;color:#e07b39;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;letter-spacing:.04em">
@@ -277,35 +279,116 @@ async function loadAll(){
 }
 
 // ═══════════════════════════════════════════════════
+// ARCHIV / VERLAUF
+// ═══════════════════════════════════════════════════
+let currentUserEmail = '';
+
+async function logActivity(pid, actionType, details, cycle, dim, fieldName, oldVal, newVal) {
+  const p = PLAYERS.find(x => x.id === pid);
+  if (!p || !currentUserEmail) return;
+  await sb.from('activity_log').insert({
+    user_email: currentUserEmail,
+    player_id: pid,
+    player_name: p.name,
+    action_type: actionType,
+    cycle: cycle || null,
+    dim: dim || null,
+    field_name: fieldName || null,
+    old_value: oldVal != null ? String(oldVal) : null,
+    new_value: newVal != null ? String(newVal) : null,
+    details: details || null
+  });
+}
+
+async function loadArchiv(pid) {
+  let q = sb.from('activity_log').select('*').order('created_at', {ascending: false}).limit(200);
+  if (pid) q = q.eq('player_id', pid);
+  const { data } = await q;
+  return data || [];
+}
+
+function formatTS(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('de-CH') + ' ' + d.toLocaleTimeString('de-CH', {hour:'2-digit',minute:'2-digit'});
+}
+
+function actionLabel(type) {
+  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SI-Erfassung'}[type] || type;
+}
+
+function cycleLabel(cy) {
+  return {z1:'Z1 Diagnostik',z2:'Z2 Hinrunde',z3:'Z3 Winterpause',z4:'Z4 Abschluss'}[cy] || cy || '';
+}
+
+function dimLabel(dim) {
+  return dim ? `${dim} · ${DIM_FULL[dim]||dim}` : '';
+}
+
+// ═══════════════════════════════════════════════════
 // SAVE (debounced)
 // ═══════════════════════════════════════════════════
 function debSave(key,fn,delay=800){clearTimeout(saveTimers[key]);saveTimers[key]=setTimeout(fn,delay);}
 
-function saveRating(pid,cy,dim){
+function saveRating(pid,cy,dim,oldIst,oldSoll){
   const r=state.data[pid].ratings[cy][dim];
-  debSave(`r_${pid}_${cy}_${dim}`,()=>sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'}));
+  debSave(`r_${pid}_${cy}_${dim}`,async()=>{
+    await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'});
+    const details = `${cycleLabel(cy)} · ${dimLabel(dim)} → IST: ${r.ist?.toFixed(2)||'—'} / SOLL: ${r.soll?.toFixed(2)||'—'}${r.massnahme?' · '+r.massnahme:''}`;
+    logActivity(pid,'rating',details,cy,dim,'ist/soll', oldIst!=null?oldIst.toFixed(2):null, r.ist!=null?r.ist.toFixed(2):null);
+  });
 }
-function saveNote(pid,cy){debSave(`n_${pid}_${cy}`,()=>sb.from('notes').upsert({player_id:pid,cycle:cy,content:state.data[pid].notes[cy]},{onConflict:'player_id,cycle'}));}
-function saveMeta(pid){const d=state.data[pid];debSave(`m_${pid}`,()=>sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'}));}
-function saveSI(pid){const s=state.siData[pid];debSave(`si_${pid}`,()=>sb.from('si_data').upsert({player_id:pid,...s},{onConflict:'player_id'}),400);}
+function saveNote(pid,cy,oldVal){
+  debSave(`n_${pid}_${cy}`,async()=>{
+    const content=state.data[pid].notes[cy];
+    await sb.from('notes').upsert({player_id:pid,cycle:cy,content},{onConflict:'player_id,cycle'});
+    logActivity(pid,'note',`${cycleLabel(cy)} · Notiz aktualisiert`,cy,null,'content',oldVal?.substring(0,80),content?.substring(0,80));
+  });
+}
+function saveMeta(pid,field,oldVal){
+  const d=state.data[pid];
+  debSave(`m_${pid}`,async()=>{
+    await sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'});
+    logActivity(pid,'meta',`${field}: ${d[field]||'—'}`,null,null,field,oldVal,d[field]);
+  });
+}
+function saveSI(pid,oldVals){
+  const s=state.siData[pid];
+  debSave(`si_${pid}`,async()=>{
+    await sb.from('si_data').upsert({player_id:pid,...s},{onConflict:'player_id'});
+    const total=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);
+    logActivity(pid,'si',`W:${s.wahrnehmen} L:${s.loesungen} E:${s.entscheidung} G:${s.gegen_ball} Total:${total}`,null,null,'si_data',null,`Total: ${total}`);
+  },400);
+}
 
 // ═══════════════════════════════════════════════════
 // STATE UPDATERS
 // ═══════════════════════════════════════════════════
 function updateRating(pid,cy,dim,field,val){
+  const oldIst=state.data[pid].ratings[cy][dim].ist;
+  const oldSoll=state.data[pid].ratings[cy][dim].soll;
   state.data[pid].ratings[cy][dim][field]=val;
-  saveRating(pid,cy,dim);
+  saveRating(pid,cy,dim,oldIst,oldSoll);
   const el=document.getElementById(`gap_${pid}_${cy}_${dim}`);
   if(el){const g=gap(state.data[pid].ratings[cy][dim].ist,state.data[pid].ratings[cy][dim].soll);el.innerHTML=g!=null?`<span style="font-size:14px;font-weight:800;color:${gapColor(g)}">${g>=0?'+':''}${g.toFixed(2)}</span>`:`<span style="color:rgba(255,255,255,0.3)">—</span>`;}
   const sel=document.querySelector(`[data-notesel="${pid}_${cy}_${dim}_${field}"]`);
   if(sel)sel.style.color=val?noteColor(val):'#6b7280';
 }
-function updateMassnahme(pid,cy,dim,val){state.data[pid].ratings[cy][dim].massnahme=val;saveRating(pid,cy,dim);}
-function updateNote(pid,cy,val){state.data[pid].notes[cy]=val;saveNote(pid,cy);}
-function updateField(pid,f,val){state.data[pid][f]=val;saveMeta(pid);}
+function updateMassnahme(pid,cy,dim,val){
+  state.data[pid].ratings[cy][dim].massnahme=val;
+  saveRating(pid,cy,dim,state.data[pid].ratings[cy][dim].ist,state.data[pid].ratings[cy][dim].soll);
+}
+function updateNote(pid,cy,val){
+  const old=state.data[pid].notes[cy];
+  state.data[pid].notes[cy]=val;saveNote(pid,cy,old);
+}
+function updateField(pid,f,val){
+  const old=state.data[pid][f];
+  state.data[pid][f]=val;saveMeta(pid,f,old);
+}
 function updateSI(pid,field,delta){
+  const old={...state.siData[pid]};
   state.siData[pid][field]=Math.max(0,(state.siData[pid][field]||0)+delta);
-  saveSI(pid);
+  saveSI(pid,old);
   const el=document.getElementById(`si_val_${pid}_${field}`);
   if(el)el.textContent=state.siData[pid][field];
   const tot=document.getElementById(`si_tot_${pid}`);
@@ -321,7 +404,7 @@ function showView(v){
   state.view=v;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -341,6 +424,8 @@ function renderCurrentView(){
   else if(v==='player')renderPlayer();
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
+  else if(v==='makro')renderMakro();
+  else if(v==='verlauf')renderVerlauf();
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
@@ -351,8 +436,7 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 function renderDashboard(){
   const cy=state.cycle;
   const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
-  const filtered=PLAYERS.filter(p=>p.name.toLowerCase().includes(search));
-  const cyInfo=CYCLES.find(c=>c.key===cy);
+  const filtered=PLAYERS.filter(p=>p.name.toLowerCase().includes(search));  const cyInfo=CYCLES.find(c=>c.key===cy);
   let rows='';
   filtered.forEach((p,idx)=>{
     const r=state.data[p.id].ratings[cy];
@@ -371,6 +455,7 @@ function renderDashboard(){
     </div>`;
   });
   document.getElementById('mainContent').innerHTML=`
+    ${makroWidget()}
     <div class="stat-grid">
       ${[['23','Kaderspieler','users'],['3','Torhüter','shield'],['4','Messzyklen','refresh'],['2026/27','Saison','calendar']].map(([v,l,ic])=>`
         <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px">
@@ -626,6 +711,343 @@ function renderSI(){
 }
 
 // ═══════════════════════════════════════════════════
+// MAKROZYKLUS DATEN 2026/27
+// Vorrunde: KW27–52 (Juli–Dez 2026)
+// Rückrunde: KW1–26 (Jan–Juni 2027)
+// ═══════════════════════════════════════════════════
+const MAKRO = {
+  vorrunde: [
+    {kw:27, monat:'Juli', ta:'', te:'', hp:'Globale Prinzipien TE', impulse:'1. Kontakt · Letzter Kontakt & Passqualität · Ballhandling & Finten', typ:'frei', label:'Sommerferien – Fussballfrei'},
+    {kw:28, monat:'Juli', ta:'', te:'', hp:'Globale Prinzipien TE', impulse:'1. Kontakt · Passqualität · Ballhandling & Finten', typ:'frei', label:'Sommerferien – Fussballfrei'},
+    {kw:29, monat:'Juli', ta:'', te:'', hp:'Globale Prinzipien OFF/DEF', impulse:'Vorwärts Verteidigen · Aktiver präventiver Zugriff', typ:'frei', label:'Sommerferien – Fussballfrei'},
+    {kw:30, monat:'Juli', ta:'', te:'', hp:'Globale Prinzipien TE', impulse:'1. Kontakt · Passqualität · Ballhandling & Finten', typ:'frei', label:'Sommerferien – Fussballfrei'},
+    {kw:31, monat:'Juli', ta:'', te:'Globale Prinzipien TE', hp:'1. Kontakt · Passqualität', impulse:'Ballhandling & Finten', typ:'training', label:'Trainingsstart'},
+    {kw:32, monat:'August', ta:'', te:'Globale Prinzipien TE', hp:'1. Kontakt · Passqualität · Ballhandling & Finten', impulse:'Globale Prinzipien OFF: (Vor-)Orientierung · Immer wieder neu anspielbar', typ:'training'},
+    {kw:33, monat:'August', ta:'', te:'Globale Prinzipien DEF', hp:'Vorwärts Verteidigen · Aktiver präventiver Zugriff', impulse:'', typ:'training'},
+    {kw:34, monat:'August', ta:'Spiel konstruktiv aufbauen & bestimmen', te:'1. K. + Passqualität', hp:'Ballbesitz (Z1/Z2)', impulse:'Ball und Gegner laufen lassen · Breite nutzen · Spiel verlagern | Weg vom Druck – Prio. Vw. (DEF-OFF)', typ:'meister'},
+    {kw:35, monat:'August', ta:'Spiel konstruktiv aufbauen & bestimmen', te:'1. K. + Passqualität', hp:'Höchsten Mitspieler anspielen / vertikalen Raum angreifen (Z1>Z2/Z3)', impulse:'Plus 1 aufbauen: Überzahl schaffen, erkennen, ausspielen | Weg vom Druck – Prio. Vw. (DEF-OFF)', typ:'meister'},
+    {kw:36, monat:'September', ta:'Organisiertes Angriffspressing', te:'1. K. + Passqualität', hp:'Kollektiver Rhythmuswechsel', impulse:'Kompakter Block · Pressing auslösen & steuern · Ballseitig MgM stellen · Mit Pass ankommen | Weg vom Druck – Prio. Vw. (DEF-OFF) | Höchsten MS anspielen / vertikalen Raum attackieren', typ:'meister'},
+    {kw:37, monat:'September', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'OFF 1 gegen 1 (2 gegen 2)', impulse:'Frontal, Seitlich, Gegner im Rücken · 1. Kontakt, Ballhandling, Finten (GLOBAL) | DEF 1 gegen 1', typ:'meister'},
+    {kw:38, monat:'September', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'OFF 1 gegen 1 (2 gegen 2)', impulse:'Frontal, Seitlich, Gegner im Rücken · 1. Kontakt, Ballhandling, Finten (GLOBAL) | DEF 1 gegen 1', typ:'meister'},
+    {kw:39, monat:'September', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'Lauf vor Pass (Z2/Z3)', impulse:'Überspielte Spieler auf-/nachrücken · Tiefenlauf | Just do it – Stromschlag! (OFF-DEF) · 5s-Regel · Aktiver präventiver Zugriff', typ:'meister'},
+    {kw:40, monat:'Oktober', ta:'Organisiertes Angriffspressing', te:'1. K. + Passqualität', hp:'Kollektiver Rhythmuswechsel', impulse:'Kompakter Block · Pressing auslösen & steuern · Ballseitig MgM · Mit Pass ankommen | Weg vom Druck – Prio. Vw. (DEF-OFF) | Höchsten MS anspielen', typ:'meister'},
+    {kw:41, monat:'Oktober', ta:'Tor verteidigen – Gegentor verhindern', te:'', hp:'Aktiver Block (Z1/Z2)', impulse:'Vorwärts verteidigen (1-2 Linien) · Mann gegen Mann stellen · Tiefe antizipieren | Just do it – Stromschlag! · 5s-Regel', typ:'meister'},
+    {kw:42, monat:'Oktober', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'OFF 1 gegen 1 (2 gegen 2)', impulse:'Frontal, Seitlich, Gegner im Rücken · 1. Kontakt, Ballhandling, Finten (GLOBAL) | DEF 1 gegen 1', typ:'meister'},
+    {kw:43, monat:'Oktober', ta:'', te:'', hp:'Fussballfrei', impulse:'', typ:'frei', label:'Fussballfrei'},
+    {kw:44, monat:'November', ta:'Organisiertes Angriffspressing', te:'1. K. + Passqualität', hp:'Kollektiver Rhythmuswechsel', impulse:'Kompakter Block · Pressing auslösen & steuern · Ballseitig MgM · Mit Pass ankommen | Weg vom Druck – Prio. Vw. (DEF-OFF) | Höchsten MS anspielen', typ:'meister'},
+    {kw:45, monat:'November', ta:'Tor verteidigen – Gegentor verhindern', te:'', hp:'Aktiver Block (Z1/Z2)', impulse:'Vorwärts verteidigen (1-2 Linien) · MgM stellen · Tiefe antizipieren | Just do it – Stromschlag! · 5s-Regel', typ:'meister'},
+    {kw:46, monat:'November', ta:'Spiel konstruktiv aufbauen & bestimmen', te:'1. K. + Passqualität', hp:'Ballbesitz (Z1/Z2)', impulse:'Ball und Gegner laufen lassen · Breite nutzen · Spiel verlagern | Weg vom Druck – Prio. Vw. (DEF-OFF)', typ:'meister'},
+    {kw:47, monat:'November', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'OFF 1 gegen 1 (2 gegen 2)', impulse:'Frontal, Seitlich, Gegner im Rücken · 1. Kontakt, Ballhandling, Finten (GLOBAL) | DEF 1 gegen 1', typ:'meister'},
+    {kw:48, monat:'November', ta:'Vertikalspiel & Tore erzielen', te:'Torschuss', hp:'Angriff abschliessen (Z3)', impulse:'Kollektiver Rhythmuswechsel (Rhy2) · Abschliessen | Kollektiver Umschaltsprint (DEF-OFF)', typ:'meister'},
+    {kw:49, monat:'Dezember', ta:'Organisiertes Angriffspressing', te:'1. K. + Passqualität', hp:'Kollektiver Rhythmuswechsel', impulse:'Kompakter Block · Pressing auslösen & steuern · Ballseitig MgM · Mit Pass ankommen | Weg vom Druck – Prio. Vw. (DEF-OFF)', typ:'meister'},
+    {kw:50, monat:'Dezember', ta:'Vertikalspiel & Tore erzielen', te:'Ballhandling & Finten', hp:'OFF 1 gegen 1 (2 gegen 2)', impulse:'Frontal, Seitlich, Gegner im Rücken · Spiel & Spass', typ:'spiel'},
+    {kw:51, monat:'Dezember', ta:'', te:'', hp:'Spiel & Spass', impulse:'', typ:'spiel', label:'Spiel & Spass'},
+    {kw:52, monat:'Dezember', ta:'', te:'', hp:'Winterpause – Fussballfrei', impulse:'', typ:'frei', label:'Winterpause – Fussballfrei'},
+    {kw:53, monat:'Dezember', ta:'', te:'', hp:'Winterpause – Fussballfrei', impulse:'', typ:'frei', label:'Winterpause – Fussballfrei'},
+  ],
+  rueckrunde: [
+    {kw:1, monat:'Januar', ta:'', te:'', hp:'Fussballfrei', impulse:'', typ:'frei', label:'Fussballfrei – Neujahr'},
+    {kw:2, monat:'Januar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:3, monat:'Januar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:4, monat:'Januar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:5, monat:'Januar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:6, monat:'Februar', ta:'DNA: Intensität', te:'Zone 2: Angriffspressing', hp:'Verteidigen auf einer Linie', impulse:'Ballnächster unter Druck · Kommunikation · Vertikale Passwege schliessen | Umschalten OFF-DEF Z1: Tor verteidigen · Direkten Weg zum Tor schliessen', typ:'meister', dna:'Intensität', me:'Energie geben'},
+    {kw:7, monat:'Februar', ta:'DNA: Dominanz', te:'Zone 1: Spiel konstruktiv aufbauen', hp:'Spielerisch, schnell und ohne Ballverlust in gegnerische Hälfte', impulse:'Initiativ anspielbar · 1. Ballkontakt · Vorwärts spielen | Umschalten DEF-OFF Z2: Direkten Weg zum Tor suchen', typ:'meister', dna:'Dominanz', me:'Initiative ergreifen'},
+    {kw:8, monat:'Februar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:9, monat:'Februar', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:10, monat:'März', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:11, monat:'März', ta:'', te:'Planung durch Ausbilder', hp:'Planung gemäss Prinzipien Leitfaden', impulse:'', typ:'training'},
+    {kw:12, monat:'März', ta:'DNA: Intensität', te:'Zone 2: Angriffspressing', hp:'Verteidigen auf einer Linie', impulse:'Ballnächster unter Druck · Kommunikation · Vertikale Passwege schliessen | Umschalten OFF-DEF Z2: Gegenpressing · Kreis 1: Just do it – Stromschlag!', typ:'meister', dna:'Intensität', me:'Jederzeit aufmerksam'},
+    {kw:13, monat:'März', ta:'', te:'', hp:'Fasnachtsferien – Fussballfrei', impulse:'', typ:'frei', label:'Fasnachtsferien'},
+    {kw:14, monat:'April', ta:'DNA: Positivität', te:'!! Mentalitätswoche !!', hp:'Eigene Auswahl 1–2 Mentalitätspunkte gemäss Leitfaden', impulse:'Spielformen mit Mentalitätsschwerpunkt (Provokation) · bewusstes Mentalitätscoaching', typ:'mental', dna:'Positivität', label:'Mentalitätswoche'},
+    {kw:15, monat:'April', ta:'DNA: Dominanz', te:'Zone 1: Spiel konstruktiv aufbauen', hp:'Spielerisch, schnell in gegnerische Hälfte', impulse:'Initiativ anspielbar · 1. Ballkontakt · Vorwärts spielen | Umschalten DEF-OFF Z2: Direkten Weg zum Tor suchen · Hand drauf', typ:'meister', dna:'Dominanz', me:'Initiative ergreifen'},
+    {kw:16, monat:'April', ta:'DNA: Individuelle Überlegenheit', te:'Zone 2: Angreifen', hp:'Direkter Weg zum Tor, hinter Abwehr gelangen & Tore erzielen', impulse:'1 gegen 1 · Überzahl schaffen (gegnerische Hälfte) → Kombinationsspiel', typ:'meister', dna:'Individuelle Überlegenheit', me:'Mutig agieren'},
+    {kw:17, monat:'April', ta:'DNA: Intensität', te:'Zone 1: Aktiver Block', hp:'Kompakter, aktiver Block – vorwärts verteidigen', impulse:'Ballnächster unter Druck · Kommunikation · Vertikale Passwege schliessen · Flanken & Torschüsse blocken | Gegenpressing: Kreis 1 Just do it!', typ:'meister', dna:'Intensität', me:'Jederzeit aufmerksam'},
+    {kw:18, monat:'April', ta:'DNA: Dominanz', te:'Zone 1: Spiel konstruktiv aufbauen', hp:'Spielerisch, schnell in gegnerische Hälfte', impulse:'Initiativ anspielbar · 1. Ballkontakt · Vorwärts spielen | DEF-OFF Z2: Tor erzielen', typ:'meister', dna:'Dominanz', me:'Initiative ergreifen'},
+    {kw:19, monat:'Mai', ta:'', te:'', hp:'Ostern – Fussballfrei', impulse:'', typ:'frei', label:'Ostern'},
+    {kw:20, monat:'Mai', ta:'DNA: Intensität', te:'Zone 1: Aktiver Block', hp:'Kompakter Block – vorwärts verteidigen', impulse:'Ballnächster unter Druck · Kommunikation | Gegenpressing · Kreis 2: Vertikale Passwege schliessen', typ:'meister', dna:'Intensität', me:'Jederzeit aufmerksam'},
+    {kw:21, monat:'Mai', ta:'DNA: Individuelle Überlegenheit', te:'Zone 2: Angreifen', hp:'Direkter Weg zum Tor – hinter Abwehr', impulse:'Tiefenlauf · Box stürmen · Angriff abschliessen | DEF-OFF Z1: weg vom Druck · initiativ anspielbar', typ:'meister', dna:'Individuelle Überlegenheit', me:'Mutig agieren'},
+    {kw:22, monat:'Mai', ta:'DNA: Dominanz', te:'Zone 1: Spiel konstruktiv aufbauen', hp:'Spielerisch, schnell in gegnerische Hälfte', impulse:'Initiativ anspielbar · 1. Ballkontakt · Vorwärts spielen | DEF-OFF Z2: Tor erzielen', typ:'meister', dna:'Dominanz', me:'Initiative ergreifen'},
+    {kw:23, monat:'Juni', ta:'DNA: Individuelle Überlegenheit', te:'Zone 2: Angreifen', hp:'Direkter Weg zum Tor erzielen', impulse:'Tiefenlauf · Box stürmen · Angriff abschliessen | Umschalten DEF-OFF Z1: nach vorne spielen', typ:'meister', dna:'Individuelle Überlegenheit', me:'Mutig agieren'},
+    {kw:24, monat:'Juni', ta:'DNA: Intensität', te:'Zone 1: Aktiver Block', hp:'Kompakter Block – vorwärts verteidigen', impulse:'Ballnächster unter Druck · Kommunikation | Gegenpressing', typ:'meister', dna:'Intensität', me:'Mit Druck umgehen'},
+    {kw:25, monat:'Juni', ta:'DNA: Dominanz', te:'Zone 1: Spiel konstruktiv aufbauen', hp:'Spielerisch, schnell in gegnerische Hälfte', impulse:'Initiativ anspielbar · 1. Ballkontakt | DEF-OFF Z2: Tor erzielen', typ:'meister', dna:'Dominanz', me:'Initiative ergreifen'},
+    {kw:26, monat:'Juni', ta:'', te:'', hp:'Teamübergabe', impulse:'', typ:'event', label:'Teamübergabe'},
+    {kw:27, monat:'Juni', ta:'', te:'', hp:'Saisonende / Fussballfrei', impulse:'', typ:'frei', label:'Saisonende'},
+  ]
+};
+
+const TYP_COLOR = {
+  frei:'rgba(255,255,255,0.08)',
+  training:'rgba(59,130,246,0.15)',
+  meister:'rgba(34,197,94,0.12)',
+  spiel:'rgba(168,85,247,0.15)',
+  mental:'rgba(245,158,11,0.15)',
+  event:'rgba(224,123,57,0.15)',
+};
+const TYP_BORDER = {
+  frei:'rgba(255,255,255,0.15)',
+  training:'#3b82f6',
+  meister:'#22c55e',
+  spiel:'#a855f7',
+  mental:'#f59e0b',
+  event:'#e07b39',
+};
+const TYP_LABEL = {
+  frei:'Fussballfrei',
+  training:'Training',
+  meister:'Meisterschaft',
+  spiel:'Spiel & Spass',
+  mental:'Mentalitätswoche',
+  event:'Event',
+};
+const DNA_COLOR = {
+  'Intensität':'#ef4444',
+  'Dominanz':'#3b82f6',
+  'Individuelle Überlegenheit':'#a855f7',
+  'Positivität':'#22c55e',
+};
+
+function getCurrentKW() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const diff = now - start + (start.getTimezoneOffset() - now.getTimezoneOffset()) * 60000;
+  const oneWeek = 604800000;
+  return Math.ceil(diff / oneWeek);
+}
+
+function getCurrentMonth() {
+  return new Date().toLocaleString('de-CH', {month:'long'});
+}
+
+function getAllKWData() {
+  return [...MAKRO.vorrunde, ...MAKRO.rueckrunde];
+}
+
+function getKWData(kw) {
+  return getAllKWData().find(w => w.kw === kw);
+}
+
+// ── MAKRO WIDGET für Dashboard ─────────────────────
+function makroWidget() {
+  const currentKW = getCurrentKW();
+  const allData = getAllKWData();
+  const currentIdx = allData.findIndex(w => w.kw === currentKW);
+  const windowData = allData.slice(Math.max(0, currentIdx - 1), currentIdx + 4);
+  const current = getKWData(currentKW);
+  const next1 = getKWData(currentKW + 1);
+  const next2 = getKWData(currentKW + 2);
+
+  const kwCard = (w, highlight) => {
+    if (!w) return '';
+    const border = highlight ? `border:1.5px solid ${TYP_BORDER[w.typ]||'#e07b39'}` : `border:1px solid rgba(255,255,255,0.06)`;
+    const bg = highlight ? TYP_COLOR[w.typ]||'rgba(224,123,57,0.1)' : '#111d2e';
+    return `<div style="background:${bg};${border};border-radius:10px;padding:12px 14px;flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:10px;font-weight:800;color:${TYP_BORDER[w.typ]||'#e07b39'};letter-spacing:.08em">KW ${w.kw}</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.3)">${w.monat}</span>
+        ${highlight?`<span style="font-size:9px;font-weight:700;background:rgba(224,123,57,0.2);color:#e07b39;padding:1px 6px;border-radius:4px">JETZT</span>`:''}
+      </div>
+      ${w.dna?`<div style="font-size:10px;font-weight:700;color:${DNA_COLOR[w.dna]||'#fff'};margin-bottom:5px;letter-spacing:.04em">DNA: ${w.dna}</div>`:''}
+      ${w.label?`<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);font-style:italic">${esc(w.label)}</div>`:''}
+      ${w.ta?`<div style="font-size:11px;font-weight:700;color:#e2e8f0;margin-bottom:3px">${esc(w.ta)}</div>`:''}
+      ${w.te?`<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px"><span style="color:#f59e0b;font-weight:700">TE</span> ${esc(w.te)}</div>`:''}
+      ${w.hp?`<div style="font-size:10px;color:rgba(255,255,255,0.5)"><span style="color:#22c55e;font-weight:700">HP</span> ${esc(w.hp)}</div>`:''}
+    </div>`;
+  };
+
+  return `<div style="background:linear-gradient(135deg,#0f1a28,#111d2e);border:1px solid rgba(224,123,57,0.2);border-radius:12px;padding:16px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <i class="ti ti-calendar-stats" style="color:#e07b39;font-size:18px"></i>
+      <span style="font-size:14px;font-weight:700;color:#e2e8f0">Makrozyklus 2026/27</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">${current?.typ==='vorrunde'||current?.kw>=27?'Vorrunde':'Rückrunde'}</span>
+      <button onclick="showView('makro')" style="margin-left:auto;padding:5px 12px;font-size:11px;font-weight:700;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:6px;color:#e07b39;cursor:pointer">Vollansicht →</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${kwCard(current, true)}
+      ${kwCard(next1, false)}
+      ${kwCard(next2, false)}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// MAKROZYKLUS VOLLANSICHT
+// ═══════════════════════════════════════════════════
+let makroPhase = 'vorrunde';
+let makroExpanded = null;
+
+function renderMakro() {
+  const currentKW = getCurrentKW();
+  const data = MAKRO[makroPhase];
+  const months = [...new Set(data.map(w => w.monat))];
+
+  const monthSections = months.map(m => {
+    const weeks = data.filter(w => w.monat === m);
+    const cards = weeks.map(w => {
+      const isCurrent = w.kw === currentKW;
+      const isExp = makroExpanded === w.kw;
+      const border = isCurrent ? `border:2px solid #e07b39` : `border:1px solid rgba(255,255,255,0.06)`;
+      const bg = isCurrent ? 'rgba(224,123,57,0.08)' : TYP_COLOR[w.typ]||'#111d2e';
+
+      const impulseLines = w.impulse ? w.impulse.split('|').map(i=>`<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;padding-left:8px;border-left:2px solid rgba(255,255,255,0.1)">${esc(i.trim())}</div>`).join('') : '';
+
+      return `<div style="background:${bg};${border};border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s" onclick="makroExpanded=${isExp?'null':w.kw};renderMakro()" onmouseenter="this.style.borderColor='${TYP_BORDER[w.typ]||'rgba(255,255,255,0.2)'}'" onmouseleave="this.style.borderColor='${isCurrent?'#e07b39':'rgba(255,255,255,0.06)'}'">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${isExp?'10':'0'}px">
+          <div style="width:36px;height:36px;border-radius:8px;background:${TYP_COLOR[w.typ]||'rgba(255,255,255,0.06)'};border:1px solid ${TYP_BORDER[w.typ]||'rgba(255,255,255,0.1)'};display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+            <span style="font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:.05em">KW</span>
+            <span style="font-size:14px;font-weight:800;color:${TYP_BORDER[w.typ]||'#e2e8f0'};line-height:1">${w.kw}</span>
+          </div>
+          <div style="flex:1;min-width:0">
+            ${isCurrent?`<span style="font-size:9px;font-weight:700;background:#e07b39;color:#fff;padding:1px 6px;border-radius:3px;margin-bottom:3px;display:inline-block">AKTUELLE WOCHE</span><br>`:''}
+            ${w.dna?`<span style="font-size:9px;font-weight:700;color:${DNA_COLOR[w.dna]||'#fff'};letter-spacing:.04em">DNA: ${w.dna}${w.me?' · '+w.me:''}</span><br>`:''}
+            <span style="font-size:12px;font-weight:600;color:#e2e8f0">${esc(w.label||w.ta||w.hp||'—')}</span>
+          </div>
+          <span style="font-size:9px;font-weight:700;color:${TYP_BORDER[w.typ]||'rgba(255,255,255,0.3)'};background:${TYP_COLOR[w.typ]||'rgba(255,255,255,0.04)'};padding:2px 7px;border-radius:4px;flex-shrink:0">${TYP_LABEL[w.typ]||''}</span>
+          <i class="ti ti-chevron-${isExp?'up':'down'}" style="font-size:14px;color:rgba(255,255,255,0.3);flex-shrink:0"></i>
+        </div>
+        ${isExp ? `<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;margin-top:4px">
+          ${w.ta?`<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#e07b39;letter-spacing:.06em">TA</span><div style="font-size:12px;color:#e2e8f0;margin-top:2px">${esc(w.ta)}</div></div>`:''}
+          ${w.te?`<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#f59e0b;letter-spacing:.06em">TE</span><div style="font-size:12px;color:#e2e8f0;margin-top:2px">${esc(w.te)}</div></div>`:''}
+          ${w.hp?`<div style="margin-bottom:6px"><span style="font-size:9px;font-weight:700;color:#22c55e;letter-spacing:.06em">HP</span><div style="font-size:12px;color:#e2e8f0;margin-top:2px">${esc(w.hp)}</div></div>`:''}
+          ${w.impulse?`<div><span style="font-size:9px;font-weight:700;color:#6366f1;letter-spacing:.06em">IMPULSE</span><div style="margin-top:4px">${impulseLines}</div></div>`:''}
+        </div>` : ''}
+      </div>`;
+    }).join('');
+
+    const hasCurrentKW = weeks.some(w => w.kw === currentKW);
+    return `<div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:800;color:${hasCurrentKW?'#e07b39':'#e2e8f0'};letter-spacing:.02em">${m}</span>
+        ${hasCurrentKW?`<span style="font-size:10px;font-weight:700;background:rgba(224,123,57,0.15);color:#e07b39;padding:2px 8px;border-radius:4px">Aktueller Monat</span>`:''}
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">${cards}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="makroPhase='vorrunde';makroExpanded=null;renderMakro()" style="padding:8px 20px;font-size:12px;font-weight:700;border-radius:8px;border:none;background:${makroPhase==='vorrunde'?'#e07b39':'rgba(255,255,255,0.06)'};color:${makroPhase==='vorrunde'?'#fff':'rgba(255,255,255,0.5)'};cursor:pointer">
+        Vorrunde · Juli – Dez 2026
+      </button>
+      <button onclick="makroPhase='rueckrunde';makroExpanded=null;renderMakro()" style="padding:8px 20px;font-size:12px;font-weight:700;border-radius:8px;border:none;background:${makroPhase==='rueckrunde'?'#e07b39':'rgba(255,255,255,0.06)'};color:${makroPhase==='rueckrunde'?'#fff':'rgba(255,255,255,0.5)'};cursor:pointer">
+        Rückrunde · Jan – Juni 2027
+      </button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:rgba(255,255,255,0.4)">Aktuelle KW: <strong style="color:#e07b39">${currentKW}</strong></span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;margin-bottom:16px">
+      ${Object.entries(TYP_LABEL).map(([k,v])=>`<div style="display:flex;align-items:center;gap:5px"><div style="width:8px;height:8px;border-radius:2px;background:${TYP_BORDER[k]||'rgba(255,255,255,0.3)'};flex-shrink:0"></div><span style="font-size:10px;color:rgba(255,255,255,0.4)">${v}</span></div>`).join('')}
+    </div>
+    ${monthSections}
+    <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px">Klick auf eine Woche für Volldetails · Automatisch auf Saison 2026/27 angepasst</p>`;
+}
+let verlaufFilter = {player:'all', type:'all', user:'all'};
+
+async function renderVerlauf() {
+  document.getElementById('mainContent').innerHTML=`
+    <div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">
+      <i class="ti ti-loader-2" style="font-size:32px;display:block;margin-bottom:8px;opacity:.5"></i>
+      Lade Archiv...
+    </div>`;
+  const logs = await loadArchiv(null);
+  buildVerlaufHTML(logs);
+}
+
+function buildVerlaufHTML(logs) {
+  const players = [{id:'all',name:'Alle Spieler'},...PLAYERS.map(p=>({id:p.id,name:p.name}))];
+  const types = ['all','rating','note','meta','si'];
+  const typeNames = {all:'Alle Aktionen',rating:'📊 Bewertungen',note:'📝 Notizen',meta:'👤 Profil',si:'🧠 SI-Erfassung'};
+  const users = ['all',...[...new Set(logs.map(l=>l.user_email))]];
+
+  let filtered = logs.filter(l=>{
+    if(verlaufFilter.player!=='all' && l.player_id!=verlaufFilter.player) return false;
+    if(verlaufFilter.type!=='all' && l.action_type!==verlaufFilter.type) return false;
+    if(verlaufFilter.user!=='all' && l.user_email!==verlaufFilter.user) return false;
+    return true;
+  });
+
+  const rows = filtered.slice(0,300).map((l,idx)=>{
+    const isD = l.user_email?.includes('dogus')||l.user_email?.includes('kaplan');
+    const userColor = isD ? '#e07b39' : '#6366f1';
+    const userInitial = l.user_email?.charAt(0).toUpperCase()||'?';
+    const changeStr = l.old_value && l.new_value && l.old_value!==l.new_value
+      ? `<span style="color:#ef4444">${esc(l.old_value)}</span> <span style="color:rgba(255,255,255,0.3)">→</span> <span style="color:#22c55e">${esc(l.new_value)}</span>`
+      : '';
+    return `<tr style="border-bottom:${idx<filtered.length-1?'1px solid rgba(255,255,255,0.04)':'none'}" onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background='transparent'">
+      <td style="padding:9px 12px;white-space:nowrap">
+        <div style="font-size:12px;font-weight:600;color:#e2e8f0">${formatTS(l.created_at)}</div>
+      </td>
+      <td style="padding:9px 12px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:24px;height:24px;border-radius:50%;background:${userColor}22;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${userColor};flex-shrink:0">${userInitial}</div>
+          <span style="font-size:11px;color:rgba(255,255,255,0.6)">${esc(l.user_email||'—')}</span>
+        </div>
+      </td>
+      <td style="padding:9px 12px">
+        <div style="font-size:12px;font-weight:600;color:#e2e8f0">${esc(l.player_name||'—')}</div>
+      </td>
+      <td style="padding:9px 12px">
+        <span style="font-size:10px;font-weight:700;background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 7px;border-radius:4px">${actionLabel(l.action_type)}</span>
+      </td>
+      <td style="padding:9px 12px;max-width:280px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.6)">${esc(l.details||'')}${changeStr?'<br>'+changeStr:''}</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const empty = filtered.length===0 ? `<tr><td colspan="5" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">Keine Einträge gefunden</td></tr>` : '';
+
+  document.getElementById('mainContent').innerHTML=`
+    <!-- Filter Bar -->
+    <div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <i class="ti ti-filter" style="color:rgba(255,255,255,0.4);font-size:14px"></i>
+      <select onchange="verlaufFilter.player=this.value==='all'?'all':parseInt(this.value);renderVerlauf()" style="font-size:11px;padding:5px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">
+        ${players.map(p=>`<option value="${p.id}" ${verlaufFilter.player==p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <select onchange="verlaufFilter.type=this.value;renderVerlauf()" style="font-size:11px;padding:5px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">
+        ${types.map(t=>`<option value="${t}" ${verlaufFilter.type===t?'selected':''}>${typeNames[t]}</option>`).join('')}
+      </select>
+      <select onchange="verlaufFilter.user=this.value;renderVerlauf()" style="font-size:11px;padding:5px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">
+        ${users.map(u=>`<option value="${u}" ${verlaufFilter.user===u?'selected':''}>${u==='all'?'Alle Trainer':esc(u)}</option>`).join('')}
+      </select>
+      <span style="font-size:10px;color:rgba(255,255,255,0.3);margin-left:auto">${filtered.length} Einträge</span>
+      <button onclick="renderVerlauf()" style="padding:5px 12px;font-size:11px;font-weight:700;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:6px;color:#e07b39;cursor:pointer">
+        <i class="ti ti-refresh"></i> Aktualisieren
+      </button>
+    </div>
+
+    <!-- Stats Row -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+      ${['rating','note','meta','si'].map(t=>{
+        const cnt=logs.filter(l=>l.action_type===t).length;
+        return `<div class="card" style="padding:12px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:#e2e8f0">${cnt}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${typeNames[t]}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Tabelle -->
+    <div class="card" style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.08)">
+            <th style="text-align:left;padding:10px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em;white-space:nowrap">ZEITSTEMPEL</th>
+            <th style="text-align:left;padding:10px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em">TRAINER</th>
+            <th style="text-align:left;padding:10px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em">SPIELER</th>
+            <th style="text-align:left;padding:10px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em">TYP</th>
+            <th style="text-align:left;padding:10px 12px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em">DETAILS</th>
+          </tr>
+        </thead>
+        <tbody>${rows||empty}</tbody>
+      </table>
+    </div>
+    <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px">Alle Änderungen werden automatisch mit Zeitstempel archiviert. Max. 300 Einträge angezeigt.</p>`;
+}
+
+// ═══════════════════════════════════════════════════
 // PDF EXPORT
 // ═══════════════════════════════════════════════════
 function exportPDF(){
@@ -665,6 +1087,23 @@ function exportPDF(){
   doc.text('SI-Erfassung · 4v4 Spielintelligenz',14,20);
   const siRows=PLAYERS.map(p=>{const s=state.siData[p.id];const t=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);return[p.nr,p.name,s.wahrnehmen,s.loesungen,s.entscheidung,s.gegen_ball,t];});
   doc.autoTable({startY:28,head:[['#','Spieler','Wahrnehmen','Lösungen','Entscheidung','Gegen Ball','Total']],body:siRows,theme:'plain',styles:{fontSize:9,cellPadding:2.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:12},1:{cellWidth:55},2:{halign:'center'},3:{halign:'center'},4:{halign:'center'},5:{halign:'center'},6:{halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
+  // Verlauf/Archiv page
+  const logs = await loadArchiv(null);
+  if(logs.length>0){
+    doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
+    doc.setFontSize(14);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
+    doc.text('Verlauf & Archiv · Alle Änderungen',14,20);
+    doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(120,130,145);
+    doc.text(`Exportiert: ${new Date().toLocaleString('de-CH')}`,14,27);
+    const logRows=logs.slice(0,150).map(l=>[
+      formatTS(l.created_at),
+      l.user_email?.split('@')[0]||'—',
+      (l.player_name||'—').split(',')[0],
+      actionLabel(l.action_type).replace(/[^\w\s·]/g,''),
+      (l.details||'').substring(0,60)
+    ]);
+    doc.autoTable({startY:32,head:[['Zeit','Trainer','Spieler','Typ','Details']],body:logRows,theme:'plain',styles:{fontSize:7,cellPadding:1.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:30},1:{cellWidth:22},2:{cellWidth:28},3:{cellWidth:22},4:{cellWidth:86}},margin:{left:14,right:14}});
+  }
   doc.save(`FE12_OldBoys_${cyLabel}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
