@@ -314,7 +314,7 @@ function formatTS(ts) {
 }
 
 function actionLabel(type) {
-  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SI-Erfassung'}[type] || type;
+  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SI-Erfassung',match:'⚽ Spiel'}[type] || type;
 }
 
 function cycleLabel(cy) {
@@ -458,6 +458,7 @@ function renderDashboard(){
   });
   document.getElementById('mainContent').innerHTML=`
     ${makroWidget()}
+    <div id="dashMatches"></div>
     <div class="stat-grid">
       ${[['23','Kaderspieler','users'],['3','Torhüter','shield'],['4','Messzyklen','refresh'],['2026/27','Saison','calendar']].map(([v,l,ic])=>`
         <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px">
