@@ -1050,7 +1050,7 @@ function buildVerlaufHTML(logs) {
 // ═══════════════════════════════════════════════════
 // PDF EXPORT
 // ═══════════════════════════════════════════════════
-async async function exportPDF(){
+async function exportPDF(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const cy=state.cycle;
