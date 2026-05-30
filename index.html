@@ -99,6 +99,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
+      <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
@@ -404,7 +405,7 @@ function showView(v){
   state.view=v;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -424,6 +425,7 @@ function renderCurrentView(){
   else if(v==='player')renderPlayer();
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
+  else if(v==='spiele')renderSpiele();
   else if(v==='makro')renderMakro();
   else if(v==='verlauf')renderVerlauf();
 }
