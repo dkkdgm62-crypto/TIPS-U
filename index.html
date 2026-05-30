@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta name="theme-color" content="#0d1520"/>
+<title>FE12 Old Boys · TIPS/U</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0d1520;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif}
+input,select,textarea,button{font-family:inherit}
+select option{background:#1e2a3a;color:#e2e8f0}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:2px}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!important;border-color:rgba(224,123,57,0.4)!important}
+.card{background:#111d2e;border:1px solid rgba(255,255,255,0.07);border-radius:12px}
+.badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.05em}
+.btn-nav{display:flex;align-items:center;gap:10px;padding:10px 16px;border:none;border-radius:8px;background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;font-weight:400;width:100%;text-align:left;margin:2px 0;transition:all .15s}
+.btn-nav.active{background:rgba(224,123,57,0.15);color:#e07b39;font-weight:600}
+.btn-nav:hover{background:rgba(255,255,255,0.04)}
+.cycle-btn{padding:4px 10px;font-size:11px;font-weight:700;border-radius:5px;border:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);cursor:pointer;letter-spacing:.04em;transition:all .15s}
+.cycle-btn.active{background:#e07b39;color:#fff}
+.note-select{width:64px;font-size:12px;padding:4px 2px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:600;cursor:pointer;text-align:center}
+.player-row{display:grid;grid-template-columns:40px 1fr 50px 50px 50px 50px 50px 64px 90px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background .1s}
+.player-row:hover{background:rgba(255,255,255,0.03)}
+.player-row:last-child{border-bottom:none}
+.matrix-row{display:grid;grid-template-columns:170px 68px 68px 68px 1fr;align-items:center;padding:12px 16px;gap:6px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.matrix-row:last-child{border-bottom:none}
+.sidebar{width:220px;background:#0a1018;border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:50;transition:transform .25s ease}
+.main-wrap{margin-left:220px;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#0a1018;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 16px;display:flex;align-items:center;height:56px;gap:12px;position:sticky;top:0;z-index:30;flex-shrink:0}
+.content{padding:16px;flex:1}
+.hamburger{display:none;padding:6px;background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:20px;align-items:center}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40}
+@media(max-width:767px){
+  .sidebar{transform:translateX(-220px)}
+  .sidebar.open{transform:translateX(0)}
+  .main-wrap{margin-left:0}
+  .hamburger{display:flex}
+  .overlay.show{display:block}
+  .hide-mobile{display:none!important}
+  .player-row{grid-template-columns:36px 1fr 44px 44px 44px 44px 44px 56px 0}
+  .player-row>:last-child{display:none}
+  .matrix-row{grid-template-columns:130px 58px 58px 58px 1fr}
+}
+@media(max-width:480px){
+  .matrix-row{grid-template-columns:1fr 54px 54px 54px}
+  .matrix-row .massnahme-cell{display:none}
+  .compare-grid{grid-template-columns:1fr!important}
+}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:600px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+.kader-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+.login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1520}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-wrap">
+  <div class="card" style="padding:40px;width:100%;max-width:360px;margin:0 16px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:28px;font-weight:900;letter-spacing:-.03em;background:linear-gradient(135deg,#e07b39,#c9a84c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">FE12</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:.2em;color:rgba(255,255,255,0.3);margin-top:4px">OLD BOYS · TIPS/U</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;display:block;margin-bottom:6px">E-MAIL</label>
+      <input id="loginEmail" type="email" placeholder="trainer@oldboys.ch" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:14px"/>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;display:block;margin-bottom:6px">PASSWORT</label>
+      <input id="loginPass" type="password" placeholder="••••••••" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:14px"/>
+    </div>
+    <div id="loginErr" style="color:#ef4444;font-size:12px;margin-bottom:14px;text-align:center;display:none"></div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#e07b39,#c25e1f);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.05em">ANMELDEN</button>
+    <p style="text-align:center;font-size:11px;color:rgba(255,255,255,0.2);margin-top:20px">Intern · Nur für Ausbilder & Betreuer</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" style="display:none">
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div style="padding:20px 16px 16px;flex:1">
+      <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="font-size:22px;font-weight:900;letter-spacing:-.03em;background:linear-gradient(135deg,#e07b39 30%,#c9a84c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">FE12</div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.18em;color:rgba(255,255,255,0.25);margin-top:2px">OB · 2026/27</div>
+      </div>
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.2);letter-spacing:.1em;margin-bottom:8px;padding-left:16px">NAVIGATION</div>
+      <button class="btn-nav active" id="nav-dashboard" onclick="showView('dashboard')"><i class="ti ti-layout-dashboard" style="font-size:16px;flex-shrink:0"></i>Dashboard</button>
+      <button class="btn-nav" id="nav-kader" onclick="showView('kader')"><i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>Kader</button>
+      <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
+      <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
+      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
+    </div>
+    <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
+      <button onclick="exportPDF()" style="width:100%;padding:9px;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:8px;color:#e07b39;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;letter-spacing:.04em">
+        <i class="ti ti-file-type-pdf" style="font-size:15px"></i> PDF EXPORTIEREN
+      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+        <span id="userEmail" style="font-size:11px;color:rgba(255,255,255,0.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <button onclick="doLogout()" style="width:100%;padding:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:rgba(255,255,255,0.4);font-size:11px;cursor:pointer">Abmelden</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-wrap">
+    <div class="topbar">
+      <button class="hamburger" onclick="openSidebar()"><i class="ti ti-menu-2"></i></button>
+      <div id="pageTitle" style="flex:1;font-size:15px;font-weight:600;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Dashboard</div>
+      <div id="searchBox" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:5px 10px" class="hide-mobile">
+        <i class="ti ti-search" style="font-size:13px;color:rgba(255,255,255,0.4)"></i>
+        <input id="searchInput" oninput="renderCurrentView()" placeholder="Suchen..." style="background:transparent;border:none;color:#e2e8f0;font-size:12px;width:120px"/>
+      </div>
+      <div style="display:flex;gap:3px" id="cycleBtns">
+        <button class="cycle-btn active" onclick="setCycle('z1')" id="cyc-z1">Z1</button>
+        <button class="cycle-btn" onclick="setCycle('z2')" id="cyc-z2">Z2</button>
+        <button class="cycle-btn" onclick="setCycle('z3')" id="cyc-z3">Z3</button>
+        <button class="cycle-btn" onclick="setCycle('z4')" id="cyc-z4">Z4</button>
+      </div>
+    </div>
+    <div class="content" id="mainContent"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+const SB_URL = 'https://bgotsqyodymjmxrxqjet.supabase.co';
+const SB_KEY = 'sb_publishable_7spit-n_jbLljp4CvdJODA_rZRGvfl8';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+const PLAYERS = [
+  {id:1,nr:'01',name:'Abdulahi, Leart',geb:'30.09.2015',fuss:'L',nat:'CH',verein:'BSC Old Boys',tw:false},
+  {id:2,nr:'02',name:'Altenhoff, Nick',geb:'03.09.2015',fuss:'R/L',nat:'—',verein:'BSC Old Boys',tw:true},
+  {id:3,nr:'03',name:'Avxhi, Yoris',geb:'18.04.2015',fuss:'R',nat:'AL',verein:'BSC Old Boys',tw:true},
+  {id:4,nr:'04',name:'Citaku, Besjan',geb:'10.05.2015',fuss:'R/L',nat:'—',verein:'FC Dardania BS',tw:false},
+  {id:5,nr:'05',name:'Fjeldskaar, Aksel',geb:'27.11.2015',fuss:'R/L',nat:'FRA',verein:'BSC Old Boys',tw:false},
+  {id:6,nr:'06',name:'Karaaslan, Yigit',geb:'13.09.2015',fuss:'R/L',nat:'—',verein:'BSC Old Boys',tw:false},
+  {id:7,nr:'07',name:'Kraus, Mats',geb:'18.04.2015',fuss:'R',nat:'CH',verein:'SC Steinen-Basel',tw:false},
+  {id:8,nr:'08',name:'Krebs, Manuel',geb:'11.01.2015',fuss:'R',nat:'CH',verein:'FC Telegraph BS',tw:false},
+  {id:9,nr:'09',name:'Martinez, Eder',geb:'30.10.2015',fuss:'R/L',nat:'ECU',verein:'US Olympia 1963',tw:false},
+  {id:10,nr:'10',name:'Morel, Giuliano',geb:'18.01.2015',fuss:'R/L',nat:'FRA',verein:'BSC Old Boys',tw:false},
+  {id:11,nr:'11',name:'Mulaj, Alea',geb:'21.02.2014',fuss:'R',nat:'CH',verein:'FC Oberwil',tw:false,rae:true},
+  {id:12,nr:'12',name:'Murtezani, Diar',geb:'29.04.2015',fuss:'R/L',nat:'CH',verein:'FC Nordstern BS',tw:false},
+  {id:13,nr:'13',name:'Ndomateso, Dimbu',geb:'26.01.2015',fuss:'L',nat:'COD',verein:'BSC Old Boys',tw:false},
+  {id:14,nr:'14',name:'Noorlander, Jor',geb:'20.05.2015',fuss:'R/L',nat:'CH',verein:'BSC Old Boys',tw:false},
+  {id:15,nr:'15',name:'Pluen, Tiago',geb:'31.12.2015',fuss:'R/L',nat:'FRA',verein:'BSC Old Boys',tw:false},
+  {id:16,nr:'16',name:'Schraube, Jan',geb:'08.11.2015',fuss:'R',nat:'PL',verein:'FC Allschwil',tw:false},
+  {id:17,nr:'17',name:'Selimi, Avdi',geb:'26.06.2015',fuss:'R/L',nat:'MKD',verein:'FC Nordstern BS',tw:false},
+  {id:18,nr:'18',name:'Spahiu, Luan',geb:'25.11.2015',fuss:'L',nat:'MKD',verein:'BSC Old Boys',tw:false},
+  {id:19,nr:'19',name:'Stettler, Lian Yanis',geb:'19.06.2015',fuss:'R',nat:'CH',verein:'FC Allschwil',tw:false},
+  {id:20,nr:'20',name:'Strütt, Ilkay',geb:'11.02.2016',fuss:'R/L',nat:'DE',verein:'BSC Old Boys',tw:false},
+  {id:21,nr:'21',name:'Tounkara, Noam',geb:'12.06.2015',fuss:'R/L',nat:'FRA',verein:'BSC Old Boys',tw:true},
+  {id:22,nr:'22',name:'Turi, Attila Richard',geb:'10.12.2015',fuss:'R',nat:'HUN',verein:'FC Telegraph BS',tw:false},
+  {id:23,nr:'23',name:'Yüce, Areiz',geb:'09.10.2015',fuss:'R/L',nat:'CH',verein:'FC Allschwil',tw:false},
+];
+const DIMS=['T','I','P','S','U'];
+const DIM_FULL={T:'Technik',I:'Spielintelligenz',P:'Persönlichkeit',S:'Schnelligkeit',U:'Umfeld'};
+const DIM_COLOR={T:'#e07b39',I:'#6366f1',P:'#10b981',S:'#f59e0b',U:'#3b82f6'};
+const DIM_SUB={T:['Ballkontrolle','Passqualität','Dribbling 1v1','Abschluss'],I:['Vororientierung','Entscheidung','Lösungen o.Ball','Umschalten'],P:['Motivation','Resilienz','Coachability','Teamfähigkeit'],S:['Sprintkraft','Agilität','Kognitive Schnelligkeit','Ausdauer'],U:['Schule/Fussball','Fam. Support','Eigenverantwortung','Logistik']};
+const CYCLES=[{key:'z1',short:'Z1',label:'Diagnostik',sub:'Juli – August'},{key:'z2',short:'Z2',label:'Hinrunde',sub:'Sep – Nov'},{key:'z3',short:'Z3',label:'Winterpause',sub:'Dez – Jan'},{key:'z4',short:'Z4',label:'Abschluss',sub:'Feb – Juni'}];
+const NOTES=[1,1.25,1.5,1.75,2,2.25,2.5,2.75,3,3.25,3.5,3.75,4];
+const SI_FIELDS=['wahrnehmen','loesungen','entscheidung','gegen_ball'];
+const SI_LABELS=['Wahrnehmen','Lösungen','Entscheidung','Gegen Ball'];
+
+// State
+let state = {view:'dashboard', cycle:'z1', selPlayer:null, compareIds:[], data:{}, siData:{}};
+let saveTimers = {};
+
+function initState(){
+  PLAYERS.forEach(p=>{
+    state.data[p.id]={ratings:{},notes:{},position:'',defizit:'',staerke:''};
+    CYCLES.forEach(c=>{
+      state.data[p.id].ratings[c.key]={};
+      state.data[p.id].notes[c.key]='';
+      DIMS.forEach(d=>{state.data[p.id].ratings[c.key][d]={ist:null,soll:null,massnahme:''};});
+    });
+    state.siData[p.id]={wahrnehmen:0,loesungen:0,entscheidung:0,gegen_ball:0};
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+const gap=(i,s)=>i&&s?parseFloat((s-i).toFixed(2)):null;
+const avgVals=v=>{const f=v.filter(x=>x!=null);return f.length?parseFloat((f.reduce((a,b)=>a+b,0)/f.length).toFixed(2)):null};
+const noteColor=v=>!v?'#6b7280':v<2?'#ef4444':v<3?'#f59e0b':v<4?'#22c55e':'#3b82f6';
+const gapColor=g=>g==null?'#9ca3af':g>=2?'#ef4444':g>=1?'#f59e0b':'#22c55e';
+const gapBg=g=>g==null?'transparent':g>=2?'rgba(239,68,68,0.12)':g>=1?'rgba(245,158,11,0.12)':'rgba(34,197,94,0.1)';
+const initials=n=>{const p=n.split(',');return((p[0]?.[0]||'')+(p[1]?.trim()?.[0]||'')).toUpperCase()};
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const getAvg=(pid,cy)=>avgVals(DIMS.map(d=>state.data[pid]?.ratings[cy][d].ist));
+const getMaxGap=(pid,cy)=>{let mg=null,md=null;DIMS.forEach(d=>{const g=gap(state.data[pid]?.ratings[cy][d].ist,state.data[pid]?.ratings[cy][d].soll);if(g!=null&&(mg==null||g>mg)){mg=g;md=d;}});return{gap:mg,dim:md}};
+
+function noteSelect(pid,cy,dim,field,val){
+  let opts=`<option value="">—</option>`;
+  NOTES.forEach(n=>{opts+=`<option value="${n}"${val==n?' selected':''}>${n.toFixed(2)}</option>`;});
+  return `<select class="note-select" style="color:${val?noteColor(val):'#6b7280'}" onchange="updateRating(${pid},'${cy}','${dim}','${field}',this.value?parseFloat(this.value):null)">${opts}</select>`;
+}
+
+function radarSVG(ist,soll,size=160){
+  const cx=size/2,cy=size/2,r=size*0.36;
+  const ang=i=>(i*2*Math.PI/5)-Math.PI/2;
+  const pt=(v,i)=>{const a=ang(i),sc=Math.max(0,(v-1)/3);return[cx+r*sc*Math.cos(a),cy+r*sc*Math.sin(a)]};
+  const poly=pts=>pts.map(p=>p.join(',')).join(' ');
+  const grid=lv=>DIMS.map((_,i)=>{const a=ang(i),sc=lv/4;return[cx+r*sc*Math.cos(a),cy+r*sc*Math.sin(a)]});
+  const istPts=DIMS.map((d,i)=>pt(ist[d]||1,i));
+  const sollPts=DIMS.map((d,i)=>pt(soll[d]||1,i));
+  let s=`<svg width="${size}" height="${size}">`;
+  for(let lv=1;lv<=4;lv++)s+=`<polygon points="${poly(grid(lv))}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>`;
+  DIMS.forEach((_,i)=>s+=`<line x1="${cx}" y1="${cy}" x2="${cx+r*Math.cos(ang(i))}" y2="${cy+r*Math.sin(ang(i))}" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>`);
+  if(DIMS.some(d=>soll[d]>0))s+=`<polygon points="${poly(sollPts)}" fill="rgba(99,102,241,0.15)" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4,2"/>`;
+  if(DIMS.some(d=>ist[d]>0))s+=`<polygon points="${poly(istPts)}" fill="rgba(224,123,57,0.2)" stroke="#e07b39" stroke-width="2"/>`;
+  DIMS.forEach((d,i)=>{const lx=cx+(r+14)*Math.cos(ang(i)),ly=cy+(r+14)*Math.sin(ang(i));s+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="${DIM_COLOR[d]}">${d}</text>`;});
+  s+=`</svg>`;return s;
+}
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+sb.auth.onAuthStateChange((event,session)=>{
+  if(session?.user){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('appScreen').style.display='block';
+    document.getElementById('userEmail').textContent=session.user.email;
+    loadAll();
+  } else {
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('appScreen').style.display='none';
+  }
+});
+
+async function doLogin(){
+  const email=document.getElementById('loginEmail').value;
+  const pass=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginErr');
+  err.style.display='none';
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent='Login fehlgeschlagen. E-Mail oder Passwort falsch.';err.style.display='block';}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('loginPass')===document.activeElement)doLogin();});
+async function doLogout(){await sb.auth.signOut();}
+
+// ═══════════════════════════════════════════════════
+// SUPABASE LOAD
+// ═══════════════════════════════════════════════════
+async function loadAll(){
+  initState();
+  const [r1,r2,r3,r4]=await Promise.all([
+    sb.from('ratings').select('*'),
+    sb.from('notes').select('*'),
+    sb.from('player_meta').select('*'),
+    sb.from('si_data').select('*')
+  ]);
+  (r1.data||[]).forEach(r=>{
+    if(!state.data[r.player_id])return;
+    state.data[r.player_id].ratings[r.cycle][r.dim]={ist:r.ist,soll:r.soll,massnahme:r.massnahme||''};
+  });
+  (r2.data||[]).forEach(n=>{if(state.data[n.player_id])state.data[n.player_id].notes[n.cycle]=n.content||'';});
+  (r3.data||[]).forEach(m=>{if(state.data[m.player_id]){state.data[m.player_id].position=m.position||'';state.data[m.player_id].defizit=m.defizit||'';state.data[m.player_id].staerke=m.staerke||'';}});
+  (r4.data||[]).forEach(s=>{if(state.siData[s.player_id])state.siData[s.player_id]={wahrnehmen:s.wahrnehmen||0,loesungen:s.loesungen||0,entscheidung:s.entscheidung||0,gegen_ball:s.gegen_ball||0};});
+  renderCurrentView();
+}
+
+// ═══════════════════════════════════════════════════
+// SAVE (debounced)
+// ═══════════════════════════════════════════════════
+function debSave(key,fn,delay=800){clearTimeout(saveTimers[key]);saveTimers[key]=setTimeout(fn,delay);}
+
+function saveRating(pid,cy,dim){
+  const r=state.data[pid].ratings[cy][dim];
+  debSave(`r_${pid}_${cy}_${dim}`,()=>sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'}));
+}
+function saveNote(pid,cy){debSave(`n_${pid}_${cy}`,()=>sb.from('notes').upsert({player_id:pid,cycle:cy,content:state.data[pid].notes[cy]},{onConflict:'player_id,cycle'}));}
+function saveMeta(pid){const d=state.data[pid];debSave(`m_${pid}`,()=>sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'}));}
+function saveSI(pid){const s=state.siData[pid];debSave(`si_${pid}`,()=>sb.from('si_data').upsert({player_id:pid,...s},{onConflict:'player_id'}),400);}
+
+// ═══════════════════════════════════════════════════
+// STATE UPDATERS
+// ═══════════════════════════════════════════════════
+function updateRating(pid,cy,dim,field,val){
+  state.data[pid].ratings[cy][dim][field]=val;
+  saveRating(pid,cy,dim);
+  const el=document.getElementById(`gap_${pid}_${cy}_${dim}`);
+  if(el){const g=gap(state.data[pid].ratings[cy][dim].ist,state.data[pid].ratings[cy][dim].soll);el.innerHTML=g!=null?`<span style="font-size:14px;font-weight:800;color:${gapColor(g)}">${g>=0?'+':''}${g.toFixed(2)}</span>`:`<span style="color:rgba(255,255,255,0.3)">—</span>`;}
+  const sel=document.querySelector(`[data-notesel="${pid}_${cy}_${dim}_${field}"]`);
+  if(sel)sel.style.color=val?noteColor(val):'#6b7280';
+}
+function updateMassnahme(pid,cy,dim,val){state.data[pid].ratings[cy][dim].massnahme=val;saveRating(pid,cy,dim);}
+function updateNote(pid,cy,val){state.data[pid].notes[cy]=val;saveNote(pid,cy);}
+function updateField(pid,f,val){state.data[pid][f]=val;saveMeta(pid);}
+function updateSI(pid,field,delta){
+  state.siData[pid][field]=Math.max(0,(state.siData[pid][field]||0)+delta);
+  saveSI(pid);
+  const el=document.getElementById(`si_val_${pid}_${field}`);
+  if(el)el.textContent=state.siData[pid][field];
+  const tot=document.getElementById(`si_tot_${pid}`);
+  if(tot){const t=SI_FIELDS.reduce((a,f)=>a+(state.siData[pid][f]||0),0);tot.textContent=t;tot.style.color=t>0?noteColor(Math.min(4,1+t*3/20)):'rgba(255,255,255,0.2)';}
+  const rang=document.getElementById(`si_rang_${pid}`);
+  if(rang){const t=SI_FIELDS.reduce((a,f)=>a+(state.siData[pid][f]||0),0);rang.innerHTML=t>0?`<span style="font-size:11px;font-weight:700;background:rgba(99,102,241,0.15);color:#818cf8;padding:3px 9px;border-radius:5px">${t} Pkt</span>`:`<span style="color:rgba(255,255,255,0.15);font-size:12px">—</span>`;}
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+function showView(v){
+  state.view=v;
+  document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
+  const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4'};
+  document.getElementById('pageTitle').textContent=titles[v]||v;
+  const showSearch=['dashboard','kader'].includes(v);
+  document.getElementById('searchBox').style.display=showSearch?'flex':'none';
+  renderCurrentView();
+  closeSidebar();
+}
+function setCycle(cy){
+  state.cycle=cy;
+  document.querySelectorAll('.cycle-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cyc-'+cy).classList.add('active');
+  renderCurrentView();
+}
+function renderCurrentView(){
+  const v=state.view;
+  if(v==='dashboard')renderDashboard();
+  else if(v==='kader')renderKader();
+  else if(v==='player')renderPlayer();
+  else if(v==='vergleich')renderVergleich();
+  else if(v==='si')renderSI();
+}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════
+function renderDashboard(){
+  const cy=state.cycle;
+  const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  const filtered=PLAYERS.filter(p=>p.name.toLowerCase().includes(search));
+  const cyInfo=CYCLES.find(c=>c.key===cy);
+  let rows='';
+  filtered.forEach((p,idx)=>{
+    const r=state.data[p.id].ratings[cy];
+    const a=getAvg(p.id,cy);
+    const {gap:mg,dim:md}=getMaxGap(p.id,cy);
+    rows+=`<div class="player-row" onclick="selectPlayer(${p.id})">
+      <div style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:700">${p.nr}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:26px;height:26px;border-radius:50%;background:rgba(224,123,57,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#e07b39;flex-shrink:0">${initials(p.name)}</div>
+        <div><div style="font-size:13px;font-weight:600;color:#e2e8f0">${esc(p.name)}</div>
+        <div style="display:flex;gap:4px">${p.tw?'<span class="badge" style="background:rgba(59,130,246,0.2);color:#3b82f6">TW</span>':''}${p.rae?'<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">RAE</span>':''}</div></div>
+      </div>
+      ${DIMS.map(d=>`<div style="text-align:center;font-size:12px;font-weight:700;color:${r[d].ist?noteColor(r[d].ist):'rgba(255,255,255,0.18)'}">${r[d].ist?.toFixed(2)||'—'}</div>`).join('')}
+      <div style="text-align:center;font-size:12px;font-weight:700;color:${a?noteColor(a):'rgba(255,255,255,0.18)'}">${a?.toFixed(2)||'—'}</div>
+      <div style="text-align:center">${mg!=null?`<span style="font-size:10px;font-weight:700;color:${gapColor(mg)};background:${gapBg(mg)};padding:2px 7px;border-radius:4px">${md} +${mg.toFixed(2)}${mg>=2?' ⚠':''}</span>`:'<span style="color:rgba(255,255,255,0.18);font-size:11px">—</span>'}</div>
+    </div>`;
+  });
+  document.getElementById('mainContent').innerHTML=`
+    <div class="stat-grid">
+      ${[['23','Kaderspieler','users'],['3','Torhüter','shield'],['4','Messzyklen','refresh'],['2026/27','Saison','calendar']].map(([v,l,ic])=>`
+        <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:9px;background:rgba(224,123,57,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-${ic}" style="font-size:17px;color:#e07b39"></i></div>
+          <div><div style="font-size:20px;font-weight:700;color:#e2e8f0;line-height:1">${v}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${l}</div></div>
+        </div>`).join('')}
+    </div>
+    <div class="card" style="padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;border-left:3px solid #e07b39;border-radius:0 12px 12px 0;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:#e07b39">${cyInfo.short} · ${cyInfo.label}</span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">${cyInfo.sub}</span>
+      <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,0.2)" class="hide-mobile">Gap ≥ 2 = Massnahme erforderlich</span>
+    </div>
+    <div class="card" style="overflow:auto">
+      <div style="min-width:560px">
+        <div class="player-row" style="cursor:default;border-bottom:1px solid rgba(255,255,255,0.08)">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.08em">#</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.08em">SPIELER</div>
+          ${DIMS.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:${DIM_COLOR[d]};letter-spacing:.08em">${d}</div>`).join('')}
+          <div style="text-align:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.08em">Ø</div>
+          <div style="text-align:center;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.08em">GAP</div>
+        </div>
+        ${rows}
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// KADER
+// ═══════════════════════════════════════════════════
+function renderKader(){
+  const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  const filtered=PLAYERS.filter(p=>p.name.toLowerCase().includes(search));
+  const cards=filtered.map(p=>{
+    const a=getAvg(p.id,state.cycle);
+    return `<div class="card" style="padding:14px;cursor:pointer;position:relative;overflow:hidden;transition:all .15s" onclick="selectPlayer(${p.id})" onmouseenter="this.style.background='#152236';this.style.borderColor='rgba(224,123,57,0.3)'" onmouseleave="this.style.background='#111d2e';this.style.borderColor='rgba(255,255,255,0.07)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${a?noteColor(a):'rgba(255,255,255,0.05)'},transparent)"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+        <div style="width:38px;height:38px;border-radius:9px;background:rgba(224,123,57,0.12);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#e07b39;flex-shrink:0">${initials(p.name)}</div>
+        <div><div style="font-size:12px;font-weight:700;color:#e2e8f0">${esc(p.name)}</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">${p.nr}</div></div>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:6px">${esc(p.verein)}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <span class="badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45)">${p.fuss}</span>
+        <span class="badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.45)">${p.nat}</span>
+        ${p.tw?'<span class="badge" style="background:rgba(59,130,246,0.2);color:#3b82f6">TW</span>':''}
+        ${p.rae?'<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">RAE</span>':''}
+      </div>
+      ${a?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px;color:${noteColor(a)};font-weight:700">Ø ${a.toFixed(2)}</div>`:''}
+    </div>`;
+  }).join('');
+  document.getElementById('mainContent').innerHTML=`<div class="kader-grid">${cards}</div>`;
+}
+
+function selectPlayer(id){state.selPlayer=id;showView('player');}
+
+// ═══════════════════════════════════════════════════
+// PLAYER PROFILE
+// ═══════════════════════════════════════════════════
+function renderPlayer(){
+  if(!state.selPlayer){
+    const btns=PLAYERS.map(p=>`<button onclick="selectPlayer(${p.id})" style="padding:6px 12px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.6);cursor:pointer">${p.nr} ${esc(p.name.split(',')[0])}</button>`).join('');
+    document.getElementById('mainContent').innerHTML=`<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)"><i class="ti ti-user-circle" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3"></i><div style="margin-bottom:20px;font-size:14px">Spieler auswählen</div><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:0 auto">${btns}</div></div>`;
+    return;
+  }
+  const p=PLAYERS.find(x=>x.id===state.selPlayer);
+  const pd=state.data[p.id];
+  const cy=state.cycle;
+  const im={},sm={};
+  DIMS.forEach(d=>{im[d]=pd.ratings[cy][d].ist||0;sm[d]=pd.ratings[cy][d].soll||0;});
+  const a=getAvg(p.id,cy);
+
+  const matrixRows=DIMS.map(dim=>{
+    const r=pd.ratings[cy][dim];
+    const g=gap(r.ist,r.soll);
+    return `<div class="matrix-row" style="background:${g>=2?'rgba(239,68,68,0.04)':'transparent'}">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <div style="width:26px;height:26px;border-radius:6px;background:${DIM_COLOR[dim]}22;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:${DIM_COLOR[dim]};flex-shrink:0">${dim}</div>
+          <span style="font-size:12px;font-weight:700;color:#e2e8f0">${DIM_FULL[dim]}</span>
+          ${g>=2?'<span style="font-size:9px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.12);padding:1px 5px;border-radius:3px">⚠</span>':''}
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.22);padding-left:34px" class="hide-mobile">${DIM_SUB[dim].join(' · ')}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:3px;letter-spacing:.05em">IST</div>
+        ${noteSelectDirect(p.id,cy,dim,'ist',r.ist)}
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:3px;letter-spacing:.05em">SOLL</div>
+        ${noteSelectDirect(p.id,cy,dim,'soll',r.soll)}
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:3px;letter-spacing:.05em">GAP</div>
+        <div id="gap_${p.id}_${cy}_${dim}">${g!=null?`<span style="font-size:14px;font-weight:800;color:${gapColor(g)}">${g>=0?'+':''}${g.toFixed(2)}</span>`:'<span style="color:rgba(255,255,255,0.3)">—</span>'}</div>
+      </div>
+      <div class="massnahme-cell">
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:3px;letter-spacing:.04em">MASSNAHME</div>
+        <input value="${esc(r.massnahme||'')}" oninput="updateMassnahme(${p.id},'${cy}','${dim}',this.value)" placeholder="Massnahme eintragen..." style="width:100%;font-size:11px;padding:5px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/>
+      </div>
+    </div>`;
+  }).join('');
+
+  const barProfile=DIMS.map(d=>{
+    const ist=pd.ratings[cy][d].ist; const soll=pd.ratings[cy][d].soll;
+    return `<div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:10px;font-weight:700;color:${DIM_COLOR[d]}">${d} ${DIM_FULL[d]}</span>
+        <span style="font-size:10px;font-weight:700;color:${ist?noteColor(ist):'rgba(255,255,255,0.2)'}">${ist?.toFixed(2)||'—'}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;position:relative">
+        ${soll?`<div style="position:absolute;top:0;height:100%;width:${((soll-1)/3*100).toFixed(0)}%;background:${DIM_COLOR[d]}30;border-radius:3px"></div>`:''}
+        ${ist?`<div style="position:absolute;top:0;height:100%;width:${((ist-1)/3*100).toFixed(0)}%;background:${DIM_COLOR[d]};border-radius:3px;transition:width .3s"></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const verlauf=CYCLES.map(c=>{const v=getAvg(p.id,c.key);return `<div onclick="setCycle('${c.key}')" style="flex:1;text-align:center;padding:7px 3px;border-radius:6px;background:${cy===c.key?'rgba(224,123,57,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${cy===c.key?'rgba(224,123,57,0.3)':'rgba(255,255,255,0.06)'};cursor:pointer"><div style="font-size:9px;font-weight:700;color:${cy===c.key?'#e07b39':'rgba(255,255,255,0.4)'};letter-spacing:.04em">${c.short}</div><div style="font-size:12px;font-weight:800;color:${v?noteColor(v):'rgba(255,255,255,0.15)'};margin-top:3px">${v?.toFixed(2)||'—'}</div></div>`;}).join('');
+
+  document.getElementById('mainContent').innerHTML=`
+    <div class="card" style="padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-left:4px solid #e07b39;border-radius:0 12px 12px 0">
+      <div style="width:52px;height:52px;border-radius:12px;background:rgba(224,123,57,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#e07b39;flex-shrink:0">${initials(p.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:18px;font-weight:800;color:#e2e8f0;letter-spacing:-.02em">${esc(p.name)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">
+          <span style="font-size:11px;color:rgba(255,255,255,0.4)">${p.nr} · ${p.geb} · ${esc(p.verein)}</span>
+          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${p.fuss}</span>
+          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${p.nat}</span>
+          ${p.tw?'<span class="badge" style="background:rgba(59,130,246,0.2);color:#3b82f6">TW</span>':''}
+          ${p.rae?'<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">RAE</span>':''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="if(state.selPlayer>1){state.selPlayer--;renderPlayer()}" style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;align-items:center"><i class="ti ti-chevron-left" style="font-size:16px"></i></button>
+        <button onclick="if(state.selPlayer<23){state.selPlayer++;renderPlayer()}" style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;align-items:center"><i class="ti ti-chevron-right" style="font-size:16px"></i></button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 195px;gap:14px;align-items:start">
+      <div>
+        <div class="card" style="overflow:hidden;margin-bottom:14px">
+          <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:#e2e8f0;letter-spacing:.04em">TIPS/U MATRIX</span>
+            <div style="margin-left:auto;display:flex;gap:10px;font-size:10px">
+              <span style="color:#e07b39;font-weight:700">● IST</span>
+              <span style="color:#6366f1;font-weight:700">– – SOLL</span>
+            </div>
+          </div>
+          ${matrixRows}
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:10px">TRAINER-NOTIZEN · ${CYCLES.find(c=>c.key===cy)?.label.toUpperCase()}</div>
+          <textarea oninput="updateNote(${p.id},'${cy}',this.value)" placeholder="Beobachtungen, Schwerpunkte, Kürzel + Datum..." style="width:100%;min-height:80px;font-size:12px;padding:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:#e2e8f0;resize:vertical;box-sizing:border-box;line-height:1.6">${esc(pd.notes[cy])}</textarea>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+            ${[['defizit','HAUPTDEFIZIT','z.B. T – Ballkontrolle'],['staerke','HAUPTSTÄRKE','z.B. S – Antritt 5m']].map(([f,l,ph])=>`
+              <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">${l}</div>
+              <input value="${esc(pd[f])}" oninput="updateField(${p.id},'${f}',this.value)" placeholder="${ph}" style="width:100%;font-size:12px;padding:7px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:10px">RADAR · ${cy.toUpperCase()}</div>
+          ${radarSVG(im,sm,165)}
+          ${a?`<div style="margin-top:8px;font-size:22px;font-weight:800;color:${noteColor(a)}">${a.toFixed(2)}<span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:400"> / 4.00</span></div>`:''}
+        </div>
+        <div class="card" style="padding:14px;margin-bottom:10px">${barProfile}</div>
+        <div class="card" style="padding:12px 14px;margin-bottom:10px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:8px">VERLAUF Ø</div>
+          <div style="display:flex;gap:5px">${verlauf}</div>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:6px">WUNSCHPOSITION</div>
+          <input value="${esc(pd.position)}" oninput="updateField(${p.id},'position',this.value)" placeholder="Position..." style="width:100%;font-size:12px;padding:7px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/>
+        </div>
+      </div>
+    </div>`;
+}
+
+function noteSelectDirect(pid,cy,dim,field,val){
+  let opts=`<option value="">—</option>`;
+  NOTES.forEach(n=>{opts+=`<option value="${n}"${val==n?' selected':''}>${n.toFixed(2)}</option>`;});
+  return `<select class="note-select" style="color:${val?noteColor(val):'#6b7280'}" onchange="updateRating(${pid},'${cy}','${dim}','${field}',this.value?parseFloat(this.value):null)">${opts}</select>`;
+}
+
+// ═══════════════════════════════════════════════════
+// VERGLEICH
+// ═══════════════════════════════════════════════════
+function renderVergleich(){
+  const cy=state.cycle;
+  const btns=PLAYERS.map(p=>{
+    const sel=state.compareIds.includes(p.id);
+    return `<button onclick="toggleCompare(${p.id})" style="padding:4px 9px;font-size:11px;font-weight:600;border-radius:5px;border:1px solid ${sel?'#e07b39':'rgba(255,255,255,0.08)'};background:${sel?'rgba(224,123,57,0.15)':'rgba(255,255,255,0.04)'};color:${sel?'#e07b39':'rgba(255,255,255,0.4)'};cursor:pointer">${p.nr} ${esc(p.name.split(',')[0])}</button>`;
+  }).join('');
+  let cards='';
+  if(state.compareIds.length>0){
+    cards=`<div class="compare-grid" style="display:grid;grid-template-columns:repeat(${state.compareIds.length},1fr);gap:12px">`;
+    state.compareIds.forEach(pid=>{
+      const p=PLAYERS.find(x=>x.id===pid);const pd=state.data[pid];
+      const im={},sm={};DIMS.forEach(d=>{im[d]=pd.ratings[cy][d].ist||0;sm[d]=pd.ratings[cy][d].soll||0;});
+      const a=getAvg(pid,cy);
+      const bars=DIMS.map(d=>{const ist=pd.ratings[cy][d].ist;const g=gap(ist,pd.ratings[cy][d].soll);return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:9px;font-weight:800;color:${DIM_COLOR[d]};width:12px">${d}</span><div style="flex:1;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${ist?((ist-1)/3*100):0}%;background:${DIM_COLOR[d]};border-radius:3px"></div></div><span style="font-size:10px;font-weight:700;color:${ist?noteColor(ist):'rgba(255,255,255,0.2)'};min-width:28px">${ist?.toFixed(2)||'—'}</span>${g>=2?'<span style="font-size:9px;color:#ef4444;font-weight:800">!</span>':''}</div>`;}).join('');
+      const vl=CYCLES.map(c=>{const v=getAvg(pid,c.key);return `<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:rgba(255,255,255,0.4)">${c.short}</span><span style="font-weight:700;color:${v?noteColor(v):'rgba(255,255,255,0.2)'}">${v?.toFixed(2)||'—'}</span></div>`;}).join('');
+      cards+=`<div class="card" style="padding:18px;position:relative;overflow:hidden"><div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#e07b39,#6366f1)"></div><div style="margin-bottom:12px"><div style="font-size:14px;font-weight:800;color:#e2e8f0">${esc(p.name)}</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">${p.nr} · ${esc(p.verein)}</div></div><div style="display:flex;justify-content:center;margin-bottom:12px">${radarSVG(im,sm,145)}</div>${a?`<div style="text-align:center;font-size:20px;font-weight:800;color:${noteColor(a)};margin-bottom:12px">${a.toFixed(2)}<span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:400"> Ø</span></div>`:''}<div>${bars}</div><div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">${vl}</div></div>`;
+    });
+    cards+=`</div>`;
+  } else {
+    cards=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.4)"><i class="ti ti-git-compare" style="font-size:40px;display:block;margin-bottom:10px;opacity:.3"></i>Spieler oben auswählen</div>`;
+  }
+  document.getElementById('mainContent').innerHTML=`<div class="card" style="padding:14px 16px;margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:10px">SPIELER AUSWÄHLEN (max. 3)</div><div style="display:flex;gap:5px;flex-wrap:wrap">${btns}</div></div>${cards}`;
+}
+function toggleCompare(id){
+  if(state.compareIds.includes(id))state.compareIds=state.compareIds.filter(x=>x!==id);
+  else if(state.compareIds.length<3)state.compareIds.push(id);
+  renderVergleich();
+}
+
+// ═══════════════════════════════════════════════════
+// SI ERFASSUNG
+// ═══════════════════════════════════════════════════
+function renderSI(){
+  const SI_COLORS=[DIM_COLOR.T,DIM_COLOR.I,DIM_COLOR.S,DIM_COLOR.P];
+  const rows=PLAYERS.map((p,idx)=>{
+    const s=state.siData[p.id]||{wahrnehmen:0,loesungen:0,entscheidung:0,gegen_ball:0};
+    const total=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);
+    const cells=SI_FIELDS.map((f,fi)=>`<td style="text-align:center;padding:6px 8px"><div style="display:flex;align-items:center;justify-content:center;gap:4px"><button onclick="updateSI(${p.id},'${f}',-1)" style="width:22px;height:22px;border-radius:5px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);cursor:pointer;color:rgba(255,255,255,0.35);font-size:15px;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button><span id="si_val_${p.id}_${f}" style="font-size:15px;font-weight:800;color:${s[f]>0?SI_COLORS[fi]:'rgba(255,255,255,0.2)'};min-width:22px;text-align:center">${s[f]||0}</span><button onclick="updateSI(${p.id},'${f}',1)" style="width:22px;height:22px;border-radius:5px;border:1px solid ${SI_COLORS[fi]}44;background:${SI_COLORS[fi]}15;cursor:pointer;color:${SI_COLORS[fi]};font-size:15px;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button></div></td>`).join('');
+    return `<tr style="border-bottom:${idx<22?'1px solid rgba(255,255,255,0.04)':'none'}" onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background='transparent'">
+      <td style="padding:9px 12px;font-size:10px;color:rgba(255,255,255,0.25);font-weight:700">${p.nr}</td>
+      <td style="padding:9px 12px"><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:7px;background:rgba(224,123,57,0.12);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#e07b39;flex-shrink:0">${initials(p.name)}</div><span style="font-size:12px;font-weight:600;color:#e2e8f0">${esc(p.name)}</span></div></td>
+      ${cells}
+      <td style="text-align:center;padding:9px 8px"><span id="si_tot_${p.id}" style="font-size:15px;font-weight:800;color:${total>0?noteColor(Math.min(4,1+total*3/20)):'rgba(255,255,255,0.2)'}">${total}</span></td>
+      <td style="text-align:center;padding:9px 8px" id="si_rang_${p.id}">${total>0?`<span style="font-size:11px;font-weight:700;background:rgba(99,102,241,0.15);color:#818cf8;padding:3px 9px;border-radius:5px">${total} Pkt</span>`:'<span style="color:rgba(255,255,255,0.15);font-size:12px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mainContent').innerHTML=`
+    <div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:rgba(255,255,255,0.4)">Spielform: <strong style="color:#e07b39">4v4 (+TW)</strong></span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.4)">Dauer: <strong style="color:#e07b39">3–4 Min.</strong></span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.2)" class="hide-mobile">SFV / EHSM Magglingen</span>
+      <button onclick="if(confirm('SI-Daten zurücksetzen?')){PLAYERS.forEach(p=>{state.siData[p.id]={wahrnehmen:0,loesungen:0,entscheidung:0,gegen_ball:0};});renderSI();}" style="margin-left:auto;padding:6px 14px;font-size:11px;font-weight:700;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:#ef4444;cursor:pointer">RESET</button>
+    </div>
+    <div class="card" style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:580px">
+        <thead><tr style="border-bottom:1px solid rgba(255,255,255,0.08)">
+          <th style="text-align:left;padding:11px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.3)">#</th>
+          <th style="text-align:left;padding:11px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.3)">SPIELER</th>
+          ${SI_LABELS.map((h,i)=>`<th style="text-align:center;padding:11px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;color:${SI_COLORS[i]}">${h.toUpperCase()}</th>`).join('')}
+          <th style="text-align:center;padding:11px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.3)">TOTAL</th>
+          <th style="text-align:center;padding:11px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;color:rgba(255,255,255,0.3)">SI-RANG</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px;padding:0 4px">Hinweis: SI-Rang ist ein Hilfsmittel, kein Urteil.</p>`;
+}
+
+// ═══════════════════════════════════════════════════
+// PDF EXPORT
+// ═══════════════════════════════════════════════════
+function exportPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const cy=state.cycle;
+  const cyLabel=CYCLES.find(c=>c.key===cy)?.label||cy;
+  doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
+  doc.setTextColor(226,232,240);doc.setFontSize(20);doc.setFont(undefined,'bold');
+  doc.text('FE12 — Old Boys',14,20);
+  doc.setFontSize(11);doc.setFont(undefined,'normal');doc.setTextColor(160,170,185);
+  doc.text(`TIPS/U Saison-Masterplan · ${cyLabel} · ${new Date().toLocaleDateString('de-CH')}`,14,28);
+  doc.setDrawColor(224,123,57);doc.setLineWidth(0.5);doc.line(14,31,196,31);
+  let y=40;
+  PLAYERS.forEach((p,idx)=>{
+    if(y>250){doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');y=20;}
+    const pd=state.data[p.id];
+    doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
+    doc.text(`${p.nr}  ${p.name}`,14,y);
+    doc.setFontSize(9);doc.setFont(undefined,'normal');doc.setTextColor(120,130,145);
+    doc.text(`${p.geb} · ${p.fuss} · ${p.nat} · ${p.verein}${p.tw?' · TW':''}${p.rae?' · RAE':''}`,14,y+5);
+    const rows=DIMS.map(dim=>{
+      const r=pd.ratings[cy][dim];const g=gap(r.ist,r.soll);
+      return[`${dim} · ${DIM_FULL[dim]}`,r.ist?.toFixed(2)||'—',r.soll?.toFixed(2)||'—',g!=null?(g>=0?'+':'')+g.toFixed(2)+(g>=2?' ⚠':''):'—',r.massnahme||''];
+    });
+    doc.autoTable({startY:y+8,head:[['Dimension','IST','SOLL','Gap','Massnahme']],body:rows,theme:'plain',styles:{fontSize:8,cellPadding:2,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:40},1:{cellWidth:16,halign:'center'},2:{cellWidth:16,halign:'center'},3:{cellWidth:16,halign:'center'},4:{cellWidth:100}},margin:{left:14,right:14}});
+    y=doc.lastAutoTable.finalY+4;
+    if(pd.notes[cy]){doc.setFontSize(8);doc.setTextColor(120,130,145);doc.text(`Notizen: ${pd.notes[cy].substring(0,200)}`,14,y);y+=5;}
+    if(pd.defizit){doc.setFontSize(8);doc.setTextColor(239,68,68);doc.text(`Defizit: ${pd.defizit}`,14,y);y+=4;}
+    if(pd.staerke){doc.setFontSize(8);doc.setTextColor(34,197,94);doc.text(`Stärke: ${pd.staerke}`,14,y);y+=4;}
+    y+=4;
+    if(idx<PLAYERS.length-1){doc.setDrawColor(40,55,70);doc.setLineWidth(0.3);doc.line(14,y-1,196,y-1);}
+  });
+  // SI page
+  doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
+  doc.setFontSize(14);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
+  doc.text('SI-Erfassung · 4v4 Spielintelligenz',14,20);
+  const siRows=PLAYERS.map(p=>{const s=state.siData[p.id];const t=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);return[p.nr,p.name,s.wahrnehmen,s.loesungen,s.entscheidung,s.gegen_ball,t];});
+  doc.autoTable({startY:28,head:[['#','Spieler','Wahrnehmen','Lösungen','Entscheidung','Gegen Ball','Total']],body:siRows,theme:'plain',styles:{fontSize:9,cellPadding:2.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:12},1:{cellWidth:55},2:{halign:'center'},3:{halign:'center'},4:{halign:'center'},5:{halign:'center'},6:{halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
+  doc.save(`FE12_OldBoys_${cyLabel}_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// Init
+initState();
+</script>
+</body>
+</html>
