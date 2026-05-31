@@ -396,22 +396,28 @@ async function loadAll(){
 // ═══════════════════════════════════════════════════
 let currentUserEmail = '';
 
+// Bereich-Zuordnung für den Tages-Sammeleintrag
+const AREA_OF = {rating:'matrix', note:'profil', meta:'profil', si:'si', tips:'detail', match:'spiele'};
+const AREA_LABEL = {matrix:'TIPS/U Matrix', profil:'Profil / Notizen', si:'SI-Erfassung', detail:'TIPS-Detailbogen', spiele:'Spiele', sonstiges:'Sonstiges'};
+
+// Ein Eintrag pro Tag + Benutzer + Bereich (wird über den Tag fortgeschrieben)
 async function logActivity(pid, actionType, details, cycle, dim, fieldName, oldVal, newVal) {
   if (!currentUserEmail) return;
+  const area = AREA_OF[actionType] || 'sonstiges';
+  const today = new Date().toISOString().slice(0,10);
   const p = PLAYERS.find(x => x.id === pid);
   try {
-    const { error } = await sb.from('activity_log').insert({
+    const { error } = await sb.from('activity_log').upsert({
       user_email: currentUserEmail,
+      log_date: today,
+      area: area,
       player_id: pid || null,
       player_name: p ? p.name : null,
       action_type: actionType,
       cycle: cycle || null,
-      dim: dim || null,
-      field_name: fieldName || null,
-      old_value: oldVal != null ? String(oldVal) : null,
-      new_value: newVal != null ? String(newVal) : null,
-      details: details || null
-    });
+      details: AREA_LABEL[area] || area,
+      created_at: new Date().toISOString()
+    }, { onConflict: 'user_email,log_date,area' });
     if (error) console.error('logActivity error:', error.message);
   } catch(e) { console.error('logActivity', e); }
 }
@@ -440,29 +446,32 @@ function formatTSShort(ts){
   const p=n=>String(n).padStart(2,'0');
   return p(d.getDate())+'.'+p(d.getMonth()+1)+'. '+p(d.getHours())+':'+p(d.getMinutes());
 }
+function formatDay(d){
+  if(!d) return '';
+  const parts=String(d).slice(0,10).split('-');
+  return parts[2]+'.'+parts[1]+'.';
+}
+function timeShort(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes());}
+
 async function fillStamp(containerId, opts){
   const el=document.getElementById(containerId);
   if(!el) return;
   try{
-    let q=sb.from('activity_log').select('*').order('created_at',{ascending:false}).limit(5);
-    if(!opts.allPlayers && opts.pid!=null) q=q.eq('player_id',opts.pid);
-    if(opts.types) q=q.in('action_type',opts.types);
-    if(opts.cycle) q=q.eq('cycle',opts.cycle);
-    const {data}=await q;
+    const {data}=await sb.from('activity_log').select('*').eq('area',opts.area).order('log_date',{ascending:false}).order('created_at',{ascending:false}).limit(5);
     const rows=data||[];
     if(rows.length===0){ el.innerHTML='<span style="font-size:10px;color:rgba(255,255,255,0.25)">Noch keine Änderung erfasst</span>'; return; }
     const last=rows[0];
     const uid=containerId+'_list';
     const list=rows.map(r=>`<div style="display:flex;gap:8px;font-size:10px;padding:4px 0;border-top:1px solid rgba(255,255,255,0.05)">
       <span style="color:#e07b39;font-weight:700;min-width:58px">${esc(userShort(r.user_email))}</span>
-      <span style="color:rgba(255,255,255,0.35);min-width:74px;white-space:nowrap">${formatTSShort(r.created_at)}</span>
-      <span style="color:rgba(255,255,255,0.45);flex:1">${esc(r.details||'')}</span>
+      <span style="color:rgba(255,255,255,0.4);min-width:92px;white-space:nowrap">${formatDay(r.log_date)} ${timeShort(r.created_at)}</span>
+      <span style="color:rgba(255,255,255,0.45);flex:1">${esc(AREA_LABEL[r.area]||r.area||'')}</span>
     </div>`).join('');
     el.innerHTML=`
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <i class="ti ti-history" style="font-size:12px;color:rgba(255,255,255,0.3)"></i>
-        <span style="font-size:10.5px;color:rgba(255,255,255,0.5)">Zuletzt: <b style="color:#e07b39">${esc(userShort(last.user_email))}</b> · ${formatTSShort(last.created_at)}</span>
-        <button onclick="var l=document.getElementById('${uid}');l.style.display=l.style.display==='none'?'block':'none'" style="font-size:9.5px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:5px;padding:2px 8px;cursor:pointer">letzte 5 ▾</button>
+        <span style="font-size:10.5px;color:rgba(255,255,255,0.5)">Zuletzt: <b style="color:#e07b39">${esc(userShort(last.user_email))}</b> · ${formatDay(last.log_date)} ${timeShort(last.created_at)}</span>
+        <button onclick="var l=document.getElementById('${uid}');l.style.display=l.style.display==='none'?'block':'none'" style="font-size:9.5px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:5px;padding:2px 8px;cursor:pointer">letzte 5 Tage ▾</button>
       </div>
       <div id="${uid}" style="display:none;margin-top:5px">${list}</div>`;
   }catch(e){ console.error('fillStamp',e); el.innerHTML=''; }
@@ -474,12 +483,12 @@ function refreshStamps(){
   const v=state.view;
   let bars=[];
   if(v==='player' && state.selPlayer && !state.editPlayer){
-    bars.push({id:'stamp_matrix',label:'TIPS/U MATRIX · '+state.cycle.toUpperCase(),pid:state.selPlayer,types:['rating'],cycle:state.cycle});
-    bars.push({id:'stamp_profil',label:'PROFIL / NOTIZEN',pid:state.selPlayer,types:['meta','note']});
+    bars.push({id:'stamp_matrix',label:'TIPS/U MATRIX',area:'matrix'});
+    bars.push({id:'stamp_profil',label:'PROFIL / NOTIZEN',area:'profil'});
   } else if(v==='si'){
-    bars.push({id:'stamp_si',label:'SI-ERFASSUNG',allPlayers:true,types:['si']});
+    bars.push({id:'stamp_si',label:'SI-ERFASSUNG',area:'si'});
   } else if(v==='detail' && state.tipsSelPlayer){
-    bars.push({id:'stamp_tips',label:'TIPS-DETAILBOGEN · '+state.cycle.toUpperCase(),pid:state.tipsSelPlayer,types:['tips'],cycle:state.cycle});
+    bars.push({id:'stamp_tips',label:'TIPS-DETAILBOGEN',area:'detail'});
   }
   if(bars.length===0) return;
   const wrap=document.createElement('div');
