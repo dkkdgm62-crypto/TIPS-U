@@ -479,7 +479,8 @@ async function fillStamp(containerId, opts){
 function refreshStamps(){
   const mc=document.getElementById('mainContent');
   if(!mc) return;
-  const old=document.getElementById('stampBar'); if(old) old.remove();
+  const oldS=document.getElementById('stampBar'); if(oldS) oldS.remove();
+  const oldN=document.getElementById('navBar'); if(oldN) oldN.remove();
   const v=state.view;
   let bars=[];
   if(v==='player' && state.selPlayer && !state.editPlayer){
@@ -490,13 +491,26 @@ function refreshStamps(){
   } else if(v==='detail' && state.tipsSelPlayer){
     bars.push({id:'stamp_tips',label:'TIPS-DETAILBOGEN',area:'detail'});
   }
-  if(bars.length===0) return;
-  const wrap=document.createElement('div');
-  wrap.id='stampBar';
-  wrap.style.cssText='display:grid;grid-template-columns:'+(bars.length>1?'1fr 1fr':'1fr')+';gap:10px;margin-bottom:12px';
-  wrap.innerHTML=bars.map(b=>`<div class="card" style="padding:9px 14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.06em;margin-bottom:5px">${b.label}</div><div id="${b.id}"><span style="font-size:10px;color:rgba(255,255,255,0.2)">lade…</span></div></div>`).join('');
-  mc.insertBefore(wrap, mc.firstChild);
-  bars.forEach(b=>fillStamp(b.id,b));
+  // Stempel-Leiste (falls Bereich Stempel hat)
+  if(bars.length>0){
+    const wrap=document.createElement('div');
+    wrap.id='stampBar';
+    wrap.style.cssText='display:grid;grid-template-columns:'+(bars.length>1?'1fr 1fr':'1fr')+';gap:10px;margin-bottom:12px';
+    wrap.innerHTML=bars.map(b=>`<div class="card" style="padding:9px 14px"><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.06em;margin-bottom:5px">${b.label}</div><div id="${b.id}"><span style="font-size:10px;color:rgba(255,255,255,0.2)">lade…</span></div></div>`).join('');
+    mc.insertBefore(wrap, mc.firstChild);
+    bars.forEach(b=>fillStamp(b.id,b));
+  }
+  // Navigations-Leiste (alle Bereiche ausser Dashboard) – ganz oben
+  if(v!=='dashboard'){
+    const nav=document.createElement('div');
+    nav.id='navBar';
+    nav.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap';
+    nav.innerHTML=`
+      <button onclick="goBack()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Zurück</button>
+      <span style="color:rgba(255,255,255,0.15)">|</span>
+      <button onclick="showView('dashboard')" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#e07b39;background:rgba(224,123,57,0.1);border:1px solid rgba(224,123,57,0.25);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:700"><i class="ti ti-layout-dashboard"></i> Zum Dashboard</button>`;
+    mc.insertBefore(nav, mc.firstChild);
+  }
 }
 
 function actionLabel(type) {
@@ -645,7 +659,16 @@ function updateSI(pid,field,delta){
 // ═══════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════
+let _navBack=false;
+function goBack(){
+  if(!state.navStack) state.navStack=[];
+  if(state.navStack.length>0){ _navBack=true; showView(state.navStack.pop()); }
+  else { showView('dashboard'); }
+}
 function showView(v){
+  if(!state.navStack) state.navStack=[];
+  if(!_navBack && state.view && state.view!==v){ state.navStack.push(state.view); if(state.navStack.length>40) state.navStack.shift(); }
+  _navBack=false;
   state.view=v;
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
@@ -674,6 +697,7 @@ function renderCurrentView(){
   else if(v==='spiele')renderSpiele();
   else if(v==='makro')renderMakro();
   else if(v==='verlauf')renderVerlauf();
+  refreshStamps();
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
@@ -1871,6 +1895,7 @@ function buildVerlaufHTML(logs){
       </table>
     </div>
     <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px">Alle Änderungen werden automatisch mit Zeitstempel archiviert. Max. 300 Einträge angezeigt.</p>`;
+  refreshStamps();
 }
 
 // ═══════════════════════════════════════════════════
