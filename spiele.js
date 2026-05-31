@@ -130,7 +130,11 @@ function renderMatchDetail(){
   var ini = (typeof initials==='function') ? initials : function(n){return n.substring(0,2).toUpperCase();};
 
   var out = '';
-  out += '<button onclick="matchView=\'list\';selMatch=null;renderSpiele()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.5);background:none;border:none;cursor:pointer;margin-bottom:14px"><i class="ti ti-arrow-left"></i> Zurück zu allen Spielen</button>';
+  out += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
+  out += '<button onclick="matchView=\'list\';selMatch=null;renderSpiele()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.5);background:none;border:none;cursor:pointer"><i class="ti ti-arrow-left"></i> Zurück zu allen Spielen</button>';
+  out += '<span style="color:rgba(255,255,255,0.15)">|</span>';
+  out += '<button onclick="matchView=\'list\';selMatch=null;showView(\'dashboard\')" style="display:flex;align-items:center;gap:5px;font-size:13px;color:#e07b39;background:rgba(224,123,57,0.1);border:1px solid rgba(224,123,57,0.2);border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:600"><i class="ti ti-layout-dashboard"></i> Zum Dashboard</button>';
+  out += '</div>';
   out += '<div style="background:#111d2e;border:1px solid rgba(255,255,255,0.07);border-left:4px solid '+t.color+';border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:14px"><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">';
   out += '<div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);margin-bottom:4px">SPIELTYP</div><select onchange="saveMatch(\''+m.id+'\',\'typ\',this.value,\''+m.typ+'\');renderSpiele()" style="font-size:13px;padding:7px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:'+t.color+';font-weight:700">';
   SPIEL_TYPEN.forEach(function(st){ out += '<option value="'+st.key+'"'+(m.typ===st.key?' selected':'')+'>'+st.label+'</option>'; });
