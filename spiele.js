@@ -8,10 +8,10 @@ var matchView = 'list';
 
 var SPIEL_TYPEN = [
   {key:'meisterschaft', label:'Meisterschaftsspiel', color:'#22c55e'},
-  {key:'testspiel', label:'Testspiel', color:'#3b82f6'},
-  {key:'rasenturnier', label:'Rasen-Turnier', color:'#f59e0b'},
-  {key:'hallenturnier', label:'Hallen-Turnier', color:'#a855f7'},
-  {key:'intensivwoche', label:'Intensivwoche', color:'#ef4444'}
+  {key:'testspiel',     label:'Testspiel',           color:'#3b82f6'},
+  {key:'rasenturnier',  label:'Rasen-Turnier',        color:'#f59e0b'},
+  {key:'hallenturnier', label:'Hallen-Turnier',        color:'#a855f7'},
+  {key:'intensivwoche', label:'Intensivwoche',         color:'#ef4444'}
 ];
 function typInfo(k){ return SPIEL_TYPEN.find(function(t){return t.key===k;}) || SPIEL_TYPEN[0]; }
 
@@ -178,24 +178,126 @@ function renderMatchDetail(){
   document.getElementById('mainContent').innerHTML = out;
 }
 
+// ═══════════════════════════════════════════════════
+// DASHBOARD WIDGET – Nächste 2 Events ab heute
+// ═══════════════════════════════════════════════════
 async function loadDashMatches(){
   var el = document.getElementById('dashMatches');
   if(!el) return;
-  if(matchesData.length===0){ await loadMatches(); }
-  if(matchesData.length===0) return;
-  var recent = matchesData.slice(0,3);
-  var out = '<div style="background:#111d2e;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><i class="ti ti-ball-football" style="color:#e07b39;font-size:16px"></i><span style="font-size:13px;font-weight:700;color:#e2e8f0">Letzte Spiele</span>';
-  out += '<button onclick="showView(\'spiele\')" style="margin-left:auto;padding:5px 12px;font-size:11px;font-weight:700;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:6px;color:#e07b39;cursor:pointer">Alle Spiele →</button></div><div style="display:flex;gap:10px;flex-wrap:wrap">';
-  recent.forEach(function(m){
+  if(matchesData.length === 0){ await loadMatches(); }
+  if(matchesData.length === 0) return;
+
+  var today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Alle Einträge mit Datum >= heute, aufsteigend sortiert → nächste 2
+  var upcoming = matchesData
+    .filter(function(m){ return m.datum && new Date(m.datum) >= today; })
+    .sort(function(a,b){ return new Date(a.datum) - new Date(b.datum); })
+    .slice(0, 2);
+
+  // Letztes Spiel (vor heute, absteigend → index 0)
+  var past = matchesData
+    .filter(function(m){ return m.datum && new Date(m.datum) < today; })
+    .sort(function(a,b){ return new Date(b.datum) - new Date(a.datum); })
+    .slice(0, 1);
+
+  // Wenn keine kommenden Events → Widget leer lassen
+  if(upcoming.length === 0 && past.length === 0) return;
+
+  // ── Hilfsfunktion: Tage bis Event ─────────────────
+  function daysUntil(datumStr){
+    var d = new Date(datumStr);
+    d.setHours(0,0,0,0);
+    var diff = Math.round((d - today) / 86400000);
+    if(diff === 0) return {label:'HEUTE', color:'#ef4444'};
+    if(diff === 1) return {label:'MORGEN', color:'#f59e0b'};
+    if(diff <= 7)  return {label:'in '+diff+' Tagen', color:'#f59e0b'};
+    return {label:'in '+diff+' Tagen', color:'rgba(255,255,255,0.4)'};
+  }
+
+  // ── Upcoming-Karte ─────────────────────────────────
+  function upcomingCard(m, isNext){
     var t = typInfo(m.typ);
-    var hasResult = m.tore_eigen!=null && m.tore_gegner!=null;
+    var aufgebot = matchPlayersData[m.id] || {};
+    var dabeiCount = Object.values(aufgebot).filter(function(p){return p.dabei;}).length;
+    var du = daysUntil(m.datum);
+    var datStr = new Date(m.datum).toLocaleDateString('de-CH', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'});
+
+    var borderStyle = isNext
+      ? 'border:1.5px solid '+t.color+';background:'+t.color+'0f'
+      : 'border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02)';
+
+    var card = '<div style="flex:1;min-width:200px;'+borderStyle+';border-radius:10px;padding:14px;cursor:pointer;position:relative;overflow:hidden" onclick="selMatch=\''+m.id+'\';matchView=\'detail\';showView(\'spiele\')">';
+
+    // Farbiger Balken oben
+    card += '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+t.color+'"></div>';
+
+    // Typ-Badge + Countdown
+    card += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">';
+    card += '<span style="font-size:8px;font-weight:700;color:'+t.color+';background:'+t.color+'22;padding:2px 7px;border-radius:3px;letter-spacing:.05em">'+t.label.toUpperCase()+'</span>';
+    if(isNext){
+      card += '<span style="font-size:9px;font-weight:800;color:'+du.color+';background:'+du.color+'18;padding:2px 7px;border-radius:3px;margin-left:auto">'+du.label+'</span>';
+    } else {
+      card += '<span style="font-size:9px;color:rgba(255,255,255,0.3);margin-left:auto">'+du.label+'</span>';
+    }
+    card += '</div>';
+
+    // Gegner / Event-Name
+    var titel = m.typ === 'intensivwoche'
+      ? (m.gegner || 'Intensivwoche')
+      : 'FE12 vs ' + escSp(m.gegner || '?');
+    card += '<div style="font-size:'+(isNext?'15':'13')+'px;font-weight:700;color:#e2e8f0;margin-bottom:4px">'+titel+'</div>';
+
+    // Datum + Ort
+    card += '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:8px">'+datStr+(m.ort?' · '+escSp(m.ort):'')+'</div>';
+
+    // Aufgebot-Zeile
+    card += '<div style="display:flex;align-items:center;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05)">';
+    card += '<i class="ti ti-users" style="font-size:11px;color:rgba(255,255,255,0.35)"></i>';
+    card += '<span style="font-size:10px;color:rgba(255,255,255,0.4)">'+dabeiCount+' im Aufgebot</span>';
+    if(isNext && dabeiCount === 0){
+      card += '<span style="margin-left:auto;font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.12);padding:2px 7px;border-radius:3px">Aufgebot fehlt</span>';
+    }
+    card += '</div>';
+    card += '</div>';
+    return card;
+  }
+
+  // ── Letztes Spiel (kompakt) ────────────────────────
+  function pastCard(m){
+    var t = typInfo(m.typ);
+    var hasResult = m.tore_eigen != null && m.tore_gegner != null;
     var resultStr = hasResult ? (m.tore_eigen+':'+m.tore_gegner) : '–:–';
-    var resultColor = hasResult ? (m.tore_eigen>m.tore_gegner?'#22c55e':m.tore_eigen<m.tore_gegner?'#ef4444':'#f59e0b') : 'rgba(255,255,255,0.3)';
-    out += '<div style="flex:1;min-width:160px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;cursor:pointer" onclick="selMatch=\''+m.id+'\';matchView=\'detail\';showView(\'spiele\')">';
-    out += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:8px;font-weight:700;color:'+t.color+';background:'+t.color+'22;padding:2px 6px;border-radius:3px">'+t.label.toUpperCase()+'</span><span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.4)">'+(m.datum?new Date(m.datum).toLocaleDateString('de-CH'):'')+'</span></div>';
-    out += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;font-weight:600;color:#e2e8f0">vs '+escSp(m.gegner||'?')+'</span><span style="font-size:16px;font-weight:800;color:'+resultColor+'">'+resultStr+'</span></div></div>';
-  });
-  out += '</div></div>';
+    var resultColor = hasResult
+      ? (m.tore_eigen > m.tore_gegner ? '#22c55e' : m.tore_eigen < m.tore_gegner ? '#ef4444' : '#f59e0b')
+      : 'rgba(255,255,255,0.3)';
+    var datStr = new Date(m.datum).toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'});
+    return '<div style="flex:1;min-width:160px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;cursor:pointer;opacity:0.75" onclick="selMatch=\''+m.id+'\';matchView=\'detail\';showView(\'spiele\')">'
+      +'<div style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.3);letter-spacing:.07em;margin-bottom:6px">LETZTES SPIEL</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7)">FE12 vs '+escSp(m.gegner||'?')+'</span>'
+      +'<span style="font-size:16px;font-weight:800;color:'+resultColor+'">'+resultStr+'</span>'
+      +'</div>'
+      +'<div style="font-size:9px;color:rgba(255,255,255,0.3)">'+datStr+(m.ort?' · '+escSp(m.ort):'')+'</div>'
+      +'</div>';
+  }
+
+  // ── Widget zusammenbauen ───────────────────────────
+  var out = '<div style="background:linear-gradient(135deg,#0f1a28,#111d2e);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;margin-bottom:16px">';
+  out += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">';
+  out += '<i class="ti ti-ball-football" style="color:#e07b39;font-size:18px"></i>';
+  out += '<span style="font-size:14px;font-weight:700;color:#e2e8f0">Nächste Events</span>';
+  if(upcoming.length === 0) out += '<span style="font-size:11px;color:rgba(255,255,255,0.3)">Keine anstehenden Spiele</span>';
+  out += '<button onclick="showView(\'spiele\')" style="margin-left:auto;padding:5px 12px;font-size:11px;font-weight:700;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:6px;color:#e07b39;cursor:pointer">Alle Spiele →</button>';
+  out += '</div>';
+
+  out += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+  upcoming.forEach(function(m, i){ out += upcomingCard(m, i === 0); });
+  if(past.length > 0) out += pastCard(past[0]);
+  out += '</div>';
+  out += '</div>';
+
   el.innerHTML = out;
 }
 
