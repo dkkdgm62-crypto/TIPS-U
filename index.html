@@ -97,6 +97,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav active" id="nav-dashboard" onclick="showView('dashboard')"><i class="ti ti-layout-dashboard" style="font-size:16px;flex-shrink:0"></i>Dashboard</button>
       <button class="btn-nav" id="nav-kader" onclick="showView('kader')"><i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>Kader</button>
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
+      <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>Detailbogen</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
       <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
@@ -382,6 +383,7 @@ async function loadAll(){
   (r3.data||[]).forEach(m=>{if(state.data[m.player_id]){state.data[m.player_id].position=m.position||'';state.data[m.player_id].defizit=m.defizit||'';state.data[m.player_id].staerke=m.staerke||'';}});
   (r4.data||[]).forEach(s=>{if(state.siData[s.player_id])state.siData[s.player_id]={wahrnehmen:s.wahrnehmen||0,loesungen:s.loesungen||0,entscheidung:s.entscheidung||0,gegen_ball:s.gegen_ball||0};});
   ensureStateForPlayers();
+  await loadTipsDetail();
   renderCurrentView();
 }
 
@@ -509,6 +511,7 @@ function updateSI(pid,field,delta){
 // ═══════════════════════════════════════════════════
 function showView(v){
   state.view=v;
+  if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
   const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
@@ -529,6 +532,7 @@ function renderCurrentView(){
   if(v==='dashboard')renderDashboard();
   else if(v==='kader')renderKader();
   else if(v==='player')renderPlayer();
+  else if(v==='detail')renderTipsDetail();
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
   else if(v==='spiele')renderSpiele();
@@ -1197,6 +1201,229 @@ async function exportSingleProfilePDF(pid) {
   drawPlayerCard(doc, p, cy, cardX, cardY, cardW, cardH);
 
   doc.save(`FE12_Profil_${p.name.replace(/[^a-zA-Z0-9]/g,'_')}_${cyLabel}_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// ═══════════════════════════════════════════════════
+// TIPS DETAILBOGEN (Kriterienbogen T/I/P/S · Skala 1–4)
+// ═══════════════════════════════════════════════════
+const TIPS_CATS = [
+  {key:'T',title:'Technik',desc:'Fliessende Bewegungen · Präzision · Dosierung',motto:'«Der Ball ist sein/ihr Freund!»',items:[
+    'hat einen kontrollierten, dynamischen und orientierten 1. Kontakt',
+    'überzeugt durch enges, rhythmisches Ballführen',
+    'hat den Ball auch unter Druck unter Kontrolle und nutzt alle Varianten (Innen-, Aussen-, Vollrist, Sohle, Ferse)',
+    'beherrscht Drehungen / Richtungswechsel auf beide Seiten',
+    'beherrscht (auch unter Druck) verschiedene Finten und setzt diese im 1vs1 gezielt ein',
+    'dosiert die Pässe je nach Spielsituation richtig',
+    'schiesst und passt beidfüssig präzise'
+  ]},
+  {key:'I',title:'Intelligent',desc:'Spielidee · Orientierung · Entscheid',motto:'«Er/Sie bietet und findet Lösungen!»',items:[
+    'ist aufmerksam, orientiert sich durch Schulterblick und offene Körperposition und findet eine gute Spielfortsetzung',
+    'löst den Blick vom Ball, behält die Übersicht und trifft schnelle, richtige Entscheidungen (Vertikal vs. Verlagerung)',
+    'erkennt und schafft freie Räume und passt seine Position laufend der Spielsituation an',
+    'erkennt und schafft Überzahlsituationen und trifft die richtigen Entscheidungen',
+    'erkennt Unterzahlsituationen und kann diese lösen',
+    'antizipiert die Spielsituation und -entwicklung',
+    'verhält sich im offensiven 1v1 richtig (Rhythmus 2-1-2) und kann sich durchsetzen',
+    'verhält sich im defensiven 1v1 richtig (Rhythmus 2-1-2) und kann sich durchsetzen',
+    'bleibt in der Box cool und abgebrüht'
+  ]},
+  {key:'P',title:'Persönlichkeit',desc:'Selbstvertrauen · Motivation · Respekt',motto:'«Er/Sie hat und gibt Energie!»',items:[
+    'zeigt Emotionen und Spielfreude',
+    'ist initiativ und will den Ball – viele Ballkontakte',
+    'sucht und stellt sich schwierigen Herausforderungen, überwindet Widerstände',
+    'ist ehrgeizig und will jedes Duell gewinnen',
+    'riskiert etwas, ist mutig und entschlossen',
+    'dirigiert und unterstützt seine Mitspieler',
+    'überzeugt durch positive Körpersprache & Kommunikation',
+    'spielt fair und respektiert die Regeln',
+    'ist respektvoll, hilfsbereit und übernimmt Verantwortung (auch neben dem Platz!)'
+  ]},
+  {key:'S',title:'Athletik / Schnelligkeit',desc:'Explosivität · Dynamik · Handlungsschnelligkeit',motto:'«Er/Sie beschleunigt das Spiel!»',items:[
+    'ist stets bereit und steht auf dem Vorderfuss',
+    'startet blitzschnell und kraftvoll',
+    'variiert das Tempo mit und ohne Ball und überzeugt durch Rhythmuswechsel',
+    'präsentiert viele Sprints mit sehr hoher Intensität (> 80 %)',
+    'attackiert den freien Raum überraschend und dynamisch',
+    'reagiert rasch auf neue Spielsituationen'
+  ]}
+];
+const TIPS_NCRIT = TIPS_CATS.reduce((a,c)=>a+c.items.length,0);
+const TIPS_MAX = TIPS_NCRIT*4;
+const TIPS_ENTW = ['früh','tend. früh','normal','tend. spät','spät'];
+const TIPS_LEGEND = '(leer) = noch nicht beurteilbar · 1 = schwach · 2 = genügend · 3 = gut · 4 = sehr gut';
+const critIdD = (k,i)=>k+(i+1);
+const detColor = v=>({1:'#ef4444',2:'#f59e0b',3:'#22c55e',4:'#3b82f6'}[v]||'#6b7280');
+
+function ensureTips(pid,cy){
+  if(!state.tipsDetail) state.tipsDetail={};
+  if(!state.tipsDetail[pid]) state.tipsDetail[pid]={};
+  if(!state.tipsDetail[pid][cy]) state.tipsDetail[pid][cy]={scores:{},beobachter:'',entwicklung:''};
+  return state.tipsDetail[pid][cy];
+}
+function tipsTotals(t){
+  let total=0,assessed=0; const cats={};
+  TIPS_CATS.forEach(c=>{
+    let sum=0,cnt=0;
+    c.items.forEach((_,i)=>{const v=t.scores[critIdD(c.key,i)]; if(v){sum+=v;cnt++;total+=v;assessed++;}});
+    cats[c.key]={sum,cnt,avg:cnt?(sum/cnt).toFixed(2):null};
+  });
+  return {total,assessed,cats,avg:assessed?(total/assessed).toFixed(2):'—'};
+}
+async function loadTipsDetail(){
+  state.tipsDetail={};
+  try{
+    const r=await sb.from('tips_detail').select('*');
+    (r.data||[]).forEach(row=>{
+      if(!state.tipsDetail[row.player_id]) state.tipsDetail[row.player_id]={};
+      state.tipsDetail[row.player_id][row.cycle]={scores:row.scores||{},beobachter:row.beobachter||'',entwicklung:row.entwicklung||''};
+    });
+  }catch(e){console.error('loadTipsDetail',e);}
+}
+function saveTipsDetail(pid,cy){
+  const t=ensureTips(pid,cy);
+  debSave('tips_'+pid+'_'+cy,async()=>{
+    await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
+    if(typeof logActivity==='function'){const tt=tipsTotals(t);logActivity(pid,'tips',cycleLabel(cy)+' · Detailbogen ('+tt.assessed+'/'+TIPS_NCRIT+' · Total '+tt.total+')',cy,null,'tips_detail',null,'Total '+tt.total);}
+  });
+}
+function setTipsScore(pid,cy,cid,v){
+  const t=ensureTips(pid,cy);
+  if(t.scores[cid]===v) delete t.scores[cid]; else t.scores[cid]=v;
+  saveTipsDetail(pid,cy);
+  renderTipsDetail();
+}
+function setTipsMeta(pid,cy,field,val){
+  const t=ensureTips(pid,cy);
+  t[field]=val; saveTipsDetail(pid,cy);
+}
+function selectTipsPlayer(id){ state.tipsSelPlayer=id?parseInt(id):null; renderTipsDetail(); }
+
+function renderTipsDetail(){
+  document.getElementById('pageTitle').textContent='TIPS-Detailbogen';
+  if(state.tipsSelPlayer===undefined) state.tipsSelPlayer = state.selPlayer || (PLAYERS[0]&&PLAYERS[0].id) || null;
+  if(state.tipsSelPlayer!=null && !PLAYERS.find(p=>p.id===state.tipsSelPlayer)) state.tipsSelPlayer = PLAYERS[0]?PLAYERS[0].id:null;
+  const cy=state.cycle;
+  const cyInfo=CYCLES.find(c=>c.key===cy);
+  const pid=state.tipsSelPlayer;
+  if(pid==null){
+    document.getElementById('mainContent').innerHTML='<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.4)">Keine Spieler im Kader.</div>';
+    return;
+  }
+  const p=PLAYERS.find(x=>x.id===pid);
+  const t=ensureTips(pid,cy);
+  const tot=tipsTotals(t);
+  const opts=PLAYERS.map(x=>`<option value="${x.id}"${x.id===pid?' selected':''}>${x.nr} · ${esc(x.name)}</option>`).join('');
+
+  const cats=TIPS_CATS.map(c=>{
+    const col=DIM_COLOR[c.key]||'#e07b39';
+    const rows=c.items.map((it,i)=>{
+      const cid=critIdD(c.key,i);
+      const cur=t.scores[cid];
+      const btns=[1,2,3,4].map(v=>{
+        const active=cur===v;
+        return `<button onclick="setTipsScore(${pid},'${cy}','${cid}',${v})" style="width:34px;height:34px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;transition:all .12s;border:1px solid ${active?detColor(v):'rgba(255,255,255,0.12)'};background:${active?detColor(v):'rgba(255,255,255,0.03)'};color:${active?'#fff':'rgba(255,255,255,0.4)'}">${v}</button>`;
+      }).join('');
+      return `<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div style="flex:1;min-width:180px;font-size:12.5px;line-height:1.45;color:#e2e8f0"><span style="color:rgba(255,255,255,0.35)">Er/Sie</span> ${esc(it)}</div>
+        <div style="display:flex;gap:5px;flex-shrink:0">${btns}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="overflow:hidden;margin-bottom:12px">
+      <div style="padding:12px 16px;background:${col}1a;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="width:28px;height:28px;border-radius:7px;background:${col};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0">${c.key}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:800;color:#e2e8f0">${c.title}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${esc(c.desc)}</div>
+          <div style="font-size:10px;color:${col};font-style:italic;margin-top:1px">${esc(c.motto)}</div>
+        </div>
+        ${tot.cats[c.key].avg?`<span style="font-size:11px;font-weight:700;background:${col}22;color:${col};padding:3px 9px;border-radius:5px;flex-shrink:0">Ø ${tot.cats[c.key].avg}</span>`:''}
+      </div>
+      <div style="padding:4px 16px 10px">${rows}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainContent').innerHTML=`
+    <div class="card" style="padding:14px 16px;margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">SPIELER</div>
+        <select onchange="selectTipsPlayer(this.value)" style="width:100%;font-size:13px;padding:8px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;font-weight:600">${opts}</select>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">ZYKLUS</div>
+        <div style="font-size:13px;font-weight:700;color:#e07b39;padding:8px 12px;background:rgba(224,123,57,0.1);border:1px solid rgba(224,123,57,0.2);border-radius:6px">${cyInfo.short} · ${cyInfo.label}</div>
+      </div>
+      <div style="flex:1;min-width:140px">
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">BEOBACHTER</div>
+        <input value="${esc(t.beobachter)}" oninput="setTipsMeta(${pid},'${cy}','beobachter',this.value)" placeholder="Name..." style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">ENTWICKLUNGSSTAND</div>
+        <select onchange="setTipsMeta(${pid},'${cy}','entwicklung',this.value)" style="font-size:13px;padding:8px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">
+          <option value=""${!t.entwicklung?' selected':''}>—</option>
+          ${TIPS_ENTW.map(x=>`<option value="${x}"${t.entwicklung===x?' selected':''}>${x}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="exportTipsSingle(${pid})" title="Diesen Bogen drucken" style="padding:8px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#818cf8;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><i class="ti ti-printer" style="font-size:15px"></i>DRUCKEN</button>
+        <button onclick="exportTipsTeam()" title="Ganzes Team drucken" style="padding:8px 12px;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:8px;color:#e07b39;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><i class="ti ti-users" style="font-size:15px"></i>TEAM</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-left:3px solid #e07b39;border-radius:0 12px 12px 0">
+      <span style="font-size:13px;color:rgba(255,255,255,0.5)">Total: <b style="color:#e2e8f0;font-size:16px">${tot.total}</b> <span style="color:rgba(255,255,255,0.3)">/ ${TIPS_MAX}</span></span>
+      <span style="font-size:13px;color:rgba(255,255,255,0.5)">Ø: <b style="color:${tot.avg!=='—'?noteColor(parseFloat(tot.avg)):'#e2e8f0'}">${tot.avg}</b></span>
+      <span style="font-size:11px;color:rgba(255,255,255,0.35);margin-left:auto">bewertet: ${tot.assessed} / ${TIPS_NCRIT}</span>
+    </div>
+
+    <div class="card" style="padding:9px 14px;margin-bottom:12px;font-size:10.5px;color:rgba(255,255,255,0.4)">${TIPS_LEGEND}</div>
+
+    ${cats}
+
+    <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px;padding:0 4px">Automatisch gespeichert · gebunden an Spieler &amp; Zyklus (${cyInfo.short}). Zyklus oben rechts umschaltbar.</p>`;
+}
+
+// ── TIPS Detailbogen PDF ──────────────────────────
+function drawTipsPlayerPDF(doc,p,cy){
+  const t=ensureTips(p.id,cy);
+  const tot=tipsTotals(t);
+  const cyInfo=CYCLES.find(c=>c.key===cy);
+  doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
+  doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
+  doc.text('TIPS-Detailbogen',14,18);
+  doc.setFontSize(10);doc.setFont(undefined,'normal');doc.setTextColor(160,170,185);
+  doc.text(p.nr+'  '+p.name,14,25);
+  doc.setFontSize(8);doc.setTextColor(120,130,145);
+  doc.text(cyInfo.label+' ('+cyInfo.short+') · Beobachter: '+(t.beobachter||'—')+' · Entwicklung: '+(t.entwicklung||'—')+' · '+new Date().toLocaleDateString('de-CH'),14,30);
+  doc.setDrawColor(224,123,57);doc.setLineWidth(0.4);doc.line(14,33,196,33);
+  doc.setFontSize(7);doc.setTextColor(110,125,145);doc.text(TIPS_LEGEND,14,37);
+  let y=42;
+  TIPS_CATS.forEach(c=>{
+    if(y>255){doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');y=18;}
+    const col=hexToRgb(DIM_COLOR[c.key]||'#e07b39');
+    doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(col[0],col[1],col[2]);
+    doc.text(c.key+' · '+c.title+(tot.cats[c.key].avg?'   (Ø '+tot.cats[c.key].avg+')':''),14,y);
+    const body=c.items.map((it,i)=>{const v=t.scores[critIdD(c.key,i)];return [c.key+(i+1),'Er/Sie '+it, v?String(v):'–'];});
+    doc.autoTable({startY:y+2,head:[['#','Kriterium','Note']],body:body,theme:'plain',styles:{fontSize:7.5,cellPadding:1.4,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold',fontSize:8},columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:160},2:{cellWidth:16,halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
+    y=doc.lastAutoTable.finalY+5;
+  });
+  if(y>270){doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');y=18;}
+  doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
+  doc.text('Total: '+tot.total+' / '+TIPS_MAX+'    ·    Ø: '+tot.avg+'    ·    bewertet: '+tot.assessed+'/'+TIPS_NCRIT,14,y+1);
+}
+async function exportTipsSingle(pid){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const p=PLAYERS.find(x=>x.id===pid);
+  drawTipsPlayerPDF(doc,p,state.cycle);
+  const cyLabel=CYCLES.find(c=>c.key===state.cycle)?.label||state.cycle;
+  doc.save('FE12_Detailbogen_'+p.name.replace(/[^a-zA-Z0-9]/g,'_')+'_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+async function exportTipsTeam(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const cyLabel=CYCLES.find(c=>c.key===state.cycle)?.label||state.cycle;
+  PLAYERS.forEach((p,idx)=>{ if(idx>0)doc.addPage(); drawTipsPlayerPDF(doc,p,state.cycle); });
+  doc.save('FE12_Detailbogen_TEAM_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 
 // ═══════════════════════════════════════════════════
