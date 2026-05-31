@@ -1382,33 +1382,98 @@ function renderTipsDetail(){
     <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px;padding:0 4px">Automatisch gespeichert · gebunden an Spieler &amp; Zyklus (${cyInfo.short}). Zyklus oben rechts umschaltbar.</p>`;
 }
 
-// ── TIPS Detailbogen PDF ──────────────────────────
+// ── TIPS Detailbogen PDF (weiss, Noten farbig, TIPS/U Matrix oben) ──
 function drawTipsPlayerPDF(doc,p,cy){
   const t=ensureTips(p.id,cy);
   const tot=tipsTotals(t);
   const cyInfo=CYCLES.find(c=>c.key===cy);
-  doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
+  const pd=state.data[p.id];
+  const detRgb=v=>({1:[239,68,68],2:[245,158,11],3:[34,197,94],4:[59,130,246]}[v]||[120,130,145]);
+
+  // Kopf (weisser Hintergrund = Standard)
   doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
-  doc.text('TIPS-Detailbogen',14,18);
-  doc.setFontSize(10);doc.setFont(undefined,'normal');doc.setTextColor(160,170,185);
-  doc.text(p.nr+'  '+p.name,14,25);
-  doc.setFontSize(8);doc.setTextColor(120,130,145);
-  doc.text(cyInfo.label+' ('+cyInfo.short+') · Beobachter: '+(t.beobachter||'—')+' · Entwicklung: '+(t.entwicklung||'—')+' · '+new Date().toLocaleDateString('de-CH'),14,30);
-  doc.setDrawColor(224,123,57);doc.setLineWidth(0.4);doc.line(14,33,196,33);
-  doc.setFontSize(7);doc.setTextColor(110,125,145);doc.text(TIPS_LEGEND,14,37);
-  let y=42;
-  TIPS_CATS.forEach(c=>{
-    if(y>255){doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');y=18;}
-    const col=hexToRgb(DIM_COLOR[c.key]||'#e07b39');
-    doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(col[0],col[1],col[2]);
-    doc.text(c.key+' · '+c.title+(tot.cats[c.key].avg?'   (Ø '+tot.cats[c.key].avg+')':''),14,y);
-    const body=c.items.map((it,i)=>{const v=t.scores[critIdD(c.key,i)];return [c.key+(i+1),'Er/Sie '+it, v?String(v):'–'];});
-    doc.autoTable({startY:y+2,head:[['#','Kriterium','Note']],body:body,theme:'plain',styles:{fontSize:7.5,cellPadding:1.4,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold',fontSize:8},columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:160},2:{cellWidth:16,halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
-    y=doc.lastAutoTable.finalY+5;
+  doc.text('TIPS-Detailbogen',14,16);
+  doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,41,59);
+  doc.text(p.nr+'  '+p.name,14,23);
+  doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(90,100,115);
+  doc.text(cyInfo.label+' ('+cyInfo.short+')  ·  Beobachter: '+(t.beobachter||'—')+'  ·  Entwicklung: '+(t.entwicklung||'—')+'  ·  '+new Date().toLocaleDateString('de-CH'),14,28);
+  doc.setDrawColor(224,123,57);doc.setLineWidth(0.5);doc.line(14,31,196,31);
+
+  // ── TIPS/U Matrix (kompakt, quer) ──
+  doc.setFontSize(8.5);doc.setFont(undefined,'bold');doc.setTextColor(30,41,59);
+  doc.text('TIPS/U Matrix · '+cyInfo.short,14,37);
+  const istRow=['IST'], sollRow=['SOLL'], gapRow=['GAP'];
+  DIMS.forEach(d=>{
+    const r=pd.ratings[cy][d];
+    istRow.push(r.ist!=null?r.ist.toFixed(2):'–');
+    sollRow.push(r.soll!=null?r.soll.toFixed(2):'–');
+    const g=gap(r.ist,r.soll);
+    gapRow.push(g!=null?(g>=0?'+':'')+g.toFixed(2):'–');
   });
-  if(y>270){doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');y=18;}
-  doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
-  doc.text('Total: '+tot.total+' / '+TIPS_MAX+'    ·    Ø: '+tot.avg+'    ·    bewertet: '+tot.assessed+'/'+TIPS_NCRIT,14,y+1);
+  doc.autoTable({
+    startY:39,
+    head:[['', 'T · Technik','I · Intelligenz','P · Persönl.','S · Schnell.','U · Umfeld']],
+    body:[istRow,sollRow,gapRow],
+    theme:'grid',
+    styles:{fontSize:8,cellPadding:1.6,halign:'center',lineColor:[210,215,222],lineWidth:0.2,textColor:[40,50,65]},
+    headStyles:{fillColor:[238,241,245],textColor:[60,72,90],fontStyle:'bold',fontSize:7.5,halign:'center'},
+    columnStyles:{0:{halign:'left',fontStyle:'bold',cellWidth:18,fillColor:[238,241,245]}},
+    margin:{left:14,right:14},
+    didParseCell:function(data){
+      if(data.section==='body' && data.column.index>0){
+        const raw=data.cell.raw;
+        if(raw==='–'){data.cell.styles.textColor=[165,173,183];return;}
+        const num=parseFloat(String(raw).replace('+',''));
+        data.cell.styles.fontStyle='bold';
+        data.cell.styles.textColor = data.row.index===2 ? gapRgb(num) : noteRgb(num);
+      }
+    }
+  });
+  let y=doc.lastAutoTable.finalY+4;
+
+  // ── Total / Ø / bewertet (oben, 1. Seite) ──
+  doc.setFillColor(245,247,250);
+  doc.roundedRect(14,y,182,9,2,2,'F');
+  doc.setFillColor(224,123,57);doc.rect(14,y,1.5,9,'F');
+  doc.setFontSize(9.5);doc.setFont(undefined,'bold');doc.setTextColor(30,41,59);
+  doc.text('Total: '+tot.total+' / '+TIPS_MAX,19,y+6);
+  doc.setFont(undefined,'normal');doc.setTextColor(90,100,115);
+  doc.text('Ø: '+tot.avg,82,y+6);
+  doc.text('bewertet: '+tot.assessed+' / '+TIPS_NCRIT,118,y+6);
+  y+=13;
+
+  // Legende
+  doc.setFontSize(6.8);doc.setFont(undefined,'normal');doc.setTextColor(120,130,145);
+  doc.text(TIPS_LEGEND,14,y);
+  y+=3;
+
+  // ── Kategorien ──
+  TIPS_CATS.forEach(c=>{
+    if(y>262){doc.addPage();y=16;}
+    const col=hexToRgb(DIM_COLOR[c.key]||'#e07b39');
+    doc.setFontSize(9.5);doc.setFont(undefined,'bold');doc.setTextColor(col[0],col[1],col[2]);
+    doc.text(c.key+' · '+c.title+(tot.cats[c.key].avg?'   (Ø '+tot.cats[c.key].avg+')':''),14,y+1);
+    const body=c.items.map((it,i)=>{const v=t.scores[critIdD(c.key,i)];return [c.key+(i+1),'Er/Sie '+it, v?String(v):'–'];});
+    doc.autoTable({
+      startY:y+2.5,
+      head:[['#','Kriterium','Note']],
+      body:body,
+      theme:'plain',
+      styles:{fontSize:7,cellPadding:1.1,textColor:[40,50,65]},
+      headStyles:{fillColor:[238,241,245],textColor:[60,72,90],fontStyle:'bold',fontSize:7},
+      alternateRowStyles:{fillColor:[248,249,251]},
+      columnStyles:{0:{cellWidth:11,halign:'center',textColor:[120,130,145]},1:{cellWidth:163},2:{cellWidth:14,halign:'center',fontStyle:'bold'}},
+      margin:{left:14,right:14},
+      didParseCell:function(data){
+        if(data.section==='body' && data.column.index===2){
+          const raw=data.cell.raw;
+          if(raw && raw!=='–'){ data.cell.styles.textColor=detRgb(parseInt(raw)); }
+          else { data.cell.styles.textColor=[170,178,188]; }
+        }
+      }
+    });
+    y=doc.lastAutoTable.finalY+3;
+  });
 }
 async function exportTipsSingle(pid){
   const {jsPDF}=window.jspdf;
