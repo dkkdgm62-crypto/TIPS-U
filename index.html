@@ -447,6 +447,7 @@ function renderDashboard(){
   const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
   const filtered=PLAYERS.filter(p=>p.name.toLowerCase().includes(search));
   const cyInfo=CYCLES.find(c=>c.key===cy);
+  // (Spiele werden am Ende dieser Funktion via loadDashMatches() nachgeladen)
   let rows='';
   filtered.forEach((p,idx)=>{
     const r=state.data[p.id].ratings[cy];
@@ -491,6 +492,9 @@ function renderDashboard(){
         ${rows}
       </div>
     </div>`;
+
+  // Spiele nachladen NACHDEM der DOM gesetzt ist
+  if(typeof loadDashMatches === 'function') loadDashMatches();
 }
 
 // ═══════════════════════════════════════════════════
