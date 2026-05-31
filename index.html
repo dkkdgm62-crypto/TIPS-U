@@ -105,6 +105,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
+      <!-- NEU: Manueller Speicherstand -->
+      <button id="manualSaveBtn" onclick="manualSave()" style="width:100%;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;letter-spacing:.04em">
+        <i class="ti ti-device-floppy" style="font-size:15px"></i> LETZTEN STAND SPEICHERN
+      </button>
       <!-- Bestehender PDF Export -->
       <button onclick="exportPDF()" style="width:100%;padding:9px;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.25);border-radius:8px;color:#e07b39;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px;letter-spacing:.04em">
         <i class="ti ti-file-type-pdf" style="font-size:15px"></i> PDF EXPORTIEREN
@@ -393,20 +397,23 @@ async function loadAll(){
 let currentUserEmail = '';
 
 async function logActivity(pid, actionType, details, cycle, dim, fieldName, oldVal, newVal) {
+  if (!currentUserEmail) return;
   const p = PLAYERS.find(x => x.id === pid);
-  if (!p || !currentUserEmail) return;
-  await sb.from('activity_log').insert({
-    user_email: currentUserEmail,
-    player_id: pid,
-    player_name: p.name,
-    action_type: actionType,
-    cycle: cycle || null,
-    dim: dim || null,
-    field_name: fieldName || null,
-    old_value: oldVal != null ? String(oldVal) : null,
-    new_value: newVal != null ? String(newVal) : null,
-    details: details || null
-  });
+  try {
+    const { error } = await sb.from('activity_log').insert({
+      user_email: currentUserEmail,
+      player_id: pid || null,
+      player_name: p ? p.name : null,
+      action_type: actionType,
+      cycle: cycle || null,
+      dim: dim || null,
+      field_name: fieldName || null,
+      old_value: oldVal != null ? String(oldVal) : null,
+      new_value: newVal != null ? String(newVal) : null,
+      details: details || null
+    });
+    if (error) console.error('logActivity error:', error.message);
+  } catch(e) { console.error('logActivity', e); }
 }
 
 async function loadArchiv(pid) {
@@ -529,6 +536,64 @@ function saveSI(pid,oldVals){
     const total=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);
     logActivity(pid,'si',`W:${s.wahrnehmen} L:${s.loesungen} E:${s.entscheidung} G:${s.gegen_ball} Total:${total}`,null,null,'si_data',null,`Total: ${total}`);
   },400);
+}
+
+// ═══════════════════════════════════════════════════
+// MANUELLER SPEICHERSTAND (Backup-Button)
+// ═══════════════════════════════════════════════════
+function showSavedToast(msg, ok){
+  let el=document.getElementById('saveToast');
+  if(!el){ el=document.createElement('div'); el.id='saveToast'; document.body.appendChild(el); }
+  el.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#16243a;border:1px solid '+(ok===false?'rgba(239,68,68,0.5)':'rgba(34,197,94,0.5)')+';color:#e2e8f0;font-size:13px;font-weight:700;padding:11px 20px;border-radius:10px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.45);display:block';
+  el.textContent=msg;
+  clearTimeout(window._saveToastT);
+  window._saveToastT=setTimeout(()=>{el.style.display='none';},2400);
+}
+
+async function manualSave(){
+  const btn=document.getElementById('manualSaveBtn');
+  const orig=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.style.opacity='0.65'; btn.innerHTML='<i class="ti ti-loader-2"></i> SPEICHERT…'; }
+  const cy=state.cycle;
+  let done=0;
+  try{
+    // Aktuelles Spielerprofil: Matrix + Notizen + Meta
+    if(state.view==='player' && state.selPlayer){
+      const pid=state.selPlayer, pd=state.data[pid];
+      for(const d of DIMS){
+        const r=pd.ratings[cy][d];
+        await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim:d,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'});
+      }
+      await sb.from('notes').upsert({player_id:pid,cycle:cy,content:pd.notes[cy]||''},{onConflict:'player_id,cycle'});
+      await sb.from('player_meta').upsert({player_id:pid,position:pd.position,defizit:pd.defizit,staerke:pd.staerke},{onConflict:'player_id'});
+      await logActivity(pid,'rating','Manuell gespeichert · '+cycleLabel(cy)+' (Matrix + Profil)',cy,null,'manual',null,'Speicherstand');
+      await logActivity(pid,'meta','Manuell gespeichert · Profil/Notizen '+cycleLabel(cy),null,null,'manual',null,'Speicherstand');
+      done++;
+    }
+    // SI-Erfassung: alle Spieler
+    if(state.view==='si'){
+      for(const p of PLAYERS){ const s=state.siData[p.id]; await sb.from('si_data').upsert({player_id:p.id,...s},{onConflict:'player_id'}); }
+      await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SI-Erfassung (alle Spieler)',null,null,'manual',null,'Speicherstand');
+      done++;
+    }
+    // Detailbogen
+    if(state.view==='detail' && state.tipsSelPlayer){
+      const pid=state.tipsSelPlayer, t=ensureTips(pid,cy);
+      await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
+      await logActivity(pid,'tips','Manuell gespeichert · Detailbogen '+cycleLabel(cy),cy,null,'manual',null,'Speicherstand');
+      done++;
+    }
+    // Anderer Bereich → trotzdem Snapshot-Eintrag
+    if(done===0){
+      await logActivity(state.selPlayer||(PLAYERS[0]&&PLAYERS[0].id)||1,'meta','Manueller Speicherstand ('+state.view+')',null,null,'manual',null,'Speicherstand');
+    }
+    showSavedToast('✓ Stand gespeichert');
+    refreshStamps();
+  }catch(e){
+    console.error('manualSave',e);
+    showSavedToast('Fehler – bitte activity_log in Supabase prüfen', false);
+  }
+  if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.innerHTML=orig; }
 }
 
 // ═══════════════════════════════════════════════════
