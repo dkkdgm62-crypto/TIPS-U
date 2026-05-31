@@ -504,7 +504,7 @@ function refreshStamps(){
   if(v!=='dashboard'){
     const nav=document.createElement('div');
     nav.id='navBar';
-    nav.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap';
+    nav.style.cssText='position:sticky;top:56px;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-16px -16px 12px;padding:11px 16px;background:rgba(13,21,32,0.97);border-bottom:1px solid rgba(255,255,255,0.06)';
     nav.innerHTML=`
       <button onclick="goBack()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Zurück</button>
       <span style="color:rgba(255,255,255,0.15)">|</span>
@@ -991,6 +991,7 @@ function renderVergleich(){
     cards=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.4)"><i class="ti ti-git-compare" style="font-size:40px;display:block;margin-bottom:10px;opacity:.3"></i>Spieler oben auswählen</div>`;
   }
   document.getElementById('mainContent').innerHTML=`<div class="card" style="padding:14px 16px;margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:10px">SPIELER AUSWÄHLEN (max. 3)</div><div style="display:flex;gap:5px;flex-wrap:wrap">${btns}</div></div>${cards}`;
+  refreshStamps();
 }
 function toggleCompare(id){
   if(state.compareIds.includes(id))state.compareIds=state.compareIds.filter(x=>x!==id);
