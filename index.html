@@ -152,7 +152,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 // ═══════════════════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════════════════
-const PLAYERS = [
+const BASE_PLAYERS = [
   {id:1,nr:'01',name:'Abdulahi, Leart',geb:'30.09.2015',fuss:'L',nat:'CH',verein:'BSC Old Boys',tw:false},
   {id:2,nr:'02',name:'Altenhoff, Nick',geb:'03.09.2015',fuss:'R/L',nat:'—',verein:'BSC Old Boys',tw:true},
   {id:3,nr:'03',name:'Avxhi, Yoris',geb:'18.04.2015',fuss:'R',nat:'AL',verein:'BSC Old Boys',tw:true},
@@ -177,6 +177,8 @@ const PLAYERS = [
   {id:22,nr:'22',name:'Turi, Attila Richard',geb:'10.12.2015',fuss:'R',nat:'HUN',verein:'FC Telegraph BS',tw:false},
   {id:23,nr:'23',name:'Yüce, Areiz',geb:'09.10.2015',fuss:'R/L',nat:'CH',verein:'FC Allschwil',tw:false},
 ];
+// PLAYERS ist dynamisch (BASE + Roster aus Supabase). Wird in loadRoster() neu aufgebaut.
+let PLAYERS = BASE_PLAYERS.map(p=>({...p}));
 const DIMS=['T','I','P','S','U'];
 const DIM_FULL={T:'Technik',I:'Spielintelligenz',P:'Persönlichkeit',S:'Schnelligkeit',U:'Umfeld'};
 const DIM_COLOR={T:'#e07b39',I:'#6366f1',P:'#10b981',S:'#f59e0b',U:'#3b82f6'};
@@ -187,10 +189,11 @@ const SI_FIELDS=['wahrnehmen','loesungen','entscheidung','gegen_ball'];
 const SI_LABELS=['Wahrnehmen','Lösungen','Entscheidung','Gegen Ball'];
 
 // State
-let state = {view:'dashboard', cycle:'z1', selPlayer:null, compareIds:[], data:{}, siData:{}};
+let state = {view:'dashboard', cycle:'z1', selPlayer:null, compareIds:[], data:{}, siData:{}, editPlayer:false};
 let saveTimers = {};
 
 function initState(){
+  state.data={}; state.siData={};
   PLAYERS.forEach(p=>{
     state.data[p.id]={ratings:{},notes:{},position:'',defizit:'',staerke:''};
     CYCLES.forEach(c=>{
@@ -200,6 +203,100 @@ function initState(){
     });
     state.siData[p.id]={wahrnehmen:0,loesungen:0,entscheidung:0,gegen_ball:0};
   });
+}
+
+// ═══════════════════════════════════════════════════
+// ROSTER / SPIELER-VERWALTUNG (editierbar via Supabase)
+// ═══════════════════════════════════════════════════
+let rosterRows = [];
+
+// PLAYERS aus BASE + Roster-Overrides neu zusammensetzen
+function rebuildPlayers(){
+  const map = {};
+  BASE_PLAYERS.forEach(p=> map[p.id] = {...p});
+  (rosterRows||[]).forEach(r=>{
+    if(r.deleted){ delete map[r.id]; return; }
+    map[r.id] = {id:r.id, nr:r.nr||'', name:r.name||'', geb:r.geb||'', fuss:r.fuss||'', nat:r.nat||'', verein:r.verein||'', tw:!!r.tw, rae:!!r.rae};
+  });
+  PLAYERS = Object.values(map).sort((a,b)=>{
+    const na=parseInt(a.nr)||9999, nb=parseInt(b.nr)||9999;
+    return na-nb || a.id-b.id;
+  });
+}
+
+// Stellt sicher, dass state-Einträge für alle (auch neue) Spieler existieren
+function ensureStateForPlayers(){
+  PLAYERS.forEach(p=>{
+    if(!state.data[p.id]){
+      state.data[p.id]={ratings:{},notes:{},position:'',defizit:'',staerke:''};
+      CYCLES.forEach(c=>{state.data[p.id].ratings[c.key]={};state.data[p.id].notes[c.key]='';DIMS.forEach(d=>{state.data[p.id].ratings[c.key][d]={ist:null,soll:null,massnahme:''};});});
+    }
+    if(!state.siData[p.id]) state.siData[p.id]={wahrnehmen:0,loesungen:0,entscheidung:0,gegen_ball:0};
+  });
+}
+
+function nextPlayerId(){
+  let mx=0;
+  BASE_PLAYERS.forEach(p=>{if(p.id>mx)mx=p.id;});
+  rosterRows.forEach(r=>{if(r.id>mx)mx=r.id;});
+  return mx+1;
+}
+function nextPlayerNr(){
+  let mx=0;
+  PLAYERS.forEach(p=>{const n=parseInt(p.nr)||0; if(n>mx)mx=n;});
+  return String(mx+1).padStart(2,'0');
+}
+
+async function loadRoster(){
+  try{ const r=await sb.from('roster').select('*'); rosterRows=r.data||[]; }
+  catch(e){ console.error('loadRoster',e); rosterRows=[]; }
+  rebuildPlayers();
+}
+
+async function addPlayer(){
+  const id=nextPlayerId();
+  const rec={id,nr:nextPlayerNr(),name:'Neuer Spieler',geb:'',fuss:'R',nat:'CH',verein:'BSC Old Boys',tw:false,rae:false,deleted:false};
+  await sb.from('roster').upsert(rec,{onConflict:'id'});
+  if(typeof logActivity==='function') logActivity(id,'meta','Neuer Spieler erstellt',null,null,'roster','','neu');
+  await loadRoster();
+  ensureStateForPlayers();
+  state.selPlayer=id; state.editPlayer=true;
+  showView('player');
+}
+
+async function savePlayer(id){
+  const g=f=>document.getElementById('pf_'+f);
+  const rec={
+    id,
+    nr:g('nr').value.trim(),
+    name:g('name').value.trim(),
+    geb:g('geb').value.trim(),
+    fuss:g('fuss').value,
+    nat:g('nat').value.trim(),
+    verein:g('verein').value.trim(),
+    tw:g('tw').checked,
+    rae:g('rae').checked,
+    deleted:false
+  };
+  if(!rec.name){ alert('Bitte einen Namen eingeben.'); return; }
+  await sb.from('roster').upsert(rec,{onConflict:'id'});
+  if(typeof logActivity==='function') logActivity(id,'meta','Stammdaten aktualisiert: '+rec.name,null,null,'roster',null,rec.name);
+  await loadRoster();
+  ensureStateForPlayers();
+  state.editPlayer=false;
+  renderPlayer();
+}
+
+function cancelEditPlayer(){ state.editPlayer=false; renderPlayer(); }
+
+async function deletePlayer(id){
+  const p=PLAYERS.find(x=>x.id===id);
+  if(!confirm('Spieler "'+(p?p.name:'')+'" wirklich löschen?\n\nDer Spieler wird aus dem Kader ausgeblendet. Bestehende Bewertungen bleiben in der Datenbank erhalten.')) return;
+  await sb.from('roster').upsert({id,deleted:true},{onConflict:'id'});
+  if(typeof logActivity==='function') logActivity(id,'meta','Spieler gelöscht',null,null,'roster',p?p.name:'',null);
+  await loadRoster();
+  state.selPlayer=null; state.editPlayer=false;
+  showView('kader');
 }
 
 // ═══════════════════════════════════════════════════
@@ -269,6 +366,7 @@ async function doLogout(){await sb.auth.signOut();}
 // SUPABASE LOAD
 // ═══════════════════════════════════════════════════
 async function loadAll(){
+  await loadRoster();
   initState();
   const [r1,r2,r3,r4]=await Promise.all([
     sb.from('ratings').select('*'),
@@ -283,6 +381,7 @@ async function loadAll(){
   (r2.data||[]).forEach(n=>{if(state.data[n.player_id])state.data[n.player_id].notes[n.cycle]=n.content||'';});
   (r3.data||[]).forEach(m=>{if(state.data[m.player_id]){state.data[m.player_id].position=m.position||'';state.data[m.player_id].defizit=m.defizit||'';state.data[m.player_id].staerke=m.staerke||'';}});
   (r4.data||[]).forEach(s=>{if(state.siData[s.player_id])state.siData[s.player_id]={wahrnehmen:s.wahrnehmen||0,loesungen:s.loesungen||0,entscheidung:s.entscheidung||0,gegen_ball:s.gegen_ball||0};});
+  ensureStateForPlayers();
   renderCurrentView();
 }
 
@@ -469,7 +568,7 @@ function renderDashboard(){
     ${makroWidget()}
     <div id="dashMatches"></div>
     <div class="stat-grid">
-      ${[['23','Kaderspieler','users'],['3','Torhüter','shield'],['4','Messzyklen','refresh'],['2026/27','Saison','calendar']].map(([v,l,ic])=>`
+      ${[[String(PLAYERS.length),'Kaderspieler','users'],[String(PLAYERS.filter(p=>p.tw).length),'Torhüter','shield'],['4','Messzyklen','refresh'],['2026/27','Saison','calendar']].map(([v,l,ic])=>`
         <div class="card" style="padding:14px;display:flex;align-items:center;gap:12px">
           <div style="width:36px;height:36px;border-radius:9px;background:rgba(224,123,57,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-${ic}" style="font-size:17px;color:#e07b39"></i></div>
           <div><div style="font-size:20px;font-weight:700;color:#e2e8f0;line-height:1">${v}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${l}</div></div>
@@ -521,7 +620,12 @@ function renderKader(){
       ${a?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:11px;color:${noteColor(a)};font-weight:700">Ø ${a.toFixed(2)}</div>`:''}
     </div>`;
   }).join('');
-  document.getElementById('mainContent').innerHTML=`<div class="kader-grid">${cards}</div>`;
+  document.getElementById('mainContent').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="addPlayer()" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#e07b39,#c25e1f);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">${PLAYERS.length} Spieler im Kader</span>
+    </div>
+    <div class="kader-grid">${cards}</div>`;
 }
 
 function selectPlayer(id){state.selPlayer=id;showView('player');}
@@ -532,10 +636,11 @@ function selectPlayer(id){state.selPlayer=id;showView('player');}
 function renderPlayer(){
   if(!state.selPlayer){
     const btns=PLAYERS.map(p=>`<button onclick="selectPlayer(${p.id})" style="padding:6px 12px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.6);cursor:pointer">${p.nr} ${esc(p.name.split(',')[0])}</button>`).join('');
-    document.getElementById('mainContent').innerHTML=`<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)"><i class="ti ti-user-circle" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3"></i><div style="margin-bottom:20px;font-size:14px">Spieler auswählen</div><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:0 auto">${btns}</div></div>`;
+    document.getElementById('mainContent').innerHTML=`<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)"><i class="ti ti-user-circle" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3"></i><div style="margin-bottom:20px;font-size:14px">Spieler auswählen</div><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:0 auto 20px">${btns}</div><button onclick="addPlayer()" style="padding:9px 18px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#e07b39,#c25e1f);border:none;border-radius:8px;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button></div>`;
     return;
   }
   const p=PLAYERS.find(x=>x.id===state.selPlayer);
+  if(!p){ state.selPlayer=null; renderPlayer(); return; }
   const pd=state.data[p.id];
   const cy=state.cycle;
   const im={},sm={};
@@ -589,28 +694,66 @@ function renderPlayer(){
 
   const verlauf=CYCLES.map(c=>{const v=getAvg(p.id,c.key);return `<div onclick="setCycle('${c.key}')" style="flex:1;text-align:center;padding:7px 3px;border-radius:6px;background:${cy===c.key?'rgba(224,123,57,0.15)':'rgba(255,255,255,0.04)'};border:1px solid ${cy===c.key?'rgba(224,123,57,0.3)':'rgba(255,255,255,0.06)'};cursor:pointer"><div style="font-size:9px;font-weight:700;color:${cy===c.key?'#e07b39':'rgba(255,255,255,0.4)'};letter-spacing:.04em">${c.short}</div><div style="font-size:12px;font-weight:800;color:${v?noteColor(v):'rgba(255,255,255,0.15)'};margin-top:3px">${v?.toFixed(2)||'—'}</div></div>`;}).join('');
 
-  document.getElementById('mainContent').innerHTML=`
+  // Navigation per Index (Spieler-IDs sind nach Hinzufügen/Löschen nicht mehr fortlaufend)
+  const pIdx=PLAYERS.findIndex(x=>x.id===p.id);
+  const prevId=pIdx>0?PLAYERS[pIdx-1].id:null;
+  const nextId=pIdx<PLAYERS.length-1?PLAYERS[pIdx+1].id:null;
+
+  // ── HEADER: Ansicht oder Bearbeiten-Formular ──────
+  let headerHTML;
+  if(state.editPlayer){
+    const fussOpts=['R','L','R/L'].map(f=>`<option value="${f}"${p.fuss===f?' selected':''}>${f}</option>`).join('');
+    headerHTML=`
+    <div class="card" style="padding:16px 20px;margin-bottom:14px;border-left:4px solid #6366f1;border-radius:0 12px 12px 0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <i class="ti ti-edit" style="color:#818cf8;font-size:16px"></i>
+        <span style="font-size:13px;font-weight:700;color:#e2e8f0">Stammdaten bearbeiten</span>
+      </div>
+      <div style="display:grid;grid-template-columns:80px 1fr 130px;gap:10px;margin-bottom:10px">
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NUMMER</div><input id="pf_nr" value="${esc(p.nr)}" placeholder="01" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NAME (Nachname, Vorname)</div><input id="pf_name" value="${esc(p.name)}" placeholder="Muster, Max" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">GEBURTSDATUM</div><input id="pf_geb" value="${esc(p.geb)}" placeholder="01.01.2015" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:90px 90px 1fr;gap:10px;margin-bottom:14px">
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">FUSS</div><select id="pf_fuss" style="width:100%;font-size:13px;padding:8px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">${fussOpts}</select></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NATION</div><input id="pf_nat" value="${esc(p.nat)}" placeholder="CH" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">VEREIN</div><input id="pf_verein" value="${esc(p.verein)}" placeholder="BSC Old Boys" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+      </div>
+      <div style="display:flex;gap:18px;margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="pf_tw"${p.tw?' checked':''} style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer"/><span style="font-size:12px;color:#e2e8f0;font-weight:600">Torhüter (TW)</span></label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" id="pf_rae"${p.rae?' checked':''} style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer"/><span style="font-size:12px;color:#e2e8f0;font-weight:600">RAE (Relativer Alterseffekt)</span></label>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="savePlayer(${p.id})" style="padding:9px 18px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-device-floppy"></i> Speichern</button>
+        <button onclick="cancelEditPlayer()" style="padding:9px 16px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);cursor:pointer">Abbrechen</button>
+        <button onclick="deletePlayer(${p.id})" style="margin-left:auto;padding:9px 16px;font-size:13px;font-weight:700;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;color:#ef4444;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-trash"></i> Löschen</button>
+      </div>
+    </div>`;
+  } else {
+    headerHTML=`
     <div class="card" style="padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-left:4px solid #e07b39;border-radius:0 12px 12px 0">
       <div style="width:52px;height:52px;border-radius:12px;background:rgba(224,123,57,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#e07b39;flex-shrink:0">${initials(p.name)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:18px;font-weight:800;color:#e2e8f0;letter-spacing:-.02em">${esc(p.name)}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">
-          <span style="font-size:11px;color:rgba(255,255,255,0.4)">${p.nr} · ${p.geb} · ${esc(p.verein)}</span>
-          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${p.fuss}</span>
-          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${p.nat}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.4)">${p.nr} · ${esc(p.geb||'—')} · ${esc(p.verein)}</span>
+          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${esc(p.fuss)}</span>
+          <span class="badge" style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">${esc(p.nat)}</span>
           ${p.tw?'<span class="badge" style="background:rgba(59,130,246,0.2);color:#3b82f6">TW</span>':''}
           ${p.rae?'<span class="badge" style="background:rgba(245,158,11,0.2);color:#f59e0b">RAE</span>':''}
         </div>
       </div>
       <div style="display:flex;gap:6px">
-        <!-- NEU: Einzelprofil-Druck Button -->
-        <button onclick="exportSingleProfilePDF(${p.id})" title="Spielerprofil drucken" style="padding:8px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#818cf8;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700">
-          <i class="ti ti-printer" style="font-size:15px"></i><span class="hide-mobile">DRUCKEN</span>
-        </button>
-        <button onclick="if(state.selPlayer>1){state.selPlayer--;renderPlayer()}" style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;align-items:center"><i class="ti ti-chevron-left" style="font-size:16px"></i></button>
-        <button onclick="if(state.selPlayer<23){state.selPlayer++;renderPlayer()}" style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.5);cursor:pointer;display:flex;align-items:center"><i class="ti ti-chevron-right" style="font-size:16px"></i></button>
+        <button onclick="state.editPlayer=true;renderPlayer()" title="Stammdaten bearbeiten" style="padding:8px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#818cf8;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><i class="ti ti-edit" style="font-size:15px"></i><span class="hide-mobile">BEARBEITEN</span></button>
+        <button onclick="exportSingleProfilePDF(${p.id})" title="Spielerprofil drucken" style="padding:8px 12px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#818cf8;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><i class="ti ti-printer" style="font-size:15px"></i><span class="hide-mobile">DRUCKEN</span></button>
+        <button onclick="${prevId!=null?`state.selPlayer=${prevId};renderPlayer()`:''}" ${prevId==null?'disabled':''} style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,${prevId==null?'0.2':'0.5'});cursor:${prevId==null?'default':'pointer'};display:flex;align-items:center"><i class="ti ti-chevron-left" style="font-size:16px"></i></button>
+        <button onclick="${nextId!=null?`state.selPlayer=${nextId};renderPlayer()`:''}" ${nextId==null?'disabled':''} style="padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,${nextId==null?'0.2':'0.5'});cursor:${nextId==null?'default':'pointer'};display:flex;align-items:center"><i class="ti ti-chevron-right" style="font-size:16px"></i></button>
       </div>
-    </div>
+    </div>`;
+  }
+
+  document.getElementById('mainContent').innerHTML=`
+    ${headerHTML}
     <div style="display:grid;grid-template-columns:1fr 195px;gap:14px;align-items:start">
       <div>
         <div class="card" style="overflow:hidden;margin-bottom:14px">
