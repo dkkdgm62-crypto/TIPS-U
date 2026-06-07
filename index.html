@@ -99,7 +99,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
       <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>Detailbogen</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
-      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
+      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
       <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
@@ -398,7 +398,7 @@ let currentUserEmail = '';
 
 // Bereich-Zuordnung für den Tages-Sammeleintrag
 const AREA_OF = {rating:'matrix', note:'profil', meta:'profil', si:'si', tips:'detail', match:'spiele'};
-const AREA_LABEL = {matrix:'TIPS/U Matrix', profil:'Profil / Notizen', si:'SI-Erfassung', detail:'TIPS-Detailbogen', spiele:'Spiele', sonstiges:'Sonstiges'};
+const AREA_LABEL = {matrix:'TIPS/U Matrix', profil:'Profil / Notizen', si:'SMART+', detail:'TIPS-Detailbogen', spiele:'Spiele', sonstiges:'Sonstiges'};
 
 // Ein Eintrag pro Tag + Benutzer + Bereich (wird über den Tag fortgeschrieben)
 async function logActivity(pid, actionType, details, cycle, dim, fieldName, oldVal, newVal) {
@@ -487,7 +487,7 @@ function refreshStamps(){
     bars.push({id:'stamp_matrix',label:'TIPS/U MATRIX',area:'matrix'});
     bars.push({id:'stamp_profil',label:'PROFIL / NOTIZEN',area:'profil'});
   } else if(v==='si'){
-    bars.push({id:'stamp_si',label:'SI-ERFASSUNG',area:'si'});
+    bars.push({id:'stamp_si',label:'SMART+',area:'si'});
   } else if(v==='detail' && state.tipsSelPlayer){
     bars.push({id:'stamp_tips',label:'TIPS-DETAILBOGEN',area:'detail'});
   }
@@ -514,7 +514,7 @@ function refreshStamps(){
 }
 
 function actionLabel(type) {
-  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SI-Erfassung',match:'⚽ Spiel'}[type] || type;
+  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SMART+',match:'⚽ Spiel'}[type] || type;
 }
 
 function cycleLabel(cy) {
@@ -593,10 +593,10 @@ async function manualSave(){
       await logActivity(pid,'meta','Manuell gespeichert · Profil/Notizen '+cycleLabel(cy),null,null,'manual',null,'Speicherstand');
       done++;
     }
-    // SI-Erfassung: alle Spieler
+    // SMART+: alle Spieler
     if(state.view==='si'){
       for(const p of PLAYERS){ const s=state.siData[p.id]; await sb.from('si_data').upsert({player_id:p.id,...s},{onConflict:'player_id'}); }
-      await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SI-Erfassung (alle Spieler)',null,null,'manual',null,'Speicherstand');
+      await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SMART+ (alle Spieler)',null,null,'manual',null,'Speicherstand');
       done++;
     }
     // Detailbogen
@@ -673,7 +673,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SMART+ · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -1843,7 +1843,7 @@ async function renderVerlauf(){
 function buildVerlaufHTML(logs){
   const players=[{id:'all',name:'Alle Spieler'},...PLAYERS.map(p=>({id:p.id,name:p.name}))];
   const types=['all','rating','note','meta','si'];
-  const typeNames={all:'Alle Aktionen',rating:'📊 Bewertungen',note:'📝 Notizen',meta:'👤 Profil',si:'🧠 SI-Erfassung'};
+  const typeNames={all:'Alle Aktionen',rating:'📊 Bewertungen',note:'📝 Notizen',meta:'👤 Profil',si:'🧠 SMART+'};
   const users=['all',...[...new Set(logs.map(l=>l.user_email))]];
   let filtered=logs.filter(l=>{
     if(verlaufFilter.player!=='all'&&l.player_id!=verlaufFilter.player)return false;
@@ -1936,7 +1936,7 @@ async function exportPDF(){
   // SI page
   doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
   doc.setFontSize(14);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
-  doc.text('SI-Erfassung · 4v4 Spielintelligenz',14,20);
+  doc.text('SMART+ · 4v4 Spielintelligenz',14,20);
   const siRows=PLAYERS.map(p=>{const s=state.siData[p.id];const t=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);return[p.nr,p.name,s.wahrnehmen,s.loesungen,s.entscheidung,s.gegen_ball,t];});
   doc.autoTable({startY:28,head:[['#','Spieler','Wahrnehmen','Lösungen','Entscheidung','Gegen Ball','Total']],body:siRows,theme:'plain',styles:{fontSize:9,cellPadding:2.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:12},1:{cellWidth:55},2:{halign:'center'},3:{halign:'center'},4:{halign:'center'},5:{halign:'center'},6:{halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
   // Verlauf/Archiv page
