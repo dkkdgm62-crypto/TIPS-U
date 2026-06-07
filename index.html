@@ -97,9 +97,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(224,123,57,0.4)!i
       <button class="btn-nav active" id="nav-dashboard" onclick="showView('dashboard')"><i class="ti ti-layout-dashboard" style="font-size:16px;flex-shrink:0"></i>Dashboard</button>
       <button class="btn-nav" id="nav-kader" onclick="showView('kader')"><i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>Kader</button>
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
-      <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
+      <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>Detailbogen</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
-      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
+      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SI-Erfassung</button>
       <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
@@ -398,7 +398,7 @@ let currentUserEmail = '';
 
 // Bereich-Zuordnung für den Tages-Sammeleintrag
 const AREA_OF = {rating:'matrix', note:'profil', meta:'profil', si:'si', tips:'detail', match:'spiele'};
-const AREA_LABEL = {matrix:'TIPS/U Matrix', profil:'Profil / Notizen', si:'SMART+', detail:'TIPS/U-Detailbogen', spiele:'Spiele', sonstiges:'Sonstiges'};
+const AREA_LABEL = {matrix:'TIPS/U Matrix', profil:'Profil / Notizen', si:'SI-Erfassung', detail:'TIPS-Detailbogen', spiele:'Spiele', sonstiges:'Sonstiges'};
 
 // Ein Eintrag pro Tag + Benutzer + Bereich (wird über den Tag fortgeschrieben)
 async function logActivity(pid, actionType, details, cycle, dim, fieldName, oldVal, newVal) {
@@ -487,9 +487,9 @@ function refreshStamps(){
     bars.push({id:'stamp_matrix',label:'TIPS/U MATRIX',area:'matrix'});
     bars.push({id:'stamp_profil',label:'PROFIL / NOTIZEN',area:'profil'});
   } else if(v==='si'){
-    bars.push({id:'stamp_si',label:'SMART+',area:'si'});
+    bars.push({id:'stamp_si',label:'SI-ERFASSUNG',area:'si'});
   } else if(v==='detail' && state.tipsSelPlayer){
-    bars.push({id:'stamp_tips',label:'TIPS/U-DETAILBOGEN',area:'detail'});
+    bars.push({id:'stamp_tips',label:'TIPS-DETAILBOGEN',area:'detail'});
   }
   // Stempel-Leiste (falls Bereich Stempel hat)
   if(bars.length>0){
@@ -514,7 +514,7 @@ function refreshStamps(){
 }
 
 function actionLabel(type) {
-  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SMART+',match:'⚽ Spiel'}[type] || type;
+  return {rating:'📊 Bewertung',note:'📝 Notiz',meta:'👤 Profil',si:'🧠 SI-Erfassung',match:'⚽ Spiel'}[type] || type;
 }
 
 function cycleLabel(cy) {
@@ -593,17 +593,17 @@ async function manualSave(){
       await logActivity(pid,'meta','Manuell gespeichert · Profil/Notizen '+cycleLabel(cy),null,null,'manual',null,'Speicherstand');
       done++;
     }
-    // SMART+: alle Spieler
+    // SI-Erfassung: alle Spieler
     if(state.view==='si'){
       for(const p of PLAYERS){ const s=state.siData[p.id]; await sb.from('si_data').upsert({player_id:p.id,...s},{onConflict:'player_id'}); }
-      await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SMART+ (alle Spieler)',null,null,'manual',null,'Speicherstand');
+      await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SI-Erfassung (alle Spieler)',null,null,'manual',null,'Speicherstand');
       done++;
     }
-    // TIPS/U
+    // Detailbogen
     if(state.view==='detail' && state.tipsSelPlayer){
       const pid=state.tipsSelPlayer, t=ensureTips(pid,cy);
       await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
-      await logActivity(pid,'tips','Manuell gespeichert · TIPS/U '+cycleLabel(cy),cy,null,'manual',null,'Speicherstand');
+      await logActivity(pid,'tips','Manuell gespeichert · Detailbogen '+cycleLabel(cy),cy,null,'manual',null,'Speicherstand');
       done++;
     }
     // Anderer Bereich → trotzdem Snapshot-Eintrag
@@ -673,7 +673,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SMART+ · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',vergleich:'Spieler-Vergleich',si:'SI-Erfassung · 4v4',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -1367,7 +1367,7 @@ async function exportSingleProfilePDF(pid) {
 }
 
 // ═══════════════════════════════════════════════════
-// TIPS/U DETAILBOGEN (Kriterienbogen T/I/P/S · Skala 1–4)
+// TIPS DETAILBOGEN (Kriterienbogen T/I/P/S · Skala 1–4)
 // ═══════════════════════════════════════════════════
 const TIPS_CATS = [
   {key:'T',title:'Technik',desc:'Fliessende Bewegungen · Präzision · Dosierung',motto:'«Der Ball ist sein/ihr Freund!»',items:[
@@ -1446,7 +1446,7 @@ function saveTipsDetail(pid,cy){
   const t=ensureTips(pid,cy);
   debSave('tips_'+pid+'_'+cy,async()=>{
     await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
-    if(typeof logActivity==='function'){const tt=tipsTotals(t);logActivity(pid,'tips',cycleLabel(cy)+' · TIPS/U ('+tt.assessed+'/'+TIPS_NCRIT+' · Total '+tt.total+')',cy,null,'tips_detail',null,'Total '+tt.total);}
+    if(typeof logActivity==='function'){const tt=tipsTotals(t);logActivity(pid,'tips',cycleLabel(cy)+' · Detailbogen ('+tt.assessed+'/'+TIPS_NCRIT+' · Total '+tt.total+')',cy,null,'tips_detail',null,'Total '+tt.total);}
   });
 }
 function setTipsScore(pid,cy,cid,v){
@@ -1462,7 +1462,7 @@ function setTipsMeta(pid,cy,field,val){
 function selectTipsPlayer(id){ state.tipsSelPlayer=id?parseInt(id):null; renderTipsDetail(); }
 
 function renderTipsDetail(){
-  document.getElementById('pageTitle').textContent='TIPS/U-Detailbogen';
+  document.getElementById('pageTitle').textContent='TIPS-Detailbogen';
   if(state.tipsSelPlayer===undefined) state.tipsSelPlayer = state.selPlayer || (PLAYERS[0]&&PLAYERS[0].id) || null;
   if(state.tipsSelPlayer!=null && !PLAYERS.find(p=>p.id===state.tipsSelPlayer)) state.tipsSelPlayer = PLAYERS[0]?PLAYERS[0].id:null;
   const cy=state.cycle;
@@ -1546,7 +1546,7 @@ function renderTipsDetail(){
   refreshStamps();
 }
 
-// ── TIPS/U Detailbogen PDF (weiss, Noten farbig, TIPS/U Matrix oben) ──
+// ── TIPS Detailbogen PDF (weiss, Noten farbig, TIPS/U Matrix oben) ──
 function drawTipsPlayerPDF(doc,p,cy){
   const t=ensureTips(p.id,cy);
   const tot=tipsTotals(t);
@@ -1556,7 +1556,7 @@ function drawTipsPlayerPDF(doc,p,cy){
 
   // Kopf (weisser Hintergrund = Standard)
   doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
-  doc.text('TIPS/U-Detailbogen',14,16);
+  doc.text('TIPS-Detailbogen',14,16);
   doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,41,59);
   doc.text(p.nr+'  '+p.name,14,23);
   doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(90,100,115);
@@ -1645,14 +1645,14 @@ async function exportTipsSingle(pid){
   const p=PLAYERS.find(x=>x.id===pid);
   drawTipsPlayerPDF(doc,p,state.cycle);
   const cyLabel=CYCLES.find(c=>c.key===state.cycle)?.label||state.cycle;
-  doc.save('FE12_TIPS/U_'+p.name.replace(/[^a-zA-Z0-9]/g,'_')+'_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+  doc.save('FE12_Detailbogen_'+p.name.replace(/[^a-zA-Z0-9]/g,'_')+'_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 async function exportTipsTeam(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const cyLabel=CYCLES.find(c=>c.key===state.cycle)?.label||state.cycle;
   PLAYERS.forEach((p,idx)=>{ if(idx>0)doc.addPage(); drawTipsPlayerPDF(doc,p,state.cycle); });
-  doc.save('FE12_TIPS/U_TEAM_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+  doc.save('FE12_Detailbogen_TEAM_'+cyLabel+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1827,6 +1827,7 @@ function renderMakro(){
     </div>
     ${monthSections}
     <p style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:8px">Klick auf eine Woche für Volldetails · Automatisch auf Saison 2026/27 angepasst</p>`;
+  refreshStamps();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1843,7 +1844,7 @@ async function renderVerlauf(){
 function buildVerlaufHTML(logs){
   const players=[{id:'all',name:'Alle Spieler'},...PLAYERS.map(p=>({id:p.id,name:p.name}))];
   const types=['all','rating','note','meta','si'];
-  const typeNames={all:'Alle Aktionen',rating:'📊 Bewertungen',note:'📝 Notizen',meta:'👤 Profil',si:'🧠 SMART+'};
+  const typeNames={all:'Alle Aktionen',rating:'📊 Bewertungen',note:'📝 Notizen',meta:'👤 Profil',si:'🧠 SI-Erfassung'};
   const users=['all',...[...new Set(logs.map(l=>l.user_email))]];
   let filtered=logs.filter(l=>{
     if(verlaufFilter.player!=='all'&&l.player_id!=verlaufFilter.player)return false;
@@ -1936,7 +1937,7 @@ async function exportPDF(){
   // SI page
   doc.addPage();doc.setFillColor(13,21,32);doc.rect(0,0,210,297,'F');
   doc.setFontSize(14);doc.setFont(undefined,'bold');doc.setTextColor(224,123,57);
-  doc.text('SMART+ · 4v4 Spielintelligenz',14,20);
+  doc.text('SI-Erfassung · 4v4 Spielintelligenz',14,20);
   const siRows=PLAYERS.map(p=>{const s=state.siData[p.id];const t=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);return[p.nr,p.name,s.wahrnehmen,s.loesungen,s.entscheidung,s.gegen_ball,t];});
   doc.autoTable({startY:28,head:[['#','Spieler','Wahrnehmen','Lösungen','Entscheidung','Gegen Ball','Total']],body:siRows,theme:'plain',styles:{fontSize:9,cellPadding:2.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:12},1:{cellWidth:55},2:{halign:'center'},3:{halign:'center'},4:{halign:'center'},5:{halign:'center'},6:{halign:'center',fontStyle:'bold'}},margin:{left:14,right:14}});
   // Verlauf/Archiv page
@@ -1956,6 +1957,406 @@ async function exportPDF(){
 // Init
 initState();
 </script>
-<script src="spiele.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// SPIELE & MATCHES  (ersetzt die externe spiele.js)
+// Speicherung in Supabase-Tabelle "matches"
+// ═══════════════════════════════════════════════════
+if(!state.matches) state.matches = [];
+state.matchEditId = state.matchEditId || null;
+let _matchesTableMissing = false;
+let _matchSaveTimers = {};
+
+const COMPETITIONS = ['Meisterschaft','Turnier','Cup','Testspiel','Trainingsspiel'];
+const VENUES = {home:'Heim',away:'Auswärts',neutral:'Neutral'};
+
+function uuid(){ return 'm-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8); }
+
+function matchResult(m){
+  if(m.status!=='played') return null;
+  const gf=parseInt(m.goals_for)||0, ga=parseInt(m.goals_against)||0;
+  if(gf>ga) return 'W'; if(gf<ga) return 'L'; return 'D';
+}
+const RESULT_INFO = {
+  W:{label:'Sieg',color:'#22c55e',bg:'rgba(34,197,94,0.15)'},
+  D:{label:'Unent.',color:'#f59e0b',bg:'rgba(245,158,11,0.15)'},
+  L:{label:'Nied.',color:'#ef4444',bg:'rgba(239,68,68,0.15)'},
+};
+function matchDateLabel(d){
+  if(!d) return 'Kein Datum';
+  const parts=String(d).slice(0,10).split('-');
+  if(parts.length<3) return d;
+  return parts[2]+'.'+parts[1]+'.'+parts[0];
+}
+function isUpcoming(m){
+  if(m.status==='played') return false;
+  if(!m.match_date) return true;
+  const today=new Date().toISOString().slice(0,10);
+  return m.match_date.slice(0,10) >= today;
+}
+
+// ── LADEN ──────────────────────────────────────────
+async function loadMatches(){
+  try{
+    const {data,error}=await sb.from('matches').select('*');
+    if(error){
+      if((error.code==='42P01')||/relation .*matches.* does not exist/i.test(error.message||'')){
+        _matchesTableMissing=true;
+      }
+      state.matches=[]; return;
+    }
+    _matchesTableMissing=false;
+    state.matches=(data||[]).map(m=>({
+      id:m.id, match_date:m.match_date||'', opponent:m.opponent||'',
+      venue:m.venue||'home', competition:m.competition||'Meisterschaft',
+      goals_for:m.goals_for??0, goals_against:m.goals_against??0,
+      status:m.status||'planned',
+      lineup:Array.isArray(m.lineup)?m.lineup:(m.lineup?JSON.parse(m.lineup):[]),
+      scorers:(m.scorers&&typeof m.scorers==='object')?m.scorers:(m.scorers?JSON.parse(m.scorers):{}),
+      assists:(m.assists&&typeof m.assists==='object')?m.assists:(m.assists?JSON.parse(m.assists):{}),
+      note:m.note||''
+    }));
+    sortMatches();
+  }catch(e){ console.error('loadMatches',e); state.matches=[]; }
+}
+function sortMatches(){
+  state.matches.sort((a,b)=>{
+    const da=a.match_date||'9999', db=b.match_date||'9999';
+    return db.localeCompare(da);
+  });
+}
+function getMatch(id){ return state.matches.find(m=>m.id===id); }
+
+// ── SPEICHERN ──────────────────────────────────────
+function persistMatch(id, logText){
+  const m=getMatch(id); if(!m) return;
+  clearTimeout(_matchSaveTimers[id]);
+  _matchSaveTimers[id]=setTimeout(async()=>{
+    try{
+      const {error}=await sb.from('matches').upsert({
+        id:m.id, match_date:m.match_date||null, opponent:m.opponent||'',
+        venue:m.venue, competition:m.competition,
+        goals_for:parseInt(m.goals_for)||0, goals_against:parseInt(m.goals_against)||0,
+        status:m.status, lineup:m.lineup, scorers:m.scorers, assists:m.assists,
+        note:m.note||''
+      },{onConflict:'id'});
+      if(error){ console.error('persistMatch',error); showSavedToast('Speichern fehlgeschlagen – Tabelle "matches" prüfen',false); return; }
+      if(typeof logActivity==='function'){
+        const opp=m.opponent||'Gegner offen';
+        logActivity(null,'match', logText||('Spiel gespeichert · '+opp), null, null,'matches','', opp);
+      }
+    }catch(e){ console.error('persistMatch',e); }
+  },600);
+}
+
+// ── CRUD ───────────────────────────────────────────
+async function addMatch(){
+  if(_matchesTableMissing){ renderSpiele(); return; }
+  const m={id:uuid(),match_date:new Date().toISOString().slice(0,10),opponent:'',venue:'home',competition:'Meisterschaft',goals_for:0,goals_against:0,status:'planned',lineup:[],scorers:{},assists:{},note:''};
+  state.matches.unshift(m);
+  try{
+    await sb.from('matches').upsert({id:m.id,match_date:m.match_date,opponent:'',venue:'home',competition:'Meisterschaft',goals_for:0,goals_against:0,status:'planned',lineup:[],scorers:{},assists:{},note:''},{onConflict:'id'});
+    if(typeof logActivity==='function') logActivity(null,'match','Neues Spiel angelegt',null,null,'matches','','neu');
+  }catch(e){ console.error('addMatch',e); }
+  state.matchEditId=m.id;
+  renderSpiele();
+}
+async function deleteMatch(id){
+  const m=getMatch(id);
+  if(!confirm('Spiel'+(m&&m.opponent?' gegen '+m.opponent:'')+' wirklich löschen?')) return;
+  state.matches=state.matches.filter(x=>x.id!==id);
+  if(state.matchEditId===id) state.matchEditId=null;
+  try{
+    await sb.from('matches').delete().eq('id',id);
+    if(typeof logActivity==='function') logActivity(null,'match','Spiel gelöscht'+(m&&m.opponent?' · '+m.opponent:''),null,null,'matches',m?m.opponent:'',null);
+  }catch(e){ console.error('deleteMatch',e); }
+  renderSpiele();
+}
+function editMatch(id){ state.matchEditId=id; renderSpiele(); }
+function closeMatchEditor(){ state.matchEditId=null; sortMatches(); renderSpiele(); }
+
+function updateMatchField(id,field,val){
+  const m=getMatch(id); if(!m) return;
+  m[field]=val;
+  if(field==='status' && val==='played' && !m.match_date){ m.match_date=new Date().toISOString().slice(0,10); }
+  persistMatch(id);
+  // Live-Update von Ergebnis-Badge & Kopf, ohne komplettes Re-Render
+  const badge=document.getElementById('me_result_'+id);
+  if(badge){ const r=matchResult(m); badge.innerHTML = r?`<span style="font-size:12px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:4px 12px;border-radius:6px">${RESULT_INFO[r].label} · ${m.goals_for||0}:${m.goals_against||0}</span>`:`<span style="font-size:11px;color:rgba(255,255,255,0.35)">Geplant</span>`; }
+}
+function stepGoal(id,which,delta){
+  const m=getMatch(id); if(!m) return;
+  const f=which==='for'?'goals_for':'goals_against';
+  m[f]=Math.max(0,(parseInt(m[f])||0)+delta);
+  if(m.status!=='played') m.status='played';
+  const el=document.getElementById('mg_'+which+'_'+id); if(el) el.textContent=m[f];
+  updateMatchField(id,f,m[f]);
+}
+function toggleLineup(id,pid){
+  const m=getMatch(id); if(!m) return;
+  if(!Array.isArray(m.lineup)) m.lineup=[];
+  const i=m.lineup.indexOf(pid);
+  if(i>=0){ m.lineup.splice(i,1); if(m.scorers) delete m.scorers[pid]; if(m.assists) delete m.assists[pid]; }
+  else m.lineup.push(pid);
+  persistMatch(id);
+  renderSpiele();
+}
+function stepStat(id,pid,kind,delta){
+  const m=getMatch(id); if(!m) return;
+  const obj = kind==='goal' ? (m.scorers||(m.scorers={})) : (m.assists||(m.assists={}));
+  obj[pid]=Math.max(0,(parseInt(obj[pid])||0)+delta);
+  if(obj[pid]===0) delete obj[pid];
+  const el=document.getElementById('stat_'+kind+'_'+id+'_'+pid); if(el) el.textContent=obj[pid]||0;
+  persistMatch(id);
+}
+
+// ── STATS ──────────────────────────────────────────
+function matchStats(){
+  const played=state.matches.filter(m=>m.status==='played');
+  let w=0,d=0,l=0,gf=0,ga=0;
+  played.forEach(m=>{ const r=matchResult(m); if(r==='W')w++; else if(r==='D')d++; else if(r==='L')l++; gf+=parseInt(m.goals_for)||0; ga+=parseInt(m.goals_against)||0; });
+  return {total:state.matches.length,played:played.length,w,d,l,gf,ga};
+}
+function topScorers(limit=5){
+  const tally={};
+  state.matches.forEach(m=>{ if(m.status!=='played') return; Object.entries(m.scorers||{}).forEach(([pid,g])=>{tally[pid]=(tally[pid]||0)+(parseInt(g)||0);}); });
+  return Object.entries(tally).map(([pid,g])=>({pid:parseInt(pid),goals:g})).filter(x=>x.goals>0).sort((a,b)=>b.goals-a.goals).slice(0,limit);
+}
+
+// ── RENDER: HAUPTANSICHT ───────────────────────────
+async function renderSpiele(){
+  const mc=document.getElementById('mainContent');
+  if(!mc) return;
+  if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
+
+  if(_matchesTableMissing){
+    mc.innerHTML = matchSetupHint();
+    return;
+  }
+  if(state.matchEditId){ mc.innerHTML = matchEditorHTML(state.matchEditId); return; }
+
+  const st=matchStats();
+  const statCards=[
+    [String(st.total),'Spiele','ball-football','#e07b39'],
+    [String(st.w),'Siege','trophy','#22c55e'],
+    [String(st.d),'Unentschieden','equal','#f59e0b'],
+    [String(st.l),'Niederlagen','x','#ef4444'],
+  ].map(([v,l,ic,c])=>`<div class="card" style="padding:14px;display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:9px;background:${c}22;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-${ic}" style="font-size:17px;color:${c}"></i></div>
+      <div><div style="font-size:20px;font-weight:700;color:#e2e8f0;line-height:1">${v}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${l}</div></div>
+    </div>`).join('');
+
+  const upcoming=state.matches.filter(isUpcoming).slice().sort((a,b)=>(a.match_date||'9999').localeCompare(b.match_date||'9999'));
+  const past=state.matches.filter(m=>!isUpcoming(m));
+
+  const ts=topScorers();
+  const scorerHTML = ts.length? ts.map((s,i)=>{const p=PLAYERS.find(x=>x.id===s.pid);return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:${i?'1px solid rgba(255,255,255,0.05)':'none'}">
+      <span style="font-size:11px;font-weight:800;color:#e07b39;width:18px">${i+1}.</span>
+      <div style="width:24px;height:24px;border-radius:50%;background:rgba(224,123,57,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#e07b39">${p?initials(p.name):'?'}</div>
+      <span style="flex:1;font-size:12px;color:#e2e8f0">${p?esc(p.name):'Unbekannt'}</span>
+      <span style="font-size:12px;font-weight:800;color:#22c55e">${s.goals} <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4)">Tore</span></span>
+    </div>`;}).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">Noch keine Torschützen erfasst</div>';
+
+  mc.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="addMatch()" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#e07b39,#c25e1f);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Neues Spiel</button>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4)">${st.total} Spiele · ${st.played} gespielt · Tore ${st.gf}:${st.ga}</span>
+    </div>
+    <div class="stat-grid">${statCards}</div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:14px">
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-event" style="color:#e07b39"></i> ANSTEHENDE SPIELE</div>
+        ${upcoming.length? upcoming.map(matchListRow).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">Keine anstehenden Spiele geplant.</div>'}
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px" class="spiele-split">
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-history" style="color:#e07b39"></i> GESPIELT / VERGANGEN</div>
+          ${past.length? past.map(matchListRow).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">Noch keine gespielten Spiele.</div>'}
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:6px"><i class="ti ti-trophy" style="color:#f59e0b"></i> TORSCHÜTZEN</div>
+          ${scorerHTML}
+        </div>
+      </div>
+    </div>
+    <style>@media(max-width:767px){.spiele-split{grid-template-columns:1fr!important}}</style>`;
+}
+
+function matchListRow(m){
+  const r=matchResult(m);
+  const venueIcon = m.venue==='home'?'home':m.venue==='away'?'plane-departure':'map-pin';
+  const score = m.status==='played'? `${m.goals_for||0} : ${m.goals_against||0}` : '–';
+  const scoreColor = r?RESULT_INFO[r].color:'rgba(255,255,255,0.4)';
+  const resBadge = r? `<span style="font-size:9px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:2px 7px;border-radius:4px">${RESULT_INFO[r].label}</span>` : `<span style="font-size:9px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.15);padding:2px 7px;border-radius:4px">Geplant</span>`;
+  return `<div onclick="editMatch('${m.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 8px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;border-radius:8px;transition:background .12s" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background='transparent'">
+    <div style="text-align:center;min-width:54px">
+      <div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.35)">${matchDateLabel(m.match_date).slice(6)}</div>
+    </div>
+    <i class="ti ti-${venueIcon}" style="font-size:14px;color:rgba(255,255,255,0.35)" title="${VENUES[m.venue]||''}"></i>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.opponent||'Gegner offen')}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35)">${esc(m.competition)} · ${VENUES[m.venue]||''}</div>
+    </div>
+    <div style="text-align:right;min-width:54px">
+      <div style="font-size:15px;font-weight:800;color:${scoreColor};line-height:1">${score}</div>
+      <div style="margin-top:3px">${resBadge}</div>
+    </div>
+    <i class="ti ti-chevron-right" style="font-size:15px;color:rgba(255,255,255,0.25)"></i>
+  </div>`;
+}
+
+// ── RENDER: EDITOR ─────────────────────────────────
+function matchEditorHTML(id){
+  const m=getMatch(id);
+  if(!m) return '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">Spiel nicht gefunden.</div>';
+  const r=matchResult(m);
+  const compOpts=COMPETITIONS.map(c=>`<option value="${c}" ${m.competition===c?'selected':''}>${c}</option>`).join('');
+  const venueOpts=Object.entries(VENUES).map(([k,v])=>`<option value="${k}" ${m.venue===k?'selected':''}>${v}</option>`).join('');
+
+  const lineupChips = PLAYERS.map(p=>{
+    const on=(m.lineup||[]).includes(p.id);
+    return `<button onclick="toggleLineup('${id}',${p.id})" style="padding:6px 10px;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;border:1px solid ${on?'rgba(224,123,57,0.5)':'rgba(255,255,255,0.1)'};background:${on?'rgba(224,123,57,0.18)':'rgba(255,255,255,0.04)'};color:${on?'#e07b39':'rgba(255,255,255,0.55)'};display:flex;align-items:center;gap:5px">
+      <i class="ti ti-${on?'check':'plus'}" style="font-size:12px"></i>${esc(p.name.split(',')[0])}${p.tw?' (TW)':''}</button>`;
+  }).join('');
+
+  const lineupPlayers=(m.lineup||[]).map(pid=>PLAYERS.find(p=>p.id===pid)).filter(Boolean);
+  const statRows = lineupPlayers.length? lineupPlayers.map(p=>{
+    const g=(m.scorers&&m.scorers[p.id])||0, a=(m.assists&&m.assists[p.id])||0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="width:26px;height:26px;border-radius:50%;background:rgba(224,123,57,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#e07b39;flex-shrink:0">${initials(p.name)}</div>
+      <span style="flex:1;font-size:12px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+      <div style="display:flex;align-items:center;gap:5px"><span style="font-size:9px;color:rgba(255,255,255,0.4);width:30px">Tore</span>
+        ${stepperHTML(id,p.id,'goal',g)}</div>
+      <div style="display:flex;align-items:center;gap:5px"><span style="font-size:9px;color:rgba(255,255,255,0.4);width:34px">Assist</span>
+        ${stepperHTML(id,p.id,'assist',a)}</div>
+    </div>`;
+  }).join('') : '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:10px 0">Erst Spieler zur Aufstellung hinzufügen (oben), dann Tore/Assists erfassen.</div>';
+
+  const inputStyle='width:100%;padding:9px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
+  const labelStyle='font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.05em;display:block;margin-bottom:5px';
+
+  return `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="closeMatchEditor()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Alle Spiele</button>
+      <div id="me_result_${id}" style="margin-left:auto">${r?`<span style="font-size:12px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:4px 12px;border-radius:6px">${RESULT_INFO[r].label} · ${m.goals_for||0}:${m.goals_against||0}</span>`:`<span style="font-size:11px;color:rgba(255,255,255,0.35)">Geplant</span>`}</div>
+      <button onclick="deleteMatch('${id}')" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:7px 12px;cursor:pointer"><i class="ti ti-trash"></i> Löschen</button>
+    </div>
+
+    <div class="card" style="padding:16px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div><label style="${labelStyle}">DATUM</label><input type="date" value="${m.match_date?m.match_date.slice(0,10):''}" onchange="updateMatchField('${id}','match_date',this.value)" style="${inputStyle}"/></div>
+        <div><label style="${labelStyle}">GEGNER</label><input type="text" value="${esc(m.opponent)}" placeholder="z.B. FC Basel" onchange="updateMatchField('${id}','opponent',this.value)" style="${inputStyle}"/></div>
+        <div><label style="${labelStyle}">ORT</label><select onchange="updateMatchField('${id}','venue',this.value)" style="${inputStyle}">${venueOpts}</select></div>
+        <div><label style="${labelStyle}">WETTBEWERB</label><select onchange="updateMatchField('${id}','competition',this.value)" style="${inputStyle}">${compOpts}</select></div>
+        <div><label style="${labelStyle}">STATUS</label><select onchange="updateMatchField('${id}','status',this.value)" style="${inputStyle}"><option value="planned" ${m.status==='planned'?'selected':''}>Geplant</option><option value="played" ${m.status==='played'?'selected':''}>Gespielt</option></select></div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:18px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:14px;text-align:center">ENDSTAND</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap">
+        <div style="text-align:center;min-width:120px">
+          <div style="font-size:11px;font-weight:700;color:#e07b39;margin-bottom:8px">FE12 Old Boys</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <button onclick="stepGoal('${id}','for',-1)" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:18px;cursor:pointer;line-height:1">−</button>
+            <span id="mg_for_${id}" style="font-size:30px;font-weight:800;color:#e07b39;min-width:34px">${m.goals_for||0}</span>
+            <button onclick="stepGoal('${id}','for',1)" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(224,123,57,0.3);background:rgba(224,123,57,0.12);color:#e07b39;font-size:18px;cursor:pointer;line-height:1">+</button>
+          </div>
+        </div>
+        <div style="font-size:24px;font-weight:800;color:rgba(255,255,255,0.25)">:</div>
+        <div style="text-align:center;min-width:120px">
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px">${esc(m.opponent||'Gegner')}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <button onclick="stepGoal('${id}','against',-1)" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:18px;cursor:pointer;line-height:1">−</button>
+            <span id="mg_against_${id}" style="font-size:30px;font-weight:800;color:#e2e8f0;min-width:34px">${m.goals_against||0}</span>
+            <button onclick="stepGoal('${id}','against',1)" style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#e2e8f0;font-size:18px;cursor:pointer;line-height:1">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px">AUFSTELLUNG / KADER (${(m.lineup||[]).length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${lineupChips}</div>
+    </div>
+
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:6px">TORE & ASSISTS</div>
+      ${statRows}
+    </div>
+
+    <div class="card" style="padding:14px 16px">
+      <label style="${labelStyle}">NOTIZEN ZUM SPIEL</label>
+      <textarea oninput="updateMatchField('${id}','note',this.value)" placeholder="Beobachtungen, Taktik, Bemerkungen…" style="width:100%;min-height:80px;padding:10px 12px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px;resize:vertical">${esc(m.note)}</textarea>
+    </div>`;
+}
+
+function stepperHTML(id,pid,kind,val){
+  return `<div style="display:flex;align-items:center;gap:4px">
+    <button onclick="stepStat('${id}',${pid},'${kind}',-1)" style="width:24px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e2e8f0;font-size:14px;cursor:pointer;line-height:1">−</button>
+    <span id="stat_${kind}_${id}_${pid}" style="font-size:13px;font-weight:700;color:${kind==='goal'?'#22c55e':'#818cf8'};min-width:16px;text-align:center">${val}</span>
+    <button onclick="stepStat('${id}',${pid},'${kind}',1)" style="width:24px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#e2e8f0;font-size:14px;cursor:pointer;line-height:1">+</button>
+  </div>`;
+}
+
+// ── SETUP-HINWEIS (falls Tabelle fehlt) ────────────
+function matchSetupHint(){
+  const sql = `create table if not exists matches (
+  id text primary key,
+  match_date date,
+  opponent text,
+  venue text default 'home',
+  competition text default 'Meisterschaft',
+  goals_for int default 0,
+  goals_against int default 0,
+  status text default 'planned',
+  lineup jsonb default '[]'::jsonb,
+  scorers jsonb default '{}'::jsonb,
+  assists jsonb default '{}'::jsonb,
+  note text default '',
+  created_at timestamptz default now()
+);
+alter table matches enable row level security;
+create policy matches_all on matches for all using (true) with check (true);`;
+  return `<div class="card" style="padding:24px;max-width:680px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <i class="ti ti-database-cog" style="font-size:22px;color:#f59e0b"></i>
+      <div style="font-size:15px;font-weight:700;color:#e2e8f0">Tabelle «matches» fehlt noch</div>
+    </div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:14px">Die Spiele-Verwaltung speichert in Supabase. Lege die Tabelle einmalig an: Supabase öffnen → <b>SQL Editor</b> → folgendes einfügen und ausführen. Danach diese Seite neu laden.</p>
+    <pre style="background:#0a121e;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:11px;color:#9fb4cc;overflow:auto;white-space:pre;line-height:1.5">${esc(sql)}</pre>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`')}\`).then(()=>showSavedToast('✓ SQL kopiert'))" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(224,123,57,0.12);border:1px solid rgba(224,123,57,0.3);border-radius:8px;color:#e07b39;cursor:pointer"><i class="ti ti-copy"></i> SQL kopieren</button>
+      <button onclick="_matchesTableMissing=false;state.matches=[];renderSpiele()" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;cursor:pointer"><i class="ti ti-refresh"></i> Erneut prüfen</button>
+    </div>
+  </div>`;
+}
+
+// ── DASHBOARD-WIDGET (nächste Spiele) ──────────────
+async function loadDashMatches(){
+  const el=document.getElementById('dashMatches');
+  if(!el) return;
+  if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
+  if(_matchesTableMissing){ el.innerHTML=''; return; }
+  const upcoming=state.matches.filter(isUpcoming).slice().sort((a,b)=>(a.match_date||'9999').localeCompare(b.match_date||'9999')).slice(0,3);
+  if(upcoming.length===0){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="card" style="padding:14px 16px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <i class="ti ti-calendar-event" style="color:#e07b39;font-size:15px"></i>
+      <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em">NÄCHSTE SPIELE</span>
+      <button onclick="showView('spiele')" style="margin-left:auto;font-size:10px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:3px 10px;cursor:pointer">Alle ansehen</button>
+    </div>
+    ${upcoming.map(m=>`<div onclick="showView('spiele')" style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-top:1px solid rgba(255,255,255,0.04);cursor:pointer">
+      <div style="text-align:center;min-width:50px"><div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div></div>
+      <i class="ti ti-${m.venue==='home'?'home':m.venue==='away'?'plane-departure':'map-pin'}" style="font-size:13px;color:rgba(255,255,255,0.35)"></i>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.opponent||'Gegner offen')}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${esc(m.competition)} · ${VENUES[m.venue]||''}</div></div>
+      <i class="ti ti-chevron-right" style="font-size:14px;color:rgba(255,255,255,0.25)"></i>
+    </div>`).join('')}
+  </div>`;
+}
+</script>
 </body>
 </html>
