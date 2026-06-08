@@ -401,6 +401,7 @@ const noteColor=v=>!v?'#6b7280':v<2?'#ef4444':v<3?'#f59e0b':v<4?'#22c55e':'#3b82
 const gapColor=g=>g==null?'#9ca3af':g>=2?'#ef4444':g>=1?'#f59e0b':'#22c55e';
 const gapBg=g=>g==null?'transparent':g>=2?'rgba(239,68,68,0.12)':g>=1?'rgba(245,158,11,0.12)':'rgba(34,197,94,0.1)';
 const initials=n=>{const p=n.split(',');return((p[0]?.[0]||'')+(p[1]?.trim()?.[0]||'')).toUpperCase()};
+function vorname(name){ const n=String(name||''); const i=n.indexOf(','); const v=(i>=0?n.slice(i+1):n).trim(); return v||n; }
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const getAvg=(pid,cy)=>avgVals(DIMS.map(d=>state.data[pid]?.ratings[cy][d].ist));
 const getMaxGap=(pid,cy)=>{let mg=null,md=null;DIMS.forEach(d=>{const g=gap(state.data[pid]?.ratings[cy][d].ist,state.data[pid]?.ratings[cy][d].soll);if(g!=null&&(mg==null||g>mg)){mg=g;md=d;}});return{gap:mg,dim:md}};
@@ -1135,13 +1136,25 @@ function renderPlayer(){
     </div>`;
   }
 
+  // Einsatzzeit & Positionen (Saison gesamt, aus den Aufstellungen)
+  let einsCard='';
+  if(typeof aggMatchStats==='function'){
+    if((state.matches||[]).length===0 && typeof _matchesTableMissing!=='undefined' && !_matchesTableMissing && !window._einsTriedLoad){
+      window._einsTriedLoad=true;
+      if(typeof loadMatches==='function') loadMatches().then(()=>{ if(state.view==='player') renderPlayer(); });
+    }
+    const es=aggMatchStats({comp:'all',phase:'all'})[String(p.id)];
+    const posChips = es ? Object.entries(es.pos).sort((a,b)=>b[1]-a[1]).map(([l,n])=>`<span style="font-size:10px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);border-radius:5px;padding:2px 7px">${esc(l)}${n>1?' ×'+n:''}</span>`).join(' ') : '';
+    einsCard=`<div class="card" style="padding:12px 14px;margin-top:10px">
+      <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:8px;display:flex;align-items:center;gap:5px"><i class="ti ti-clock-play" style="color:#22c55e"></i> EINSATZZEIT & POSITIONEN</div>
+      ${es?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span style="font-size:22px;font-weight:800;color:#22c55e">${es.minutes}'</span><span style="font-size:10px;color:rgba(255,255,255,0.4)">${es.matches} Spiele · ${es.halves} Halbzeiten</span></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${posChips}</div>`
+        : `<div style="font-size:11px;color:rgba(255,255,255,0.3)">Noch keine Einsätze erfasst.</div>`}
+      <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:8px">15 Min/Halbzeit · Filter & Vorrunde/Rückrunde unter „Anwesenheit"</div>
+    </div>`;
+  }
+
   document.getElementById('mainContent').innerHTML=`
-    ${headerHTML}
-    <div style="display:grid;grid-template-columns:1fr 195px;gap:14px;align-items:start">
-      <div>
-        <div class="card" style="overflow:hidden;margin-bottom:14px">
-          <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:700;color:#e2e8f0;letter-spacing:.04em">TIPS/U MATRIX</span>
             <div style="margin-left:auto;display:flex;gap:10px;font-size:10px">
               <span style="color:#c9a84c;font-weight:700">● IST</span>
               <span style="color:#6366f1;font-weight:700">– – SOLL</span>
@@ -1174,6 +1187,7 @@ function renderPlayer(){
           <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:6px">WUNSCHPOSITION</div>
           <input value="${esc(pd.position)}" oninput="updateField(${p.id},'position',this.value)" placeholder="Position..." style="width:100%;font-size:12px;padding:7px 9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/>
         </div>
+        ${einsCard}
       </div>
     </div>`;
   refreshStamps();
@@ -1782,6 +1796,7 @@ function drawTipsPlayerPDF(doc,p,cy){
   const detRgb=v=>({1:[239,68,68],2:[245,158,11],3:[34,197,94],4:[59,130,246]}[v]||[120,130,145]);
 
   // Kopf (weisser Hintergrund = Standard)
+  try{ const src=(typeof getTeamLogo==='function')?getTeamLogo():null; if(src){ const fmt=/^data:image\/png/i.test(src)?'PNG':'JPEG'; doc.addImage(src,fmt,177,7,19,19); } }catch(e){ console.warn('tips logo',e); }
   doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(201,168,76);
   doc.text('TIPS/U · Detailauswertung',14,16);
   doc.setFontSize(10);doc.setFont(undefined,'bold');doc.setTextColor(30,41,59);
@@ -2216,15 +2231,25 @@ function parseFormation(form){
 // Liefert Positionen {id,label,x,y} in % auf einem vertikalen Feld (eigenes Tor unten)
 function getPositions(form){
   const lines=parseFormation(form);
-  const pos=[{id:'p0',label:'TW',x:50,y:90}];
+  const pos=[{id:'p0',label:'TW',pos:'TW',x:50,y:90}];
   const nB=lines.length;
+  const nMid=Math.max(0,nB-2);
   lines.forEach((count,bi)=>{
     const y = nB<=1 ? 45 : Math.round(74 - bi*(60/(nB-1)));
     let label='MF';
     if(bi===0) label='ABW'; else if(bi===nB-1) label='ANG';
     for(let i=0;i<count;i++){
       const x = count===1 ? 50 : Math.round((100/(count+1))*(i+1));
-      pos.push({id:'p'+pos.length,label,x,y});
+      const isLeft=i===0, isRight=i===count-1;
+      let spec;
+      if(bi===0){ spec=((isLeft||isRight)&&count>=4)?'AV':'IV'; }
+      else if(bi===nB-1){ spec = count===1?'ST':(count>=3?(isLeft?'LF':(isRight?'RF':'ST')):'ST'); }
+      else {
+        const midIdx=bi-1;
+        let center = nMid<=1?'ZM':(midIdx===0?'DM':(midIdx===nMid-1?'OM':'ZM'));
+        spec = (count>=3 && isLeft)?'LM':((count>=3 && isRight)?'RM':center);
+      }
+      pos.push({id:'p'+pos.length,label,pos:spec,x,y});
     }
   });
   return pos;
@@ -2336,7 +2361,7 @@ function persistMatch(id, logText){
         showSavedToast('Formation lokal gespeichert – DB-Spalten fehlen (siehe Hinweis im Editor)',false);
         ({error}=await sb.from('matches').upsert(matchPayload(m,false),{onConflict:'id'}));
       }
-      if(error){ console.error('persistMatch',error); showSavedToast('Speichern fehlgeschlagen – Tabelle "matches" prüfen',false); return; }
+      if(error){ console.error('persistMatch',error); showSavedToast('Spiel speichern fehlgeschlagen: '+(error.message||error.code||'unbekannt'),false); return; }
       if(typeof logActivity==='function'){
         const opp=m.opponent||'Gegner offen';
         logActivity(null,'match', logText||('Spiel gespeichert · '+opp), null, null,'matches','', opp);
@@ -2356,9 +2381,15 @@ async function addMatch(){
   try{
     let {error}=await sb.from('matches').upsert(matchPayload(m,_matchExtraCols),{onConflict:'id'});
     if(error && _matchExtraCols && _isMissingColErr(error)){ _matchExtraCols=false; ({error}=await sb.from('matches').upsert(matchPayload(m,false),{onConflict:'id'})); }
-    if(error) console.error('addMatch',error);
+    if(error){
+      console.error('addMatch',error);
+      showSavedToast('Spiel anlegen fehlgeschlagen: '+(error.message||error.code||'unbekannt'),false);
+      state.matches=state.matches.filter(x=>x.id!==m.id);  // Phantom-Spiel wieder entfernen
+      renderSpiele();
+      return;
+    }
     if(typeof logActivity==='function') logActivity(null,'match','Neues Spiel angelegt',null,null,'matches','','neu');
-  }catch(e){ console.error('addMatch',e); }
+  }catch(e){ console.error('addMatch',e); showSavedToast('Spiel anlegen fehlgeschlagen: '+(e.message||'Netzwerkfehler'),false); state.matches=state.matches.filter(x=>x.id!==m.id); renderSpiele(); return; }
   state.matchEditId=m.id;
   renderSpiele();
 }
@@ -2589,6 +2620,48 @@ function assignedHalfIds(m,half){
   return set;
 }
 
+// ── SPIELZEIT & POSITIONEN (abgeleitet aus den Aufstellungen) ──
+const MIN_PER_HALF = 15;   // fix: 15 Min pro Halbzeit-Einsatz
+function matchPlayerStats(m){
+  const per={};
+  if(!m||!Array.isArray(m.halves)) return per;
+  m.halves.forEach((hz,hi)=>{
+    ['a','b'].forEach(fk=>{
+      const fld=hz&&hz[fk]; if(!fld) return;
+      const posMap={}; getPositions(fld.formation||defaultFormation(m.spielform)).forEach(pp=>posMap[pp.id]=pp.pos||pp.label);
+      Object.entries(fld.lineup||{}).forEach(([posId,pid])=>{
+        const k=String(pid);
+        if(!per[k]) per[k]={halves:new Set(),pos:{}};
+        per[k].halves.add(hi);
+        const lab=posMap[posId]||'?';
+        per[k].pos[lab]=(per[k].pos[lab]||0)+1;
+      });
+    });
+  });
+  const out={};
+  Object.keys(per).forEach(k=>{ const h=per[k].halves.size; out[k]={halves:h,minutes:h*MIN_PER_HALF,pos:per[k].pos}; });
+  return out;
+}
+function posSummary(posObj){
+  return Object.entries(posObj||{}).sort((a,b)=>b[1]-a[1]).map(([l,n])=>n>1?l+'×'+n:l).join(', ')||'—';
+}
+function matchPhase(m){ const mo=parseInt((m.match_date||'').slice(5,7))||0; return mo>=7?'vor':'rueck'; } // Jul–Dez = Vorrunde
+function aggMatchStats(filter){
+  const f=filter||{}; const per={};
+  (state.matches||[]).forEach(m=>{
+    if(m.status!=='played') return;
+    if(f.comp && f.comp!=='all' && m.competition!==f.comp) return;
+    if(f.phase && f.phase!=='all' && matchPhase(m)!==f.phase) return;
+    const ms=matchPlayerStats(m);
+    Object.keys(ms).forEach(k=>{
+      if(!per[k]) per[k]={halves:0,minutes:0,matches:0,pos:{}};
+      per[k].halves+=ms[k].halves; per[k].minutes+=ms[k].minutes; per[k].matches++;
+      Object.entries(ms[k].pos).forEach(([l,n])=>per[k].pos[l]=(per[k].pos[l]||0)+n);
+    });
+  });
+  return per;
+}
+
 // ── FORMATION: RENDER ──────────────────────────────
 function pitchHTML(id,half,which){
   const m=getMatch(id); if(!m) return '';
@@ -2602,13 +2675,13 @@ function pitchHTML(id,half,which){
     const p = pid!=null ? PLAYERS.find(x=>String(x.id)===String(pid)) : null;
     const opts = ['<option value="">– frei –</option>'].concat(
       PLAYERS.filter(pp=>!assigned.has(String(pp.id))||String(pp.id)===String(pid))
-        .map(pp=>`<option value="${pp.id}" ${String(pp.id)===String(pid)?'selected':''}>${esc(pp.nr)} · ${esc(pp.name.split(',')[0])}${pp.tw?' (TW)':''}</option>`)
+        .map(pp=>`<option value="${pp.id}" ${String(pp.id)===String(pid)?'selected':''}>${esc(pp.nr)} · ${esc(vorname(pp.name))}${pp.tw?' (TW)':''}</option>`)
     ).join('');
     const bg = p ? 'linear-gradient(135deg,#c9a84c,#9a7c2e)' : 'rgba(255,255,255,0.10)';
     const bd = p ? 'rgba(201,168,76,0.7)' : 'rgba(255,255,255,0.3)';
-    const inner = p ? esc(p.nr) : pos.label;
+    const inner = p ? esc(p.nr) : (pos.pos||pos.label);
     const tag = p
-      ? `<div style="font-size:8px;font-weight:700;color:#e2e8f0;white-space:nowrap;max-width:64px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,0.85)">${esc(p.name.split(',')[0])}</div>`
+      ? `<div style="font-size:8px;font-weight:700;color:#e2e8f0;white-space:nowrap;max-width:64px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,0.85)">${esc(vorname(p.name))}</div>`
       : `<div style="font-size:7px;color:rgba(255,255,255,0.55);text-shadow:0 1px 2px rgba(0,0,0,0.6)">+</div>`;
     return `<div style="position:absolute;left:${pos.x}%;top:${pos.y}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;z-index:2">
       <div style="position:relative;width:34px;height:34px">
@@ -2641,7 +2714,7 @@ function halfBlockHTML(id,half){
   const m=getMatch(id);
   const bench=PLAYERS.filter(p=>!assignedHalfIds(m,half).has(String(p.id)));
   const benchChips = bench.length? bench.map(p=>`<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:7px;font-size:11px;color:rgba(255,255,255,0.7)">
-      <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4)">${esc(p.nr)}</span>${esc(p.name.split(',')[0])}${p.tw?' <span style="font-size:8px;color:#3b82f6;font-weight:800">TW</span>':''}</span>`).join('')
+      <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4)">${esc(p.nr)}</span>${esc(vorname(p.name))}${p.tw?' <span style="font-size:8px;color:#3b82f6;font-weight:800">TW</span>':''}</span>`).join('')
     : '<span style="font-size:11px;color:rgba(255,255,255,0.3)">Alle Spieler sind aufgestellt.</span>';
   return `<div style="margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,0.07);border-radius:10px;background:rgba(255,255,255,0.015)">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -2663,6 +2736,22 @@ function formationCardHTML(id){
   const sf=m.spielform||'7er';
   const sfOpts=Object.entries(SPIELFORM_LABELS).map(([k,v])=>`<option value="${k}" ${sf===k?'selected':''}>${v}</option>`).join('');
   const halvesHTML=[0,1,2].map(h=>halfBlockHTML(id,h)).join('');
+  // Spielzeit & Positionen für dieses Spiel (15 Min pro Halbzeit-Einsatz)
+  const st=matchPlayerStats(m);
+  const stIds=Object.keys(st).map(k=>parseInt(k)).sort((a,b)=>st[String(b)].minutes-st[String(a)].minutes);
+  const stRows = stIds.length ? stIds.map(pid=>{ const p=PLAYERS.find(x=>x.id===pid); if(!p) return ''; const s=st[String(pid)];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);width:20px">${esc(p.nr)}</span>
+      <span style="flex:1;font-size:12px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(vorname(p.name))}</span>
+      <span style="font-size:10px;color:#c9a84c;font-weight:700;min-width:120px;text-align:right">${esc(posSummary(s.pos))}</span>
+      <span style="font-size:11px;font-weight:800;color:#22c55e;width:46px;text-align:right">${s.minutes}'</span>
+      <span style="font-size:9px;color:rgba(255,255,255,0.3);width:34px;text-align:right">${s.halves} HZ</span>
+    </div>`; }).join('')
+    : '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:6px 0">Noch keine Spieler aufgestellt.</div>';
+  const summaryCard=`<div style="margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,0.07);border-radius:10px;background:rgba(34,197,94,0.03)">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.05em;color:rgba(255,255,255,0.45);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="ti ti-clock-play" style="color:#22c55e"></i> SPIELZEIT & POSITIONEN (15 Min / Halbzeit)</div>
+    ${stRows}
+  </div>`;
   const dbHint = _matchExtraCols ? '' :
     `<div style="margin-top:12px;padding:9px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:10.5px;color:#f59e0b;line-height:1.5">
       <b>Hinweis:</b> Formationen werden aktuell nur lokal gehalten. Für dauerhaftes Speichern in Supabase einmalig die Spalten ergänzen –
@@ -2675,6 +2764,7 @@ function formationCardHTML(id){
       <span style="font-size:10px;color:rgba(255,255,255,0.3)">3 Halbzeiten · je 2 Felder · Spieler antippen zum Zuweisen</span>
     </div>
     ${halvesHTML}
+    ${summaryCard}
     ${dbHint}
   </div>`;
 }
@@ -2708,7 +2798,7 @@ function _pdfDrawPitch(doc, x, y, w, h, form, lineup){
     doc.setTextColor(pl?255:120, pl?255:120, pl?255:120);
     doc.text(pl?String(pl.nr):p.label, cx, cy+0.9, {align:'center'});
     if(pl){ doc.setFont(undefined,'normal'); doc.setFontSize(4.6); doc.setTextColor(255,255,255);
-      doc.text(pl.name.split(',')[0].slice(0,9), cx, cy+5.0, {align:'center'}); }
+      doc.text(vorname(pl.name).slice(0,9), cx, cy+5.0, {align:'center'}); }
   });
 }
 function exportMatchPDF(id){
@@ -2769,25 +2859,29 @@ function exportMatchPDF(id){
     y += ph+8;
   }
 
-  // Kader-Legende (Nr → Name) der eingesetzten Spieler
-  const usedIds=new Set();
-  m.halves.forEach(hz=>['a','b'].forEach(fk=>Object.values(hz[fk].lineup||{}).forEach(pid=>usedIds.add(String(pid)))));
-  const used=PLAYERS.filter(p=>usedIds.has(String(p.id)));
-  if(used.length){
-    ensure(20);
-    doc.setDrawColor(220,225,232); doc.setLineWidth(0.3); doc.line(ML,y,PW-MR,y); y+=6;
-    doc.setFont(undefined,'bold'); doc.setFontSize(8); doc.setTextColor(120,130,145);
-    doc.text('EINGESETZTE SPIELER', ML, y); y+=5;
-    doc.setFont(undefined,'normal'); doc.setFontSize(9); doc.setTextColor(40,48,60);
-    const legend=used.map(p=>p.nr+' '+p.name.split(',')[0]).join('   ·   ');
-    const lines=doc.splitTextToSize(legend, usable);
-    doc.text(lines, ML, y); y += lines.length*4.4 + 3;
+  // Spielzeit & Positionen (nur aufgestellte Spieler) — 15 Min pro Halbzeit-Einsatz
+  const st=matchPlayerStats(m);
+  const stKeys=Object.keys(st).sort((a,b)=>st[b].minutes-st[a].minutes);
+  if(stKeys.length){
+    ensure(24);
+    doc.setDrawColor(220,225,232); doc.setLineWidth(0.3); doc.line(ML,y,PW-MR,y); y+=5;
+    doc.setFont(undefined,'bold'); doc.setFontSize(9); doc.setTextColor(201,168,76);
+    doc.text('Spielzeit & Positionen',ML,y); y+=2;
+    const body=stKeys.map(k=>{ const p=PLAYERS.find(z=>String(z.id)===k); const s=st[k];
+      return [p?p.nr:'', p?vorname(p.name):'?', posSummary(s.pos), s.halves+' HZ', s.minutes+' Min']; });
+    doc.autoTable({startY:y+2,head:[['#','Spieler','Position(en)','Einsatz','Spielzeit']],body,theme:'plain',
+      styles:{fontSize:8.5,cellPadding:2,textColor:[40,48,60]},
+      headStyles:{fillColor:[201,168,76],textColor:[255,255,255],fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[245,243,236]},
+      columnStyles:{0:{cellWidth:12,halign:'center'},1:{cellWidth:46},2:{cellWidth:'auto'},3:{cellWidth:22,halign:'center'},4:{cellWidth:24,halign:'right',fontStyle:'bold'}},
+      margin:{left:ML,right:MR}});
+    y=doc.lastAutoTable.finalY+4;
   }
 
   // Tore / Assists / Notizen
   const sc=Object.entries(m.scorers||{}).filter(([,n])=>n>0);
   const as=Object.entries(m.assists||{}).filter(([,n])=>n>0);
-  const nm=pid=>{ const p=PLAYERS.find(z=>String(z.id)===String(pid)); return p?p.name.split(',')[0]:'?'; };
+  const nm=pid=>{ const p=PLAYERS.find(z=>String(z.id)===String(pid)); return p?vorname(p.name):'?'; };
   if(sc.length||as.length||(m.note||'').trim()){
     ensure(24);
     doc.setDrawColor(220,225,232); doc.setLineWidth(0.3); doc.line(ML,y,PW-MR,y); y+=6;
@@ -2824,7 +2918,7 @@ function matchEditorHTML(id){
   const lineupChips = PLAYERS.map(p=>{
     const on=(m.lineup||[]).includes(p.id);
     return `<button onclick="toggleLineup('${id}',${p.id})" style="padding:6px 10px;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;border:1px solid ${on?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${on?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${on?'#c9a84c':'rgba(255,255,255,0.55)'};display:flex;align-items:center;gap:5px">
-      <i class="ti ti-${on?'check':'plus'}" style="font-size:12px"></i>${esc(p.name.split(',')[0])}${p.tw?' (TW)':''}</button>`;
+      <i class="ti ti-${on?'check':'plus'}" style="font-size:12px"></i>${esc(vorname(p.name))}${p.tw?' (TW)':''}</button>`;
   }).join('');
 
   const lineupPlayers=(m.lineup||[]).map(pid=>PLAYERS.find(p=>p.id===pid)).filter(Boolean);
@@ -3039,6 +3133,8 @@ function _attDelete(key){
 }
 function setAttDate(v){ state.attDate=v; renderAnwesenheit(); }
 function setAttType(v){ state.attType=v; renderAnwesenheit(); }
+function setEinsComp(v){ state.einsComp=v; renderAnwesenheit(); }
+function setEinsPhase(v){ state.einsPhase=v; renderAnwesenheit(); }
 function setAttMatch(id){ const m=getMatch(id); state.attMatchId=id; if(m&&m.match_date) state.attDate=m.match_date; renderAnwesenheit(); }
 function markAllPresent(){
   if(roGuard()) return;
@@ -3138,18 +3234,27 @@ async function renderAnwesenheit(){
     </div>`;
   }).join('');
 
-  // Einsätze / Fairness
-  const ps=playingStats();
-  const maxH=Math.max(1,...PLAYERS.map(p=>ps[p.id]?ps[p.id].halves:0));
-  const playedMatches=(state.matches||[]).filter(m=>m.status==='played').length;
-  const fairRows=PLAYERS.slice().sort((a,b)=>(ps[b.id].halves-ps[a.id].halves)).map(p=>{
-    const s=ps[p.id]||{halves:0,matches:0};
-    const w=Math.round(s.halves/maxH*100);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-      <span style="flex:1;font-size:12px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
-      <div style="flex:0 0 110px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:#c9a84c"></div></div>
-      <span style="font-size:11px;font-weight:700;color:#c9a84c;width:64px;text-align:right">${s.halves} HZ</span>
-      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:70px;text-align:right">${s.matches}/${playedMatches} Sp.</span>
+  // Einsätze / Spielzeit / Positionen (mit Filter Wettbewerb + Zeitraum)
+  state.einsComp = state.einsComp||'all';
+  state.einsPhase = state.einsPhase||'all';
+  const agg=aggMatchStats({comp:state.einsComp,phase:state.einsPhase});
+  const maxMin=Math.max(1,...PLAYERS.map(p=>agg[String(p.id)]?agg[String(p.id)].minutes:0));
+  const playedMatches=(state.matches||[]).filter(m=>m.status==='played' && (state.einsComp==='all'||m.competition===state.einsComp) && (state.einsPhase==='all'||matchPhase(m)===state.einsPhase)).length;
+  const comps=['all',...Array.from(new Set((state.matches||[]).map(m=>m.competition).filter(Boolean)))];
+  const compOpts=comps.map(c=>`<option value="${esc(c)}" ${state.einsComp===c?'selected':''}>${c==='all'?'Alle Wettbewerbe':esc(c)}</option>`).join('');
+  const phaseOpts=[['all','Saison gesamt'],['vor','Vorrunde (Jul–Dez)'],['rueck','Rückrunde (Jan–Jun)']].map(([k,l])=>`<option value="${k}" ${state.einsPhase===k?'selected':''}>${l}</option>`).join('');
+  const einsFilter=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <select onchange="setEinsComp(this.value)" style="font-size:10px;padding:4px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0">${compOpts}</select>
+    <select onchange="setEinsPhase(this.value)" style="font-size:10px;padding:4px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0">${phaseOpts}</select>
+  </div>`;
+  const fairRows=PLAYERS.slice().sort((a,b)=>((agg[String(b.id)]?agg[String(b.id)].minutes:0)-(agg[String(a.id)]?agg[String(a.id)].minutes:0))).map(p=>{
+    const s=agg[String(p.id)]||{minutes:0,matches:0,pos:{}};
+    const w=Math.round(s.minutes/maxMin*100);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="flex:1;min-width:0"><span style="font-size:12px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%">${esc(vorname(p.name))} <span style="font-size:9px;color:rgba(255,255,255,0.3)">${esc(posSummary(s.pos))}</span></span></span>
+      <div style="flex:0 0 70px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:#c9a84c"></div></div>
+      <span style="font-size:11px;font-weight:800;color:#22c55e;width:50px;text-align:right">${s.minutes}'</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:42px;text-align:right">${s.matches||0}/${playedMatches}</span>
     </div>`;
   }).join('');
 
@@ -3173,9 +3278,10 @@ async function renderAnwesenheit(){
           <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">Entschuldigte Absenzen zählen nicht gegen die Quote.</div>
         </div>
         <div class="card" style="padding:14px 16px">
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-run" style="color:#c9a84c"></i> EINSÄTZE / FAIRNESS</div>
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-run" style="color:#c9a84c"></i> SPIELZEIT & POSITIONEN</div>
+          ${einsFilter}
           ${fairRows}
-          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">Aus den Aufstellungen der gespielten Spiele (Halbzeit-Einsätze über beide Felder).</div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">15 Min pro Halbzeit-Einsatz · Positionen & Zeit aus den Aufstellungen der gespielten Spiele.</div>
         </div>
       </div>
     </div>
