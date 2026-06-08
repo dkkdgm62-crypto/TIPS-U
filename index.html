@@ -56,6 +56,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(201,168,76,0.4)!i
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
 @media(max-width:600px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
 .kader-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+body.ro .edit-only{display:none!important}
 .login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1520}
 </style>
 </head>
@@ -104,13 +105,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(201,168,76,0.4)!i
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
       <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
+      <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>Anwesenheit</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
       <!-- NEU: Manueller Speicherstand -->
-      <button id="manualSaveBtn" onclick="manualSave()" style="width:100%;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;letter-spacing:.04em">
+      <button id="manualSaveBtn" class="edit-only" onclick="manualSave()" style="width:100%;padding:10px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;letter-spacing:.04em">
         <i class="ti ti-device-floppy" style="font-size:15px"></i> LETZTEN STAND SPEICHERN
       </button>
       <!-- Bestehender PDF Export -->
@@ -206,6 +208,7 @@ function applyTeamLogo(){
   document.querySelectorAll('[data-logo-remove]').forEach(b=>{ b.style.display=custom?'inline-flex':'none'; });
 }
 function uploadTeamLogo(input){
+  if(roGuard()) return;
   const f=input.files&&input.files[0]; if(!f) return;
   if(!/^image\//.test(f.type)){ showSavedToast('Bitte ein Bild auswählen',false); input.value=''; return; }
   const reader=new FileReader();
@@ -231,10 +234,40 @@ function uploadTeamLogo(input){
   input.value='';
 }
 function removeTeamLogo(){
+  if(roGuard()) return;
   try{ localStorage.removeItem('fe12_team_logo'); }catch(e){}
   _logoMem=null;
   applyTeamLogo(); renderCurrentView();
   showSavedToast('Logo auf Standard zurückgesetzt');
+}
+
+// ── ROLLEN / NUR-LESE-MODUS ────────────────────────
+const READONLY_EMAILS = ['tl@fe.ch'];
+window.IS_READONLY = false;
+function canEdit(){ return !window.IS_READONLY; }
+// Schutz-Gate: in jede bearbeitende Funktion am Anfang. true = abbrechen.
+function roGuard(){
+  if(window.IS_READONLY){
+    if(typeof showSavedToast==='function') showSavedToast('Nur-Lese-Modus – Bearbeiten ist gesperrt', false);
+    return true;
+  }
+  return false;
+}
+function applyRoleUI(){
+  document.body.classList.toggle('ro', !!window.IS_READONLY);
+  // Badge in der Topbar
+  let badge=document.getElementById('roBadge');
+  if(window.IS_READONLY){
+    if(!badge){
+      const tb=document.querySelector('.topbar');
+      if(tb){ badge=document.createElement('span'); badge.id='roBadge';
+        badge.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);border-radius:6px;padding:4px 9px;white-space:nowrap';
+        badge.innerHTML='<i class="ti ti-eye"></i> NUR LESEN';
+        const ttl=document.getElementById('pageTitle');
+        if(ttl&&ttl.parentNode) ttl.parentNode.insertBefore(badge, ttl.nextSibling); else tb.appendChild(badge);
+      }
+    }
+  } else if(badge){ badge.remove(); }
 }
 
 const DIMS=['T','I','P','S','U'];
@@ -312,6 +345,7 @@ async function loadRoster(){
 }
 
 async function addPlayer(){
+  if(roGuard()) return;
   const id=nextPlayerId();
   const rec={id,nr:nextPlayerNr(),name:'Neuer Spieler',geb:'',fuss:'R',nat:'CH',verein:'BSC Old Boys',tw:false,rae:false,deleted:false};
   await sb.from('roster').upsert(rec,{onConflict:'id'});
@@ -348,6 +382,7 @@ async function savePlayer(id){
 function cancelEditPlayer(){ state.editPlayer=false; renderPlayer(); }
 
 async function deletePlayer(id){
+  if(roGuard()) return;
   const p=PLAYERS.find(x=>x.id===id);
   if(!confirm('Spieler "'+(p?p.name:'')+'" wirklich löschen?\n\nDer Spieler wird aus dem Kader ausgeblendet. Bestehende Bewertungen bleiben in der Datenbank erhalten.')) return;
   await sb.from('roster').upsert({id,deleted:true},{onConflict:'id'});
@@ -402,7 +437,9 @@ sb.auth.onAuthStateChange((event,session)=>{
     document.getElementById('appScreen').style.display='block';
     document.getElementById('userEmail').textContent=session.user.email;
     currentUserEmail = session.user.email;
+    window.IS_READONLY = READONLY_EMAILS.includes((session.user.email||'').toLowerCase());
     if(typeof applyTeamLogo === 'function') applyTeamLogo();
+    if(typeof applyRoleUI === 'function') applyRoleUI();
     loadAll();
   } else {
     document.getElementById('loginScreen').style.display='flex';
@@ -586,6 +623,7 @@ function dimLabel(dim) {
 function debSave(key,fn,delay=800){clearTimeout(saveTimers[key]);saveTimers[key]=setTimeout(fn,delay);}
 
 function saveRating(pid,cy,dim,oldIst,oldSoll){
+  if(roGuard()) return;
   const r=state.data[pid].ratings[cy][dim];
   debSave(`r_${pid}_${cy}_${dim}`,async()=>{
     await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'});
@@ -594,6 +632,7 @@ function saveRating(pid,cy,dim,oldIst,oldSoll){
   });
 }
 function saveNote(pid,cy,oldVal){
+  if(roGuard()) return;
   debSave(`n_${pid}_${cy}`,async()=>{
     const content=state.data[pid].notes[cy];
     await sb.from('notes').upsert({player_id:pid,cycle:cy,content},{onConflict:'player_id,cycle'});
@@ -601,6 +640,7 @@ function saveNote(pid,cy,oldVal){
   });
 }
 function saveMeta(pid,field,oldVal){
+  if(roGuard()) return;
   const d=state.data[pid];
   debSave(`m_${pid}`,async()=>{
     await sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'});
@@ -608,6 +648,7 @@ function saveMeta(pid,field,oldVal){
   });
 }
 function saveSI(pid,oldVals){
+  if(roGuard()) return;
   const s=state.siData[pid];
   debSave(`si_${pid}`,async()=>{
     await sb.from('si_data').upsert({player_id:pid,...s},{onConflict:'player_id'});
@@ -629,6 +670,7 @@ function showSavedToast(msg, ok){
 }
 
 async function manualSave(){
+  if(roGuard()) return;
   const btn=document.getElementById('manualSaveBtn');
   const orig=btn?btn.innerHTML:'';
   if(btn){ btn.disabled=true; btn.style.opacity='0.65'; btn.innerHTML='<i class="ti ti-loader-2"></i> SPEICHERT…'; }
@@ -678,6 +720,7 @@ async function manualSave(){
 // STATE UPDATERS
 // ═══════════════════════════════════════════════════
 function updateRating(pid,cy,dim,field,val){
+  if(roGuard()) return;
   const oldIst=state.data[pid].ratings[cy][dim].ist;
   const oldSoll=state.data[pid].ratings[cy][dim].soll;
   state.data[pid].ratings[cy][dim][field]=val;
@@ -688,18 +731,22 @@ function updateRating(pid,cy,dim,field,val){
   if(sel)sel.style.color=val?noteColor(val):'#6b7280';
 }
 function updateMassnahme(pid,cy,dim,val){
+  if(roGuard()) return;
   state.data[pid].ratings[cy][dim].massnahme=val;
   saveRating(pid,cy,dim,state.data[pid].ratings[cy][dim].ist,state.data[pid].ratings[cy][dim].soll);
 }
 function updateNote(pid,cy,val){
+  if(roGuard()) return;
   const old=state.data[pid].notes[cy];
   state.data[pid].notes[cy]=val;saveNote(pid,cy,old);
 }
 function updateField(pid,f,val){
+  if(roGuard()) return;
   const old=state.data[pid][f];
   state.data[pid][f]=val;saveMeta(pid,f,old);
 }
 function updateSI(pid,field,delta){
+  if(roGuard()) return;
   const old={...state.siData[pid]};
   state.siData[pid][field]=Math.max(0,(state.siData[pid][field]||0)+delta);
   saveSI(pid,old);
@@ -728,7 +775,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',spiele:'Spiele & Matches',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',spiele:'Spiele & Matches',anwesenheit:'Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -750,6 +797,7 @@ function renderCurrentView(){
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
   else if(v==='spiele')renderSpiele();
+  else if(v==='anwesenheit')renderAnwesenheit();
   else if(v==='makro')renderMakro();
   else if(v==='verlauf')renderVerlauf();
   refreshStamps();
@@ -793,10 +841,10 @@ function renderDashboard(){
           <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:5px">${cyInfo.short} · ${cyInfo.label} · ${cyInfo.sub}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:7px 12px;cursor:pointer">
+          <label class="edit-only" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:7px 12px;cursor:pointer">
             <i class="ti ti-upload" style="font-size:14px"></i> Logo<input type="file" accept="image/*" onchange="uploadTeamLogo(this)" style="display:none"/>
           </label>
-          <button data-logo-remove onclick="removeTeamLogo()" style="display:none;align-items:center;gap:6px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 12px;cursor:pointer">
+          <button data-logo-remove class="edit-only" onclick="removeTeamLogo()" style="display:none;align-items:center;gap:6px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 12px;cursor:pointer">
             <i class="ti ti-trash" style="font-size:14px"></i> Entfernen
           </button>
         </div>
@@ -863,7 +911,7 @@ function renderKader(){
   }).join('');
   document.getElementById('mainContent').innerHTML=`
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <button onclick="addPlayer()" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button>
+      <button onclick="addPlayer()" class="edit-only" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button>
       <span style="font-size:11px;color:rgba(255,255,255,0.4)">${PLAYERS.length} Spieler im Kader</span>
     </div>
     <div class="kader-grid">${cards}</div>`;
@@ -877,7 +925,7 @@ function selectPlayer(id){state.selPlayer=id;showView('player');}
 function renderPlayer(){
   if(!state.selPlayer){
     const btns=PLAYERS.map(p=>`<button onclick="selectPlayer(${p.id})" style="padding:6px 12px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.6);cursor:pointer">${p.nr} ${esc(p.name.split(',')[0])}</button>`).join('');
-    document.getElementById('mainContent').innerHTML=`<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)"><i class="ti ti-user-circle" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3"></i><div style="margin-bottom:20px;font-size:14px">Spieler auswählen</div><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:0 auto 20px">${btns}</div><button onclick="addPlayer()" style="padding:9px 18px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button></div>`;
+    document.getElementById('mainContent').innerHTML=`<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)"><i class="ti ti-user-circle" style="font-size:48px;display:block;margin-bottom:12px;opacity:.3"></i><div style="margin-bottom:20px;font-size:14px">Spieler auswählen</div><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:0 auto 20px">${btns}</div><button onclick="addPlayer()" class="edit-only" style="padding:9px 18px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-user-plus"></i> Neuer Spieler</button></div>`;
     return;
   }
   const p=PLAYERS.find(x=>x.id===state.selPlayer);
@@ -1520,6 +1568,7 @@ async function loadTipsDetail(){
   }catch(e){console.error('loadTipsDetail',e);}
 }
 function saveTipsDetail(pid,cy){
+  if(roGuard()) return;
   const t=ensureTips(pid,cy);
   debSave('tips_'+pid+'_'+cy,async()=>{
     await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
@@ -2173,6 +2222,7 @@ function _isMissingColErr(error){
   return /column .* does not exist/i.test(msg) || /could not find the .* column/i.test(msg);
 }
 function persistMatch(id, logText){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   clearTimeout(_matchSaveTimers[id]);
   _matchSaveTimers[id]=setTimeout(async()=>{
@@ -2195,6 +2245,7 @@ function persistMatch(id, logText){
 
 // ── CRUD ───────────────────────────────────────────
 async function addMatch(){
+  if(roGuard()) return;
   if(_matchesTableMissing){ renderSpiele(); return; }
   const sf='7er', def=defaultFormation(sf);
   const mkHalf=()=>({a:{formation:def,lineup:{}},b:{formation:def,lineup:{}}});
@@ -2210,6 +2261,7 @@ async function addMatch(){
   renderSpiele();
 }
 async function deleteMatch(id){
+  if(roGuard()) return;
   const m=getMatch(id);
   if(!confirm('Spiel'+(m&&m.opponent?' gegen '+m.opponent:'')+' wirklich löschen?')) return;
   state.matches=state.matches.filter(x=>x.id!==id);
@@ -2224,6 +2276,7 @@ function editMatch(id){ state.matchEditId=id; renderSpiele(); }
 function closeMatchEditor(){ state.matchEditId=null; sortMatches(); renderSpiele(); }
 
 function updateMatchField(id,field,val){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   m[field]=val;
   if(field==='status' && val==='played' && !m.match_date){ m.match_date=new Date().toISOString().slice(0,10); }
@@ -2233,6 +2286,7 @@ function updateMatchField(id,field,val){
   if(badge){ const r=matchResult(m); badge.innerHTML = r?`<span style="font-size:12px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:4px 12px;border-radius:6px">${RESULT_INFO[r].label} · ${m.goals_for||0}:${m.goals_against||0}</span>`:`<span style="font-size:11px;color:rgba(255,255,255,0.35)">Geplant</span>`; }
 }
 function stepGoal(id,which,delta){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   const f=which==='for'?'goals_for':'goals_against';
   m[f]=Math.max(0,(parseInt(m[f])||0)+delta);
@@ -2241,6 +2295,7 @@ function stepGoal(id,which,delta){
   updateMatchField(id,f,m[f]);
 }
 function toggleLineup(id,pid){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   if(!Array.isArray(m.lineup)) m.lineup=[];
   const i=m.lineup.indexOf(pid);
@@ -2250,6 +2305,7 @@ function toggleLineup(id,pid){
   renderSpiele();
 }
 function stepStat(id,pid,kind,delta){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   const obj = kind==='goal' ? (m.scorers||(m.scorers={})) : (m.assists||(m.assists={}));
   obj[pid]=Math.max(0,(parseInt(obj[pid])||0)+delta);
@@ -2307,7 +2363,7 @@ async function renderSpiele(){
 
   mc.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-      <button onclick="addMatch()" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Neues Spiel</button>
+      <button onclick="addMatch()" class="edit-only" style="padding:9px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Neues Spiel</button>
       <span style="font-size:11px;color:rgba(255,255,255,0.4)">${st.total} Spiele · ${st.played} gespielt · Tore ${st.gf}:${st.ga}</span>
     </div>
     <div class="stat-grid">${statCards}</div>
@@ -2380,6 +2436,7 @@ function ensureHalves(m){
 function getField(m,half,which){ ensureHalves(m); return which==='B'? m.halves[half].b : m.halves[half].a; }
 
 function changeMatchSpielform(id,val){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   m.spielform=val;
   m.halves = Array.from({length:N_HALVES}, ()=>defaultHalf(val));
@@ -2387,6 +2444,7 @@ function changeMatchSpielform(id,val){
   renderSpiele();
 }
 function changeMatchFormation(id,half,which,val){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   const fld=getField(m,half,which);
   fld.formation=val;
@@ -2399,6 +2457,7 @@ function changeMatchFormation(id,half,which,val){
   renderSpiele();
 }
 function assignMatchLineup(id,half,posId,val,which){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   ensureHalves(m);
   const fld=getField(m,half,which);
@@ -2415,6 +2474,7 @@ function assignMatchLineup(id,half,posId,val,which){
   renderSpiele();
 }
 function clearMatchField(id,half,which){
+  if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   getField(m,half,which).lineup={};
   persistMatch(id);
@@ -2806,6 +2866,203 @@ async function loadDashMatches(){
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.opponent||'Gegner offen')}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${esc(m.competition)} · ${VENUES[m.venue]||''}</div></div>
       <i class="ti ti-chevron-right" style="font-size:14px;color:rgba(255,255,255,0.25)"></i>
     </div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// ANWESENHEIT (Training & Spiel) + EINSÄTZE / FAIRNESS
+// Speicherung in Supabase-Tabelle "attendance"
+// ═══════════════════════════════════════════════════
+state.attendance = state.attendance || {};      // key -> {player_id,date,type,status}
+state.attDate = state.attDate || new Date().toISOString().slice(0,10);
+state.attType = state.attType || 'training';
+let _attendanceTableMissing = false;
+let _attendanceLoaded = false;
+let _attSaveTimers = {};
+const ATT_STATUS = {
+  present:{label:'Anwesend',color:'#22c55e',ic:'check'},
+  late:{label:'Verspätet',color:'#f59e0b',ic:'clock'},
+  excused:{label:'Entschuldigt',color:'#818cf8',ic:'mail'},
+  absent:{label:'Abwesend',color:'#ef4444',ic:'x'},
+};
+function attKey(pid,date,type){ return date+'_'+type+'_'+pid; }
+
+async function loadAttendance(){
+  try{
+    const {data,error}=await sb.from('attendance').select('*');
+    if(error){
+      if((error.code==='42P01')||/relation .*attendance.* does not exist/i.test(error.message||'')) _attendanceTableMissing=true;
+      state.attendance={}; return;
+    }
+    _attendanceTableMissing=false;
+    const map={};
+    (data||[]).forEach(r=>{ map[attKey(r.player_id,r.date,r.type)]={player_id:r.player_id,date:r.date,type:r.type,status:r.status}; });
+    state.attendance=map; _attendanceLoaded=true;
+  }catch(e){ console.error('loadAttendance',e); state.attendance={}; }
+}
+function setAttendance(pid,status){
+  if(roGuard()) return;
+  const date=state.attDate, type=state.attType, key=attKey(pid,date,type);
+  const cur=state.attendance[key];
+  if(cur && cur.status===status){ delete state.attendance[key]; _attDelete(key,pid,date,type); }
+  else { state.attendance[key]={player_id:pid,date,type,status}; _attSave(key,pid,date,type,status); }
+  renderAnwesenheit();
+}
+function _attSave(key,pid,date,type,status){
+  clearTimeout(_attSaveTimers[key]);
+  _attSaveTimers[key]=setTimeout(async()=>{
+    try{
+      const {error}=await sb.from('attendance').upsert({id:key,player_id:pid,date,type,status},{onConflict:'id'});
+      if(error){ console.error('attendance save',error); showSavedToast('Anwesenheit speichern fehlgeschlagen – Tabelle prüfen',false); return; }
+      if(typeof logActivity==='function'){ const p=PLAYERS.find(x=>x.id===pid); logActivity(pid,'meta','Anwesenheit '+(type==='training'?'Training':'Spiel')+' '+date+': '+(ATT_STATUS[status]?ATT_STATUS[status].label:status),null,null,'attendance','',p?p.name:''); }
+    }catch(e){ console.error('attendance save',e); }
+  },300);
+}
+function _attDelete(key,pid,date,type){
+  clearTimeout(_attSaveTimers[key]);
+  _attSaveTimers[key]=setTimeout(async()=>{ try{ await sb.from('attendance').delete().eq('id',key); }catch(e){ console.error('attendance del',e); } },300);
+}
+function setAttDate(v){ state.attDate=v; renderAnwesenheit(); }
+function setAttType(v){ state.attType=v; renderAnwesenheit(); }
+function markAllPresent(){
+  if(roGuard()) return;
+  PLAYERS.forEach(p=>{ const key=attKey(p.id,state.attDate,state.attType); state.attendance[key]={player_id:p.id,date:state.attDate,type:state.attType,status:'present'}; _attSave(key,p.id,state.attDate,state.attType,'present'); });
+  renderAnwesenheit();
+}
+
+// Anwesenheits-Quote je Spieler (present+late zählt als anwesend)
+function attendanceStats(){
+  const per={}; PLAYERS.forEach(p=>per[p.id]={present:0,total:0});
+  Object.values(state.attendance).forEach(r=>{
+    if(!per[r.player_id]) per[r.player_id]={present:0,total:0};
+    if(r.status==='excused') return;            // entschuldigt zählt nicht gegen die Quote
+    per[r.player_id].total++;
+    if(r.status==='present'||r.status==='late') per[r.player_id].present++;
+  });
+  return per;
+}
+// Einsätze aus den Aufstellungen (gespielte Spiele): Halbzeit-Einsätze je Spieler
+function playingStats(){
+  const per={}; PLAYERS.forEach(p=>per[p.id]={halves:0,matches:0});
+  (state.matches||[]).forEach(m=>{
+    if(m.status!=='played') return;
+    if(!Array.isArray(m.halves)) return;
+    const inMatch=new Set();
+    m.halves.forEach(hz=>{
+      const ids=new Set();
+      ['a','b'].forEach(fk=>{ const o=(hz&&hz[fk]&&hz[fk].lineup)||{}; Object.values(o).forEach(pid=>ids.add(String(pid))); });
+      ids.forEach(pid=>{ if(per[pid]){ per[pid].halves++; inMatch.add(pid); } });
+    });
+    inMatch.forEach(pid=>{ if(per[pid]) per[pid].matches++; });
+  });
+  return per;
+}
+
+async function renderAnwesenheit(){
+  const mc=document.getElementById('mainContent'); if(!mc) return;
+  if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
+  if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
+  if(_attendanceTableMissing){ mc.innerHTML=attendanceSetupHint(); return; }
+
+  const date=state.attDate, type=state.attType;
+  const typeBtns=[['training','Training','ball-football'],['match','Spiel','trophy']].map(([k,l,ic])=>
+    `<button onclick="setAttType('${k}')" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${type===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${type===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${type===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
+
+  // Erfassung
+  const rows=PLAYERS.map(p=>{
+    const cur=state.attendance[attKey(p.id,date,type)];
+    const btns=Object.entries(ATT_STATUS).map(([k,info])=>{
+      const on=cur&&cur.status===k;
+      return `<button onclick="setAttendance(${p.id},'${k}')" title="${info.label}" style="width:30px;height:30px;border-radius:7px;cursor:pointer;border:1px solid ${on?info.color:'rgba(255,255,255,0.1)'};background:${on?info.color+'2e':'rgba(255,255,255,0.04)'};color:${on?info.color:'rgba(255,255,255,0.4)'};display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-${info.ic}" style="font-size:15px"></i></button>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#c9a84c;flex-shrink:0">${initials(p.name)}</div>
+      <span style="flex:1;font-size:12.5px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.tw?' <span style="font-size:8px;color:#3b82f6;font-weight:800">TW</span>':''}</span>
+      <div class="edit-only" style="display:flex;gap:5px">${btns}</div>
+      ${window.IS_READONLY?`<span style="font-size:11px;font-weight:700;color:${cur?ATT_STATUS[cur.status].color:'rgba(255,255,255,0.3)'}">${cur?ATT_STATUS[cur.status].label:'—'}</span>`:''}
+    </div>`;
+  }).join('');
+
+  // Quoten-Zusammenfassung
+  const as=attendanceStats();
+  const sumRows=PLAYERS.map(p=>{
+    const s=as[p.id]||{present:0,total:0};
+    const rate=s.total?Math.round(s.present/s.total*100):0;
+    const col=rate>=80?'#22c55e':rate>=60?'#f59e0b':(s.total?'#ef4444':'rgba(255,255,255,0.3)');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="flex:1;font-size:12px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+      <div style="flex:0 0 110px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${rate}%;background:${col}"></div></div>
+      <span style="font-size:11px;font-weight:700;color:${col};width:38px;text-align:right">${s.total?rate+'%':'—'}</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:54px;text-align:right">${s.present}/${s.total}</span>
+    </div>`;
+  }).join('');
+
+  // Einsätze / Fairness
+  const ps=playingStats();
+  const maxH=Math.max(1,...PLAYERS.map(p=>ps[p.id]?ps[p.id].halves:0));
+  const playedMatches=(state.matches||[]).filter(m=>m.status==='played').length;
+  const fairRows=PLAYERS.slice().sort((a,b)=>(ps[b.id].halves-ps[a.id].halves)).map(p=>{
+    const s=ps[p.id]||{halves:0,matches:0};
+    const w=Math.round(s.halves/maxH*100);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <span style="flex:1;font-size:12px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</span>
+      <div style="flex:0 0 110px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:#c9a84c"></div></div>
+      <span style="font-size:11px;font-weight:700;color:#c9a84c;width:64px;text-align:right">${s.halves} HZ</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:70px;text-align:right">${s.matches}/${playedMatches} Sp.</span>
+    </div>`;
+  }).join('');
+
+  const inputStyle='padding:8px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
+  mc.innerHTML=`
+    <div class="card" style="padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <input type="date" value="${date}" onchange="setAttDate(this.value)" style="${inputStyle}"/>
+      <div style="display:flex;gap:8px">${typeBtns}</div>
+      <button class="edit-only" onclick="markAllPresent()" style="margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.12);color:#22c55e"><i class="ti ti-checks"></i> Alle anwesend</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr;gap:14px">
+      <div class="card" style="padding:14px 16px">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#c9a84c"></i> ERFASSUNG · ${type==='training'?'Training':'Spiel'} · ${matchDateLabel(date)}</div>
+        ${rows}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" class="att-split">
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-chart-bar" style="color:#c9a84c"></i> ANWESENHEITS-QUOTE</div>
+          ${sumRows}
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">Entschuldigte Absenzen zählen nicht gegen die Quote.</div>
+        </div>
+        <div class="card" style="padding:14px 16px">
+          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-run" style="color:#c9a84c"></i> EINSÄTZE / FAIRNESS</div>
+          ${fairRows}
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">Aus den Aufstellungen der gespielten Spiele (Halbzeit-Einsätze über beide Felder).</div>
+        </div>
+      </div>
+    </div>
+    <style>@media(max-width:767px){.att-split{grid-template-columns:1fr!important}}</style>`;
+}
+function attendanceSetupHint(){
+  const sql=`create table if not exists attendance (
+  id text primary key,
+  player_id int,
+  date date,
+  type text,
+  status text,
+  created_at timestamptz default now()
+);
+alter table attendance enable row level security;
+create policy attendance_all on attendance for all using (true) with check (true);`;
+  return `<div class="card" style="padding:24px;max-width:680px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <i class="ti ti-database-cog" style="font-size:22px;color:#f59e0b"></i>
+      <div style="font-size:15px;font-weight:700;color:#e2e8f0">Tabelle «attendance» fehlt noch</div>
+    </div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:14px">Lege die Tabelle einmalig an: Supabase → <b>SQL Editor</b> → einfügen, ausführen, Seite neu laden. (Die sicheren Lese-Regeln aus dem separaten RLS-Skript ersetzen die offene Policy danach.)</p>
+    <pre style="background:#0a121e;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:11px;color:#9fb4cc;overflow:auto;white-space:pre;line-height:1.5">${esc(sql)}</pre>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`')}\`).then(()=>showSavedToast('✓ SQL kopiert'))" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:#c9a84c;cursor:pointer"><i class="ti ti-copy"></i> SQL kopieren</button>
+      <button onclick="_attendanceTableMissing=false;_attendanceLoaded=false;renderAnwesenheit()" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;cursor:pointer"><i class="ti ti-refresh"></i> Erneut prüfen</button>
+    </div>
   </div>`;
 }
 </script>
