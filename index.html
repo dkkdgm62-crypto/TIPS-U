@@ -2169,7 +2169,7 @@ async function loadMatches(){
     if(rows.length){ _matchExtraCols = ('spielform' in rows[0]); }
     const asObj=v=>(v&&typeof v==='object')?v:(v?JSON.parse(v):{});
     state.matches=rows.map(m=>({
-      id:m.id, match_date:m.match_date||'', opponent:m.opponent||'',
+      id:m.id, match_date:m.match_date||'', match_time:m.match_time||'', opponent:m.opponent||'',
       venue:m.venue||'home', competition:m.competition||'Meisterschaft',
       goals_for:m.goals_for??0, goals_against:m.goals_against??0,
       status:m.status||'planned',
@@ -2207,6 +2207,7 @@ function matchPayload(m, withExtra){
     ensureHalves(m);
     const h0=m.halves[0];
     base.spielform=sf;
+    base.match_time=m.match_time||'';
     base.formation=h0.a.formation||defaultFormation(sf);
     base.formation_b=h0.b.formation||defaultFormation(sf);
     base.lineup_a=h0.a.lineup||{};
@@ -2249,7 +2250,7 @@ async function addMatch(){
   if(_matchesTableMissing){ renderSpiele(); return; }
   const sf='7er', def=defaultFormation(sf);
   const mkHalf=()=>({a:{formation:def,lineup:{}},b:{formation:def,lineup:{}}});
-  const m={id:uuid(),match_date:new Date().toISOString().slice(0,10),opponent:'',venue:'home',competition:'Meisterschaft',goals_for:0,goals_against:0,status:'planned',lineup:[],scorers:{},assists:{},note:'',spielform:sf,formation:def,formationB:def,lineupA:{},lineupB:{},halves:[mkHalf(),mkHalf(),mkHalf()]};
+  const m={id:uuid(),match_date:new Date().toISOString().slice(0,10),match_time:'',opponent:'',venue:'home',competition:'Meisterschaft',goals_for:0,goals_against:0,status:'planned',lineup:[],scorers:{},assists:{},note:'',spielform:sf,formation:def,formationB:def,lineupA:{},lineupB:{},halves:[mkHalf(),mkHalf(),mkHalf()]};
   state.matches.unshift(m);
   try{
     let {error}=await sb.from('matches').upsert(matchPayload(m,_matchExtraCols),{onConflict:'id'});
@@ -2397,7 +2398,7 @@ function matchListRow(m){
   return `<div onclick="editMatch('${m.id}')" style="display:flex;align-items:center;gap:12px;padding:11px 8px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;border-radius:8px;transition:background .12s" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background='transparent'">
     <div style="text-align:center;min-width:54px">
       <div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div>
-      <div style="font-size:9px;color:rgba(255,255,255,0.35)">${matchDateLabel(m.match_date).slice(6)}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.35)">${m.match_time?m.match_time:matchDateLabel(m.match_date).slice(6)}</div>
     </div>
     <i class="ti ti-${venueIcon}" style="font-size:14px;color:rgba(255,255,255,0.35)" title="${VENUES[m.venue]||''}"></i>
     <div style="flex:1;min-width:0">
@@ -2578,6 +2579,7 @@ function formationCardHTML(id){
 }
 function copyMatchAlterSQL(){
   const sql=`alter table matches add column if not exists spielform text default '7er';
+alter table matches add column if not exists match_time text;
 alter table matches add column if not exists formation text;
 alter table matches add column if not exists formation_b text;
 alter table matches add column if not exists lineup_a jsonb default '{}'::jsonb;
@@ -2629,7 +2631,7 @@ function exportMatchPDF(id){
   const r=matchResult(m);
   const resL = m.status==='played' ? `${m.goals_for||0} : ${m.goals_against||0}${r?(' ('+RESULT_INFO[r].label+')'):''}` : 'Geplant';
   const meta=[
-    ['Datum', matchDateLabel(m.match_date)],
+    ['Datum', matchDateLabel(m.match_date)+(m.match_time?'  '+m.match_time+' Uhr':'')],
     ['Gegner', m.opponent||'—'],
     ['Wettbewerb', m.competition||'—'],
     ['Ort', venueL],
@@ -2751,6 +2753,7 @@ function matchEditorHTML(id){
     <div class="card" style="padding:16px;margin-bottom:14px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         <div><label style="${labelStyle}">DATUM</label><input type="date" value="${m.match_date?m.match_date.slice(0,10):''}" onchange="updateMatchField('${id}','match_date',this.value)" style="${inputStyle}"/></div>
+        <div><label style="${labelStyle}">UHRZEIT</label><input type="time" value="${m.match_time||''}" onchange="updateMatchField('${id}','match_time',this.value)" style="${inputStyle}"/></div>
         <div><label style="${labelStyle}">GEGNER</label><input type="text" value="${esc(m.opponent)}" placeholder="z.B. FC Basel" onchange="updateMatchField('${id}','opponent',this.value)" style="${inputStyle}"/></div>
         <div><label style="${labelStyle}">ORT</label><select onchange="updateMatchField('${id}','venue',this.value)" style="${inputStyle}">${venueOpts}</select></div>
         <div><label style="${labelStyle}">WETTBEWERB</label><select onchange="updateMatchField('${id}','competition',this.value)" style="${inputStyle}">${compOpts}</select></div>
@@ -2818,6 +2821,7 @@ function matchSetupHint(){
   goals_for int default 0,
   goals_against int default 0,
   status text default 'planned',
+  match_time text,
   lineup jsonb default '[]'::jsonb,
   scorers jsonb default '{}'::jsonb,
   assists jsonb default '{}'::jsonb,
@@ -2861,7 +2865,7 @@ async function loadDashMatches(){
       <button onclick="showView('spiele')" style="margin-left:auto;font-size:10px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:3px 10px;cursor:pointer">Alle ansehen</button>
     </div>
     ${upcoming.map(m=>`<div onclick="showView('spiele')" style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-top:1px solid rgba(255,255,255,0.04);cursor:pointer">
-      <div style="text-align:center;min-width:50px"><div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div></div>
+      <div style="text-align:center;min-width:50px"><div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div>${m.match_time?`<div style="font-size:9px;color:rgba(255,255,255,0.4)">${m.match_time}</div>`:''}</div>
       <i class="ti ti-${m.venue==='home'?'home':m.venue==='away'?'plane-departure':'map-pin'}" style="font-size:13px;color:rgba(255,255,255,0.35)"></i>
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.opponent||'Gegner offen')}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${esc(m.competition)} · ${VENUES[m.venue]||''}</div></div>
       <i class="ti ti-chevron-right" style="font-size:14px;color:rgba(255,255,255,0.25)"></i>
@@ -2885,7 +2889,16 @@ const ATT_STATUS = {
   excused:{label:'Entschuldigt',color:'#818cf8',ic:'mail'},
   absent:{label:'Abwesend',color:'#ef4444',ic:'x'},
 };
-function attKey(pid,date,type){ return date+'_'+type+'_'+pid; }
+state.attMatchId = state.attMatchId || null;
+// Session-Schlüssel: Spiel → an Match-ID gebunden (mehrere Spiele am selben Tag möglich, z.B. Turnier); Training → an Datum gebunden
+function currentSession(){
+  if(state.attType==='match'){
+    const m=getMatch(state.attMatchId);
+    return {skey:'M_'+state.attMatchId, date:(m&&m.match_date)||state.attDate, type:'match', valid:!!m, match:m};
+  }
+  return {skey:'T_'+state.attDate, date:state.attDate, type:'training', valid:!!state.attDate, match:null};
+}
+function attKeyFor(pid){ return currentSession().skey+'_'+pid; }
 
 async function loadAttendance(){
   try{
@@ -2896,37 +2909,40 @@ async function loadAttendance(){
     }
     _attendanceTableMissing=false;
     const map={};
-    (data||[]).forEach(r=>{ map[attKey(r.player_id,r.date,r.type)]={player_id:r.player_id,date:r.date,type:r.type,status:r.status}; });
+    (data||[]).forEach(r=>{ map[r.id]={id:r.id,player_id:r.player_id,date:r.date,type:r.type,status:r.status}; });
     state.attendance=map; _attendanceLoaded=true;
   }catch(e){ console.error('loadAttendance',e); state.attendance={}; }
 }
 function setAttendance(pid,status){
   if(roGuard()) return;
-  const date=state.attDate, type=state.attType, key=attKey(pid,date,type);
+  const s=currentSession(); if(!s.valid) return;
+  const key=s.skey+'_'+pid;
   const cur=state.attendance[key];
-  if(cur && cur.status===status){ delete state.attendance[key]; _attDelete(key,pid,date,type); }
-  else { state.attendance[key]={player_id:pid,date,type,status}; _attSave(key,pid,date,type,status); }
+  if(cur && cur.status===status){ delete state.attendance[key]; _attDelete(key); }
+  else { state.attendance[key]={id:key,player_id:pid,date:s.date,type:s.type,status}; _attSave(key,pid,s.date,s.type,status); }
   renderAnwesenheit();
 }
 function _attSave(key,pid,date,type,status){
   clearTimeout(_attSaveTimers[key]);
   _attSaveTimers[key]=setTimeout(async()=>{
     try{
-      const {error}=await sb.from('attendance').upsert({id:key,player_id:pid,date,type,status},{onConflict:'id'});
+      const {error}=await sb.from('attendance').upsert({id:key,player_id:pid,date:date||null,type,status},{onConflict:'id'});
       if(error){ console.error('attendance save',error); showSavedToast('Anwesenheit speichern fehlgeschlagen – Tabelle prüfen',false); return; }
-      if(typeof logActivity==='function'){ const p=PLAYERS.find(x=>x.id===pid); logActivity(pid,'meta','Anwesenheit '+(type==='training'?'Training':'Spiel')+' '+date+': '+(ATT_STATUS[status]?ATT_STATUS[status].label:status),null,null,'attendance','',p?p.name:''); }
+      if(typeof logActivity==='function'){ const p=PLAYERS.find(x=>x.id===pid); logActivity(pid,'meta','Anwesenheit '+(type==='training'?'Training':'Spiel')+' '+(date||'')+': '+(ATT_STATUS[status]?ATT_STATUS[status].label:status),null,null,'attendance','',p?p.name:''); }
     }catch(e){ console.error('attendance save',e); }
   },300);
 }
-function _attDelete(key,pid,date,type){
+function _attDelete(key){
   clearTimeout(_attSaveTimers[key]);
   _attSaveTimers[key]=setTimeout(async()=>{ try{ await sb.from('attendance').delete().eq('id',key); }catch(e){ console.error('attendance del',e); } },300);
 }
 function setAttDate(v){ state.attDate=v; renderAnwesenheit(); }
 function setAttType(v){ state.attType=v; renderAnwesenheit(); }
+function setAttMatch(id){ const m=getMatch(id); state.attMatchId=id; if(m&&m.match_date) state.attDate=m.match_date; renderAnwesenheit(); }
 function markAllPresent(){
   if(roGuard()) return;
-  PLAYERS.forEach(p=>{ const key=attKey(p.id,state.attDate,state.attType); state.attendance[key]={player_id:p.id,date:state.attDate,type:state.attType,status:'present'}; _attSave(key,p.id,state.attDate,state.attType,'present'); });
+  const s=currentSession(); if(!s.valid){ showSavedToast('Bitte zuerst ein Spiel/Datum wählen',false); return; }
+  PLAYERS.forEach(p=>{ const key=s.skey+'_'+p.id; state.attendance[key]={id:key,player_id:p.id,date:s.date,type:s.type,status:'present'}; _attSave(key,p.id,s.date,s.type,'present'); });
   renderAnwesenheit();
 }
 
@@ -2964,13 +2980,37 @@ async function renderAnwesenheit(){
   if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
   if(_attendanceTableMissing){ mc.innerHTML=attendanceSetupHint(); return; }
 
-  const date=state.attDate, type=state.attType;
+  const type=state.attType;
+  const inputStyle='padding:8px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
+  // Spiel-Sessions kommen direkt aus den erstellten Spielen
+  const matchesSorted=(state.matches||[]).slice().sort((a,b)=>(a.match_date||'9999').localeCompare(b.match_date||'9999'));
+  if(type==='match' && matchesSorted.length && !matchesSorted.some(x=>x.id===state.attMatchId)){
+    const def=matchesSorted.find(isUpcoming)||matchesSorted[matchesSorted.length-1];
+    state.attMatchId=def.id; if(def.match_date) state.attDate=def.match_date;
+  }
+  const sess=currentSession();
+  const date=sess.date;
   const typeBtns=[['training','Training','ball-football'],['match','Spiel','trophy']].map(([k,l,ic])=>
     `<button onclick="setAttType('${k}')" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${type===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${type===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${type===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
 
+  // Sitzungs-Auswahl: Spiel = Dropdown aus erstellten Spielen · Training = Datum + Schnellauswahl
+  let sessionCtrl='';
+  if(type==='match'){
+    if(matchesSorted.length){
+      const opts=matchesSorted.map(mm=>{const lbl=matchDateLabel(mm.match_date)+(mm.match_time?' '+mm.match_time:'')+' · '+(mm.opponent||'Gegner offen')+' ('+(mm.competition||'')+')';return `<option value="${mm.id}" ${mm.id===state.attMatchId?'selected':''}>${esc(lbl)}</option>`;}).join('');
+      sessionCtrl=`<select onchange="setAttMatch(this.value)" style="${inputStyle};min-width:230px;flex:1">${opts}</select>`;
+    } else {
+      sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Spiele – im Bereich «Spiele» anlegen.</span>`;
+    }
+  } else {
+    const tDates=[...new Set(Object.values(state.attendance).filter(r=>r.type==='training'&&r.date).map(r=>r.date))].sort().reverse().slice(0,6);
+    const chips=tDates.map(d=>`<button onclick="setAttDate('${d}')" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid ${d===state.attDate?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${d===state.attDate?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)'};color:${d===state.attDate?'#c9a84c':'rgba(255,255,255,0.5)'}">${matchDateLabel(d)}</button>`).join('');
+    sessionCtrl=`<input type="date" value="${state.attDate}" onchange="setAttDate(this.value)" style="${inputStyle}"/>${chips?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}</div>`:''}`;
+  }
+
   // Erfassung
   const rows=PLAYERS.map(p=>{
-    const cur=state.attendance[attKey(p.id,date,type)];
+    const cur=state.attendance[sess.skey+'_'+p.id];
     const btns=Object.entries(ATT_STATUS).map(([k,info])=>{
       const on=cur&&cur.status===k;
       return `<button onclick="setAttendance(${p.id},'${k}')" title="${info.label}" style="width:30px;height:30px;border-radius:7px;cursor:pointer;border:1px solid ${on?info.color:'rgba(255,255,255,0.1)'};background:${on?info.color+'2e':'rgba(255,255,255,0.04)'};color:${on?info.color:'rgba(255,255,255,0.4)'};display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-${info.ic}" style="font-size:15px"></i></button>`;
@@ -3012,17 +3052,16 @@ async function renderAnwesenheit(){
     </div>`;
   }).join('');
 
-  const inputStyle='padding:8px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
   mc.innerHTML=`
     <div class="card" style="padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <input type="date" value="${date}" onchange="setAttDate(this.value)" style="${inputStyle}"/>
       <div style="display:flex;gap:8px">${typeBtns}</div>
+      ${sessionCtrl}
       <button class="edit-only" onclick="markAllPresent()" style="margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.12);color:#22c55e"><i class="ti ti-checks"></i> Alle anwesend</button>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr;gap:14px">
       <div class="card" style="padding:14px 16px">
-        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#c9a84c"></i> ERFASSUNG · ${type==='training'?'Training':'Spiel'} · ${matchDateLabel(date)}</div>
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#c9a84c"></i> ERFASSUNG · ${type==='match'?(sess.match?esc(sess.match.opponent||'Gegner offen')+' · '+matchDateLabel(date)+(sess.match.match_time?' '+sess.match.match_time+' Uhr':''):'Kein Spiel gewählt'):'Training · '+matchDateLabel(date)}</div>
         ${rows}
       </div>
 
