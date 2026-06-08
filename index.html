@@ -462,26 +462,89 @@ async function doLogout(){await sb.auth.signOut();}
 // ═══════════════════════════════════════════════════
 // SUPABASE LOAD
 // ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// TRAINER-TRENNUNG (Bewertungen je Trainer)
+// Bewertung/Notiz/SMART+/TIPS sind pro Trainer; Profil-Stammdaten & Team-Daten geteilt
+// ═══════════════════════════════════════════════════
+function coachLabel(email){ if(!email) return '—'; const k=email.toLowerCase(); return (state.coaches&&state.coaches[k])||userShort(email); }
+function coachesList(){
+  const m=state.coaches||{};
+  const arr=Object.keys(m).filter(e=>!READONLY_EMAILS.includes(e)).map(e=>({email:e,name:m[e]||userShort(e)}));
+  const cu=(currentUserEmail||'').toLowerCase();
+  if(cu && !arr.some(c=>c.email===cu)) arr.push({email:cu,name:userShort(cu)});
+  arr.sort((a,b)=>a.name.localeCompare(b.name));
+  return arr;
+}
+function canEditAssess(){ return !window.IS_READONLY && (state.viewCoach||'').toLowerCase()===(currentUserEmail||'').toLowerCase(); }
+function _rawUpsert(arrName,row,matchFn){
+  if(!state[arrName]) state[arrName]=[];
+  const i=state[arrName].findIndex(matchFn);
+  if(i>=0) state[arrName][i]=row; else state[arrName].push(row);
+}
+function registerSelfCoach(){
+  if(!currentUserEmail || window.IS_READONLY) return;
+  const k=currentUserEmail.toLowerCase();
+  if(!state.coaches) state.coaches={};
+  if(!(k in state.coaches)){
+    state.coaches[k]=userShort(currentUserEmail);
+    sb.from('coaches').upsert({email:k,name:state.coaches[k]},{onConflict:'email'}).then(({error})=>{ if(error) console.warn('coaches upsert',error.message); });
+  }
+}
+// Baut state.data/siData/tipsDetail für EINEN Trainer auf (Alt-Daten ohne Trainer gelten für alle, eigene überschreiben)
+function projectCoach(coach){
+  state.viewCoach = coach;
+  initState();
+  ensureStateForPlayers();
+  state.tipsDetail={};
+  const pick = rows => (rows||[]).filter(r=>!r.coach).concat((rows||[]).filter(r=>(r.coach||'').toLowerCase()===(coach||'').toLowerCase()));
+  // geteilte Stammdaten
+  (state.rawMeta||[]).forEach(m=>{ if(state.data[m.player_id]){ state.data[m.player_id].position=m.position||''; state.data[m.player_id].defizit=m.defizit||''; state.data[m.player_id].staerke=m.staerke||''; } });
+  // pro Trainer
+  pick(state.rawRatings).forEach(r=>{ const d=state.data[r.player_id]; if(d&&d.ratings[r.cycle]) d.ratings[r.cycle][r.dim]={ist:r.ist,soll:r.soll,massnahme:r.massnahme||''}; });
+  pick(state.rawNotes).forEach(n=>{ if(state.data[n.player_id]) state.data[n.player_id].notes[n.cycle]=n.content||''; });
+  pick(state.rawSI).forEach(s=>{ if(state.siData[s.player_id]) state.siData[s.player_id]={wahrnehmen:s.wahrnehmen||0,loesungen:s.loesungen||0,entscheidung:s.entscheidung||0,gegen_ball:s.gegen_ball||0}; });
+  pick(state.rawTips).forEach(row=>{ if(!state.tipsDetail[row.player_id]) state.tipsDetail[row.player_id]={}; state.tipsDetail[row.player_id][row.cycle]={scores:row.scores||{},beobachter:row.beobachter||'',entwicklung:row.entwicklung||''}; });
+}
+function setViewCoach(email){ if(!email) return; projectCoach(email); renderCurrentView(); }
+function openCoachAssign(){
+  const c=state.viewCoach;
+  if(!c){ showSavedToast('Bitte zuerst oben einen Trainer wählen',false); return; }
+  assignLegacyToCoach(c);
+}
+async function assignLegacyToCoach(email){
+  if(roGuard()) return;
+  if(!email) return;
+  if(!confirm('Alle bisher NICHT zugeordneten Bewertungen, Notizen, SMART+ und TIPS/U dem Trainer „'+coachLabel(email)+'" zuordnen?\n(Das lässt sich nur manuell wieder ändern.)')) return;
+  try{
+    for(const tbl of ['ratings','notes','si_data','tips_detail']){
+      const {error}=await sb.from(tbl).update({coach:email}).is('coach',null);
+      if(error){ console.error('assign',tbl,error); showSavedToast('Zuordnen fehlgeschlagen ('+tbl+')',false); return; }
+    }
+    showSavedToast('✓ Bestehende Daten „'+coachLabel(email)+'" zugeordnet');
+    await loadAll();
+  }catch(e){ console.error(e); showSavedToast('Zuordnen fehlgeschlagen',false); }
+}
+
 async function loadAll(){
   await loadRoster();
   initState();
-  const [r1,r2,r3,r4]=await Promise.all([
+  const [r1,r2,r3,r4,rc,rt]=await Promise.all([
     sb.from('ratings').select('*'),
     sb.from('notes').select('*'),
     sb.from('player_meta').select('*'),
-    sb.from('si_data').select('*')
+    sb.from('si_data').select('*'),
+    sb.from('coaches').select('*'),
+    sb.from('tips_detail').select('*')
   ]);
-  (r1.data||[]).forEach(r=>{
-    if(!state.data[r.player_id])return;
-    state.data[r.player_id].ratings[r.cycle][r.dim]={ist:r.ist,soll:r.soll,massnahme:r.massnahme||''};
-  });
-  (r2.data||[]).forEach(n=>{if(state.data[n.player_id])state.data[n.player_id].notes[n.cycle]=n.content||'';});
-  (r3.data||[]).forEach(m=>{if(state.data[m.player_id]){state.data[m.player_id].position=m.position||'';state.data[m.player_id].defizit=m.defizit||'';state.data[m.player_id].staerke=m.staerke||'';}});
-  (r4.data||[]).forEach(s=>{if(state.siData[s.player_id])state.siData[s.player_id]={wahrnehmen:s.wahrnehmen||0,loesungen:s.loesungen||0,entscheidung:s.entscheidung||0,gegen_ball:s.gegen_ball||0};});
-  ensureStateForPlayers();
-  await loadTipsDetail();
+  state.rawRatings=r1.data||[]; state.rawNotes=r2.data||[]; state.rawMeta=r3.data||[]; state.rawSI=r4.data||[]; state.rawTips=rt.data||[];
+  state.coaches={}; (rc.data||[]).forEach(c=>{ if(c&&c.email) state.coaches[c.email.toLowerCase()]=c.name||userShort(c.email); });
+  registerSelfCoach();
+  if(!state.viewCoach) state.viewCoach=(currentUserEmail||'').toLowerCase();
+  projectCoach(state.viewCoach);
   renderCurrentView();
 }
+
+
 
 // ═══════════════════════════════════════════════════
 // ARCHIV / VERLAUF
@@ -592,6 +655,20 @@ function refreshStamps(){
     mc.insertBefore(wrap, mc.firstChild);
     bars.forEach(b=>fillStamp(b.id,b));
   }
+  // Trainer-Umschaltleiste (Bewertungs-Bereiche)
+  const oldC=document.getElementById('coachBar'); if(oldC) oldC.remove();
+  if((v==='player'&&state.selPlayer&&!state.editPlayer)||v==='si'||(v==='detail'&&state.tipsSelPlayer)){
+    const list=coachesList();
+    const cur=(state.viewCoach||currentUserEmail||'').toLowerCase();
+    const cu=(currentUserEmail||'').toLowerCase();
+    const btns=list.map(c=>{const on=c.email===cur;return `<button onclick="setViewCoach('${c.email}')" style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:7px;cursor:pointer;border:1px solid ${on?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${on?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${on?'#c9a84c':'rgba(255,255,255,0.55)'}">${esc(c.name)}${c.email===cu?' (du)':''}</button>`;}).join('');
+    const banner = canEditAssess() ? '' : `<span style="font-size:10px;color:#f59e0b;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-eye"></i> Ansicht von ${esc(coachLabel(cur))} – nur lesen</span>`;
+    const gear = (!window.IS_READONLY) ? `<button onclick="openCoachAssign()" title="Bestehende, nicht zugeordnete Daten diesem Trainer zuordnen" style="margin-left:auto;font-size:10px;font-weight:700;padding:5px 9px;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5)"><i class="ti ti-arrows-exchange"></i> zuordnen</button>` : '';
+    const bar=document.createElement('div'); bar.id='coachBar';
+    bar.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.15);border-radius:10px';
+    bar.innerHTML=`<span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:.05em">BEWERTUNG VON</span>${btns}${banner}${gear}`;
+    mc.insertBefore(bar, mc.firstChild);
+  }
   // Navigations-Leiste (alle Bereiche ausser Dashboard) – ganz oben
   if(v!=='dashboard'){
     const nav=document.createElement('div');
@@ -621,21 +698,28 @@ function dimLabel(dim) {
 // SAVE (debounced)
 // ═══════════════════════════════════════════════════
 function debSave(key,fn,delay=800){clearTimeout(saveTimers[key]);saveTimers[key]=setTimeout(fn,delay);}
+function _saveErr(error,label){ if(error){ console.error(label,error); showSavedToast('Speichern fehlgeschlagen ('+label+') – bitte erneut versuchen',false); return true; } return false; }
 
 function saveRating(pid,cy,dim,oldIst,oldSoll){
   if(roGuard()) return;
+  if(!canEditAssess()) return;
   const r=state.data[pid].ratings[cy][dim];
   debSave(`r_${pid}_${cy}_${dim}`,async()=>{
-    await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'});
+    const {error}=await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim,coach:currentUserEmail,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim,coach'});
+    if(_saveErr(error,'Bewertung')) return;
+    _rawUpsert('rawRatings',{player_id:pid,cycle:cy,dim,coach:currentUserEmail,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},x=>x.player_id===pid&&x.cycle===cy&&x.dim===dim&&x.coach===currentUserEmail);
     const details = `${cycleLabel(cy)} · ${dimLabel(dim)} → IST: ${r.ist?.toFixed(2)||'—'} / SOLL: ${r.soll?.toFixed(2)||'—'}${r.massnahme?' · '+r.massnahme:''}`;
     logActivity(pid,'rating',details,cy,dim,'ist/soll', oldIst!=null?oldIst.toFixed(2):null, r.ist!=null?r.ist.toFixed(2):null);
   });
 }
 function saveNote(pid,cy,oldVal){
   if(roGuard()) return;
+  if(!canEditAssess()) return;
   debSave(`n_${pid}_${cy}`,async()=>{
     const content=state.data[pid].notes[cy];
-    await sb.from('notes').upsert({player_id:pid,cycle:cy,content},{onConflict:'player_id,cycle'});
+    const {error}=await sb.from('notes').upsert({player_id:pid,cycle:cy,coach:currentUserEmail,content},{onConflict:'player_id,cycle,coach'});
+    if(_saveErr(error,'Notiz')) return;
+    _rawUpsert('rawNotes',{player_id:pid,cycle:cy,coach:currentUserEmail,content},x=>x.player_id===pid&&x.cycle===cy&&x.coach===currentUserEmail);
     logActivity(pid,'note',`${cycleLabel(cy)} · Notiz aktualisiert`,cy,null,'content',oldVal?.substring(0,80),content?.substring(0,80));
   });
 }
@@ -643,15 +727,19 @@ function saveMeta(pid,field,oldVal){
   if(roGuard()) return;
   const d=state.data[pid];
   debSave(`m_${pid}`,async()=>{
-    await sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'});
+    const {error}=await sb.from('player_meta').upsert({player_id:pid,position:d.position,defizit:d.defizit,staerke:d.staerke},{onConflict:'player_id'});
+    if(_saveErr(error,'Profil')) return;
     logActivity(pid,'meta',`${field}: ${d[field]||'—'}`,null,null,field,oldVal,d[field]);
   });
 }
 function saveSI(pid,oldVals){
   if(roGuard()) return;
+  if(!canEditAssess()) return;
   const s=state.siData[pid];
   debSave(`si_${pid}`,async()=>{
-    await sb.from('si_data').upsert({player_id:pid,...s},{onConflict:'player_id'});
+    const {error}=await sb.from('si_data').upsert({player_id:pid,coach:currentUserEmail,...s},{onConflict:'player_id,coach'});
+    if(_saveErr(error,'SMART+')) return;
+    _rawUpsert('rawSI',{player_id:pid,coach:currentUserEmail,...s},x=>x.player_id===pid&&x.coach===currentUserEmail);
     const total=SI_FIELDS.reduce((a,f)=>a+(s[f]||0),0);
     logActivity(pid,'si',`W:${s.wahrnehmen} L:${s.loesungen} E:${s.entscheidung} G:${s.gegen_ball} Total:${total}`,null,null,'si_data',null,`Total: ${total}`);
   },400);
@@ -676,30 +764,32 @@ async function manualSave(){
   if(btn){ btn.disabled=true; btn.style.opacity='0.65'; btn.innerHTML='<i class="ti ti-loader-2"></i> SPEICHERT…'; }
   const cy=state.cycle;
   let done=0;
+  if(!canEditAssess()){ showSavedToast('Im fremden Trainer-View kann nicht gespeichert werden – oben auf „Du" wechseln',false); if(btn){btn.disabled=false;btn.style.opacity='1';btn.innerHTML=orig;} return; }
+  const co=currentUserEmail;
   try{
-    // Aktuelles Spielerprofil: Matrix + Notizen + Meta
+    // Aktuelles Spielerprofil: Matrix + Notizen (pro Trainer) + Meta (geteilt)
     if(state.view==='player' && state.selPlayer){
       const pid=state.selPlayer, pd=state.data[pid];
       for(const d of DIMS){
         const r=pd.ratings[cy][d];
-        await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim:d,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim'});
+        await sb.from('ratings').upsert({player_id:pid,cycle:cy,dim:d,coach:co,ist:r.ist,soll:r.soll,massnahme:r.massnahme||''},{onConflict:'player_id,cycle,dim,coach'});
       }
-      await sb.from('notes').upsert({player_id:pid,cycle:cy,content:pd.notes[cy]||''},{onConflict:'player_id,cycle'});
+      await sb.from('notes').upsert({player_id:pid,cycle:cy,coach:co,content:pd.notes[cy]||''},{onConflict:'player_id,cycle,coach'});
       await sb.from('player_meta').upsert({player_id:pid,position:pd.position,defizit:pd.defizit,staerke:pd.staerke},{onConflict:'player_id'});
       await logActivity(pid,'rating','Manuell gespeichert · '+cycleLabel(cy)+' (Matrix + Profil)',cy,null,'manual',null,'Speicherstand');
       await logActivity(pid,'meta','Manuell gespeichert · Profil/Notizen '+cycleLabel(cy),null,null,'manual',null,'Speicherstand');
       done++;
     }
-    // SI-Erfassung: alle Spieler
+    // SI-Erfassung: alle Spieler (pro Trainer)
     if(state.view==='si'){
-      for(const p of PLAYERS){ const s=state.siData[p.id]; await sb.from('si_data').upsert({player_id:p.id,...s},{onConflict:'player_id'}); }
+      for(const p of PLAYERS){ const s=state.siData[p.id]; await sb.from('si_data').upsert({player_id:p.id,coach:co,...s},{onConflict:'player_id,coach'}); }
       await logActivity(PLAYERS[0]?PLAYERS[0].id:1,'si','Manuell gespeichert · SMART+ (alle Spieler)',null,null,'manual',null,'Speicherstand');
       done++;
     }
-    // Detailbogen
+    // Detailbogen (pro Trainer)
     if(state.view==='detail' && state.tipsSelPlayer){
       const pid=state.tipsSelPlayer, t=ensureTips(pid,cy);
-      await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
+      await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,coach:co,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle,coach'});
       await logActivity(pid,'tips','Manuell gespeichert · TIPS/U '+cycleLabel(cy),cy,null,'manual',null,'Speicherstand');
       done++;
     }
@@ -721,6 +811,7 @@ async function manualSave(){
 // ═══════════════════════════════════════════════════
 function updateRating(pid,cy,dim,field,val){
   if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar – oben Trainer wechseln',false); return; }
   const oldIst=state.data[pid].ratings[cy][dim].ist;
   const oldSoll=state.data[pid].ratings[cy][dim].soll;
   state.data[pid].ratings[cy][dim][field]=val;
@@ -732,11 +823,13 @@ function updateRating(pid,cy,dim,field,val){
 }
 function updateMassnahme(pid,cy,dim,val){
   if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar',false); return; }
   state.data[pid].ratings[cy][dim].massnahme=val;
   saveRating(pid,cy,dim,state.data[pid].ratings[cy][dim].ist,state.data[pid].ratings[cy][dim].soll);
 }
 function updateNote(pid,cy,val){
   if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar',false); return; }
   const old=state.data[pid].notes[cy];
   state.data[pid].notes[cy]=val;saveNote(pid,cy,old);
 }
@@ -747,6 +840,7 @@ function updateField(pid,f,val){
 }
 function updateSI(pid,field,delta){
   if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar – oben Trainer wechseln',false); return; }
   const old={...state.siData[pid]};
   state.siData[pid][field]=Math.max(0,(state.siData[pid][field]||0)+delta);
   saveSI(pid,old);
@@ -1569,19 +1663,26 @@ async function loadTipsDetail(){
 }
 function saveTipsDetail(pid,cy){
   if(roGuard()) return;
+  if(!canEditAssess()) return;
   const t=ensureTips(pid,cy);
   debSave('tips_'+pid+'_'+cy,async()=>{
-    await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle'});
+    const {error}=await sb.from('tips_detail').upsert({player_id:pid,cycle:cy,coach:currentUserEmail,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},{onConflict:'player_id,cycle,coach'});
+    if(_saveErr(error,'TIPS/U')) return;
+    _rawUpsert('rawTips',{player_id:pid,cycle:cy,coach:currentUserEmail,scores:t.scores,beobachter:t.beobachter,entwicklung:t.entwicklung},x=>x.player_id===pid&&x.cycle===cy&&x.coach===currentUserEmail);
     if(typeof logActivity==='function'){const tt=tipsTotals(t);logActivity(pid,'tips',cycleLabel(cy)+' · TIPS/U ('+tt.assessed+'/'+TIPS_NCRIT+' · Total '+tt.total+')',cy,null,'tips_detail',null,'Total '+tt.total);}
   });
 }
 function setTipsScore(pid,cy,cid,v){
+  if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar – oben Trainer wechseln',false); return; }
   const t=ensureTips(pid,cy);
   if(t.scores[cid]===v) delete t.scores[cid]; else t.scores[cid]=v;
   saveTipsDetail(pid,cy);
   renderTipsDetail();
 }
 function setTipsMeta(pid,cy,field,val){
+  if(roGuard()) return;
+  if(!canEditAssess()){ showSavedToast('Nur deine eigene Ansicht ist bearbeitbar',false); return; }
   const t=ensureTips(pid,cy);
   t[field]=val; saveTipsDetail(pid,cy);
 }
@@ -2038,7 +2139,7 @@ async function exportPDF(){
   doc.setTextColor(226,232,240);doc.setFontSize(20);doc.setFont(undefined,'bold');
   doc.text('FE12 — Old Boys',14,20);
   doc.setFontSize(11);doc.setFont(undefined,'normal');doc.setTextColor(160,170,185);
-  doc.text(`TIPS/U Saison-Masterplan · ${cyLabel} · ${new Date().toLocaleDateString('de-CH')}`,14,28);
+  doc.text(`TIPS/U Saison-Masterplan · ${cyLabel} · Bewertung: ${coachLabel(state.viewCoach)} · ${new Date().toLocaleDateString('de-CH')}`,14,28);
   doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);doc.line(14,31,196,31);
   let y=40;
   PLAYERS.forEach((p,idx)=>{
@@ -2077,7 +2178,7 @@ async function exportPDF(){
     const logRows=logs.slice(0,150).map(l=>[formatTS(l.created_at),l.user_email?.split('@')[0]||'—',(l.player_name||'—').split(',')[0],actionLabel(l.action_type).replace(/[^\w\s·]/g,''),(l.details||'').substring(0,60)]);
     doc.autoTable({startY:32,head:[['Zeit','Trainer','Spieler','Typ','Details']],body:logRows,theme:'plain',styles:{fontSize:7,cellPadding:1.5,textColor:[200,210,220],fillColor:[20,30,45]},headStyles:{fillColor:[30,42,58],textColor:[180,190,205],fontStyle:'bold'},columnStyles:{0:{cellWidth:30},1:{cellWidth:22},2:{cellWidth:28},3:{cellWidth:22},4:{cellWidth:86}},margin:{left:14,right:14}});
   }
-  doc.save(`FE12_OldBoys_${cyLabel}_${new Date().toISOString().slice(0,10)}.pdf`);
+  doc.save(`FE12_OldBoys_${cyLabel}_${(coachLabel(state.viewCoach)||'').replace(/[^a-zA-Z0-9]/g,'')}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 // Init
