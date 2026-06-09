@@ -1148,6 +1148,7 @@ function renderPlayer(){
     einsCard=`<div class="card" style="padding:12px 14px;margin-top:10px">
       <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.08em;margin-bottom:8px;display:flex;align-items:center;gap:5px"><i class="ti ti-clock-play" style="color:#22c55e"></i> EINSATZZEIT & POSITIONEN</div>
       ${es?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span style="font-size:22px;font-weight:800;color:#22c55e">${es.minutes}'</span><span style="font-size:10px;color:rgba(255,255,255,0.4)">${es.matches} Spiele · ${es.halves} Halbzeiten</span></div>
+        ${(es.goals||es.assists)?`<div style="font-size:11px;margin-bottom:8px"><span style="color:#22c55e;font-weight:700">⚽ ${es.goals||0} Tore</span> · <span style="color:#818cf8;font-weight:700">${es.assists||0} Assists</span></div>`:''}
         <div style="display:flex;gap:5px;flex-wrap:wrap">${posChips}</div>`
         : `<div style="font-size:11px;color:rgba(255,255,255,0.3)">Noch keine Einsätze erfasst.</div>`}
       <div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:8px">15 Min/Halbzeit · Filter & Vorrunde/Rückrunde unter „Anwesenheit"</div>
@@ -2348,19 +2349,28 @@ function _isMissingColErr(error){
   const msg=error.message||'';
   return /column .* does not exist/i.test(msg) || /could not find the .* column/i.test(msg);
 }
+// Robust: speichert das Spiel und lässt fehlende Spalten automatisch weg (statt komplett abzubrechen)
+async function _matchUpsert(payload){
+  let pl={...payload}, tries=0, dropped=[];
+  while(tries++ < 14){
+    const {error}=await sb.from('matches').upsert(pl,{onConflict:'id'});
+    if(!error) return {error:null, dropped};
+    const mm=(error.message||'').match(/Could not find the '([^']+)' column/i);
+    if(error.code==='PGRST204' && mm && Object.prototype.hasOwnProperty.call(pl,mm[1])){
+      dropped.push(mm[1]); delete pl[mm[1]]; continue;
+    }
+    return {error, dropped};
+  }
+  return {error:{message:'zu viele fehlende Spalten in der matches-Tabelle'}, dropped};
+}
 function persistMatch(id, logText){
   if(roGuard()) return;
   const m=getMatch(id); if(!m) return;
   clearTimeout(_matchSaveTimers[id]);
   _matchSaveTimers[id]=setTimeout(async()=>{
     try{
-      let {error}=await sb.from('matches').upsert(matchPayload(m,_matchExtraCols),{onConflict:'id'});
-      if(error && _matchExtraCols && _isMissingColErr(error)){
-        // Formations-Spalten fehlen noch → ohne sie speichern, Basis bleibt funktionsfähig
-        _matchExtraCols=false;
-        showSavedToast('Formation lokal gespeichert – DB-Spalten fehlen (siehe Hinweis im Editor)',false);
-        ({error}=await sb.from('matches').upsert(matchPayload(m,false),{onConflict:'id'}));
-      }
+      let {error,dropped}=await _matchUpsert(matchPayload(m,_matchExtraCols));
+      if(dropped&&dropped.length){ if(dropped.some(c=>['spielform','match_time','formation','formation_b','lineup_a','lineup_b','halves'].includes(c))) _matchExtraCols=false; showSavedToast('Gespeichert – nicht vorhandene Spalten ('+dropped.join(', ')+') wurden ausgelassen',false); }
       if(error){ console.error('persistMatch',error); showSavedToast('Spiel speichern fehlgeschlagen: '+(error.message||error.code||'unbekannt'),false); return; }
       if(typeof logActivity==='function'){
         const opp=m.opponent||'Gegner offen';
@@ -2379,8 +2389,8 @@ async function addMatch(){
   const m={id:uuid(),match_date:new Date().toISOString().slice(0,10),match_time:'',opponent:'',venue:'home',competition:'Meisterschaft',goals_for:0,goals_against:0,status:'planned',lineup:[],scorers:{},assists:{},note:'',spielform:sf,formation:def,formationB:def,lineupA:{},lineupB:{},halves:[mkHalf(),mkHalf(),mkHalf()]};
   state.matches.unshift(m);
   try{
-    let {error}=await sb.from('matches').upsert(matchPayload(m,_matchExtraCols),{onConflict:'id'});
-    if(error && _matchExtraCols && _isMissingColErr(error)){ _matchExtraCols=false; ({error}=await sb.from('matches').upsert(matchPayload(m,false),{onConflict:'id'})); }
+    let {error,dropped}=await _matchUpsert(matchPayload(m,_matchExtraCols));
+    if(dropped&&dropped.length && dropped.some(c=>['spielform','match_time','formation','formation_b','lineup_a','lineup_b','halves'].includes(c))) _matchExtraCols=false;
     if(error){
       console.error('addMatch',error);
       showSavedToast('Spiel anlegen fehlgeschlagen: '+(error.message||error.code||'unbekannt'),false);
@@ -2645,19 +2655,28 @@ function matchPlayerStats(m){
 function posSummary(posObj){
   return Object.entries(posObj||{}).sort((a,b)=>b[1]-a[1]).map(([l,n])=>n>1?l+'×'+n:l).join(', ')||'—';
 }
+function matchLineupIds(m){
+  const set=new Set();
+  if(!m||!Array.isArray(m.halves)) return set;
+  m.halves.forEach(hz=>['a','b'].forEach(fk=>{ const o=(hz&&hz[fk]&&hz[fk].lineup)||{}; Object.values(o).forEach(pid=>set.add(String(pid))); }));
+  return set;
+}
+function matchHasLineup(m){ return matchLineupIds(m).size>0; }
 function matchPhase(m){ const mo=parseInt((m.match_date||'').slice(5,7))||0; return mo>=7?'vor':'rueck'; } // Jul–Dez = Vorrunde
 function aggMatchStats(filter){
   const f=filter||{}; const per={};
+  const blank=()=>({halves:0,minutes:0,matches:0,pos:{},goals:0,assists:0});
   (state.matches||[]).forEach(m=>{
-    if(m.status!=='played') return;
     if(f.comp && f.comp!=='all' && m.competition!==f.comp) return;
     if(f.phase && f.phase!=='all' && matchPhase(m)!==f.phase) return;
     const ms=matchPlayerStats(m);
     Object.keys(ms).forEach(k=>{
-      if(!per[k]) per[k]={halves:0,minutes:0,matches:0,pos:{}};
+      if(!per[k]) per[k]=blank();
       per[k].halves+=ms[k].halves; per[k].minutes+=ms[k].minutes; per[k].matches++;
       Object.entries(ms[k].pos).forEach(([l,n])=>per[k].pos[l]=(per[k].pos[l]||0)+n);
     });
+    Object.entries(m.scorers||{}).forEach(([pid,n])=>{ const k=String(pid); if(!per[k])per[k]=blank(); per[k].goals+=(parseInt(n)||0); });
+    Object.entries(m.assists||{}).forEach(([pid,n])=>{ const k=String(pid); if(!per[k])per[k]=blank(); per[k].assists+=(parseInt(n)||0); });
   });
   return per;
 }
@@ -3143,14 +3162,24 @@ function markAllPresent(){
   renderAnwesenheit();
 }
 
-// Anwesenheits-Quote je Spieler (present+late zählt als anwesend)
+// Anwesenheits-Quote je Spieler: gespeicherte Einträge + automatisch Anwesend bei Spiel-Aufstellung (manuell hat Vorrang)
 function attendanceStats(){
   const per={}; PLAYERS.forEach(p=>per[p.id]={present:0,total:0});
-  Object.values(state.attendance).forEach(r=>{
+  const handled=new Set(); // manuell gesetzte Spiel-Anwesenheit: matchId_pid
+  Object.entries(state.attendance).forEach(([key,r])=>{
     if(!per[r.player_id]) per[r.player_id]={present:0,total:0};
+    if(r.type==='match'){ const mid=key.slice(2, key.lastIndexOf('_')); handled.add(mid+'_'+r.player_id); }
     if(r.status==='excused') return;            // entschuldigt zählt nicht gegen die Quote
     per[r.player_id].total++;
     if(r.status==='present'||r.status==='late') per[r.player_id].present++;
+  });
+  // Automatisch anwesend: jeder aufgestellte Spieler eines Spiels (sofern nicht manuell überschrieben)
+  (state.matches||[]).forEach(m=>{
+    matchLineupIds(m).forEach(pid=>{
+      if(handled.has(m.id+'_'+pid)) return;
+      const k=parseInt(pid); if(!per[k]) per[k]={present:0,total:0};
+      per[k].total++; per[k].present++;
+    });
   });
   return per;
 }
@@ -3206,15 +3235,18 @@ async function renderAnwesenheit(){
   }
 
   // Erfassung
+  const autoIds = (type==='match' && sess.match) ? matchLineupIds(sess.match) : new Set();
   const rows=PLAYERS.map(p=>{
-    const cur=state.attendance[sess.skey+'_'+p.id];
+    const manual=state.attendance[sess.skey+'_'+p.id];
+    const auto = !manual && autoIds.has(String(p.id));
+    const cur = manual || (auto?{status:'present'}:null);
     const btns=Object.entries(ATT_STATUS).map(([k,info])=>{
       const on=cur&&cur.status===k;
       return `<button onclick="setAttendance(${p.id},'${k}')" title="${info.label}" style="width:30px;height:30px;border-radius:7px;cursor:pointer;border:1px solid ${on?info.color:'rgba(255,255,255,0.1)'};background:${on?info.color+'2e':'rgba(255,255,255,0.04)'};color:${on?info.color:'rgba(255,255,255,0.4)'};display:inline-flex;align-items:center;justify-content:center"><i class="ti ti-${info.ic}" style="font-size:15px"></i></button>`;
     }).join('');
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
       <div style="width:26px;height:26px;border-radius:50%;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#c9a84c;flex-shrink:0">${initials(p.name)}</div>
-      <span style="flex:1;font-size:12.5px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.tw?' <span style="font-size:8px;color:#3b82f6;font-weight:800">TW</span>':''}</span>
+      <span style="flex:1;font-size:12.5px;color:#e2e8f0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.tw?' <span style="font-size:8px;color:#3b82f6;font-weight:800">TW</span>':''}${auto?' <span style="font-size:8px;color:#22c55e;font-weight:700">• aufgestellt</span>':''}</span>
       <div class="edit-only" style="display:flex;gap:5px">${btns}</div>
       ${window.IS_READONLY?`<span style="font-size:11px;font-weight:700;color:${cur?ATT_STATUS[cur.status].color:'rgba(255,255,255,0.3)'}">${cur?ATT_STATUS[cur.status].label:'—'}</span>`:''}
     </div>`;
@@ -3239,22 +3271,24 @@ async function renderAnwesenheit(){
   state.einsPhase = state.einsPhase||'all';
   const agg=aggMatchStats({comp:state.einsComp,phase:state.einsPhase});
   const maxMin=Math.max(1,...PLAYERS.map(p=>agg[String(p.id)]?agg[String(p.id)].minutes:0));
-  const playedMatches=(state.matches||[]).filter(m=>m.status==='played' && (state.einsComp==='all'||m.competition===state.einsComp) && (state.einsPhase==='all'||matchPhase(m)===state.einsPhase)).length;
+  const playedMatches=(state.matches||[]).filter(m=>matchHasLineup(m) && (state.einsComp==='all'||m.competition===state.einsComp) && (state.einsPhase==='all'||matchPhase(m)===state.einsPhase)).length;
   const comps=['all',...Array.from(new Set((state.matches||[]).map(m=>m.competition).filter(Boolean)))];
   const compOpts=comps.map(c=>`<option value="${esc(c)}" ${state.einsComp===c?'selected':''}>${c==='all'?'Alle Wettbewerbe':esc(c)}</option>`).join('');
   const phaseOpts=[['all','Saison gesamt'],['vor','Vorrunde (Jul–Dez)'],['rueck','Rückrunde (Jan–Jun)']].map(([k,l])=>`<option value="${k}" ${state.einsPhase===k?'selected':''}>${l}</option>`).join('');
-  const einsFilter=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+  const einsFilter=`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
     <select onchange="setEinsComp(this.value)" style="font-size:10px;padding:4px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0">${compOpts}</select>
     <select onchange="setEinsPhase(this.value)" style="font-size:10px;padding:4px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0">${phaseOpts}</select>
+    <button onclick="exportStatsPDF()" style="font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;border:1px solid rgba(201,168,76,0.3);background:rgba(201,168,76,0.12);color:#c9a84c"><i class="ti ti-file-download"></i> Statistik-PDF</button>
   </div>`;
   const fairRows=PLAYERS.slice().sort((a,b)=>((agg[String(b.id)]?agg[String(b.id)].minutes:0)-(agg[String(a.id)]?agg[String(a.id)].minutes:0))).map(p=>{
-    const s=agg[String(p.id)]||{minutes:0,matches:0,pos:{}};
+    const s=agg[String(p.id)]||{minutes:0,matches:0,pos:{},goals:0,assists:0};
     const w=Math.round(s.minutes/maxMin*100);
+    const ga=(s.goals?` <span style="font-size:9px;color:#22c55e;font-weight:700">⚽${s.goals}</span>`:'')+(s.assists?` <span style="font-size:9px;color:#818cf8;font-weight:700">A${s.assists}</span>`:'');
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-      <span style="flex:1;min-width:0"><span style="font-size:12px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%">${esc(vorname(p.name))} <span style="font-size:9px;color:rgba(255,255,255,0.3)">${esc(posSummary(s.pos))}</span></span></span>
-      <div style="flex:0 0 70px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:#c9a84c"></div></div>
-      <span style="font-size:11px;font-weight:800;color:#22c55e;width:50px;text-align:right">${s.minutes}'</span>
-      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:42px;text-align:right">${s.matches||0}/${playedMatches}</span>
+      <span style="flex:1;min-width:0"><span style="font-size:12px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%">${esc(vorname(p.name))} <span style="font-size:9px;color:rgba(255,255,255,0.3)">${esc(posSummary(s.pos))}</span>${ga}</span></span>
+      <div style="flex:0 0 60px;height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:#c9a84c"></div></div>
+      <span style="font-size:11px;font-weight:800;color:#22c55e;width:48px;text-align:right">${s.minutes}'</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.35);width:40px;text-align:right">${s.matches||0}/${playedMatches}</span>
     </div>`;
   }).join('');
 
@@ -3281,11 +3315,38 @@ async function renderAnwesenheit(){
           <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-run" style="color:#c9a84c"></i> SPIELZEIT & POSITIONEN</div>
           ${einsFilter}
           ${fairRows}
-          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">15 Min pro Halbzeit-Einsatz · Positionen & Zeit aus den Aufstellungen der gespielten Spiele.</div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:8px">15 Min pro Halbzeit-Einsatz · automatisch aus den Aufstellungen (ab Anlegen). Aufgestellte = anwesend.</div>
         </div>
       </div>
     </div>
     <style>@media(max-width:767px){.att-split{grid-template-columns:1fr!important}}</style>`;
+}
+function exportStatsPDF(){
+  if(typeof window.jspdf==='undefined'){ showSavedToast('PDF-Bibliothek nicht geladen',false); return; }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const PWp=doc.internal.pageSize.getWidth();
+  try{ const src=(typeof getTeamLogo==='function')?getTeamLogo():null; if(src){ const fmt=/^data:image\/png/i.test(src)?'PNG':'JPEG'; doc.addImage(src,fmt,PWp-26,8,18,18); } }catch(e){}
+  doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(201,168,76);
+  doc.text('Anwesenheit & Statistik',14,16);
+  const compL = (state.einsComp==='all'||!state.einsComp)?'Alle Wettbewerbe':state.einsComp;
+  const phaseL = state.einsPhase==='vor'?'Vorrunde':(state.einsPhase==='rueck'?'Rückrunde':'Saison gesamt');
+  doc.setFontSize(9);doc.setFont(undefined,'normal');doc.setTextColor(90,100,115);
+  doc.text('FE12 Old Boys · '+compL+' · '+phaseL+' · '+new Date().toLocaleDateString('de-CH'),14,23);
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);doc.line(14,27,PWp-14,27);
+  const as=attendanceStats();
+  const agg=aggMatchStats({comp:state.einsComp,phase:state.einsPhase});
+  const body=PLAYERS.slice().sort((a,b)=>((agg[String(b.id)]?agg[String(b.id)].minutes:0)-(agg[String(a.id)]?agg[String(a.id)].minutes:0))).map(p=>{
+    const a=as[p.id]||{present:0,total:0}; const s=agg[String(p.id)]||{minutes:0,matches:0,pos:{},goals:0,assists:0};
+    const rate=a.total?Math.round(a.present/a.total*100)+'% ('+a.present+'/'+a.total+')':'—';
+    return [p.nr, p.name, rate, String(s.matches||0), (s.minutes||0)+' Min', posSummary(s.pos), String(s.goals||0), String(s.assists||0)];
+  });
+  doc.autoTable({startY:31,head:[['#','Spieler','Anwesend','Spiele','Spielzeit','Positionen','Tore','Assists']],body,theme:'striped',
+    styles:{fontSize:8.5,cellPadding:2,textColor:[40,48,60]},
+    headStyles:{fillColor:[201,168,76],textColor:[255,255,255],fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:10,halign:'center'},1:{cellWidth:44},2:{cellWidth:36},3:{cellWidth:16,halign:'center'},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'},6:{cellWidth:14,halign:'center'},7:{cellWidth:16,halign:'center'}},
+    margin:{left:14,right:14}});
+  doc.save('FE12_Anwesenheit_Statistik_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 function attendanceSetupHint(){
   const sql=`create table if not exists attendance (
