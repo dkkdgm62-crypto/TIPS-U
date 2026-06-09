@@ -105,7 +105,8 @@ body.ro .edit-only{display:none!important}
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
       <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
-      <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>Anwesenheit</button>
+      <button class="btn-nav" id="nav-trainings" onclick="showView('trainings')"><i class="ti ti-calendar-week" style="font-size:16px;flex-shrink:0"></i>Trainings</button>
+      <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>AWK</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
@@ -870,7 +871,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',spiele:'Spiele & Matches',anwesenheit:'Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',spiele:'Spiele & Matches',trainings:'Trainingsplanung',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
@@ -892,6 +893,7 @@ function renderCurrentView(){
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
   else if(v==='spiele')renderSpiele();
+  else if(v==='trainings')renderTrainings();
   else if(v==='anwesenheit')renderAnwesenheit();
   else if(v==='makro')renderMakro();
   else if(v==='verlauf')renderVerlauf();
@@ -3110,6 +3112,10 @@ function currentSession(){
     const m=getMatch(state.attMatchId);
     return {skey:'M_'+state.attMatchId, date:(m&&m.match_date)||state.attDate, type:'match', valid:!!m, match:m};
   }
+  if(state.attTrainId){
+    const t=(typeof getTraining==='function')?getTraining(state.attTrainId):null;
+    if(t) return {skey:'TR_'+state.attTrainId, date:t.date||state.attDate, type:'training', valid:true, match:null, training:t};
+  }
   return {skey:'T_'+state.attDate, date:state.attDate, type:'training', valid:!!state.attDate, match:null};
 }
 function attKeyFor(pid){ return currentSession().skey+'_'+pid; }
@@ -3155,6 +3161,7 @@ function setAttType(v){ state.attType=v; renderAnwesenheit(); }
 function setEinsComp(v){ state.einsComp=v; renderAnwesenheit(); }
 function setEinsPhase(v){ state.einsPhase=v; renderAnwesenheit(); }
 function setAttMatch(id){ const m=getMatch(id); state.attMatchId=id; if(m&&m.match_date) state.attDate=m.match_date; renderAnwesenheit(); }
+function setAttTrain(id){ state.attTrainId=id; const t=(typeof getTraining==='function')?getTraining(id):null; if(t&&t.date) state.attDate=t.date; renderAnwesenheit(); }
 function markAllPresent(){
   if(roGuard()) return;
   const s=currentSession(); if(!s.valid){ showSavedToast('Bitte zuerst ein Spiel/Datum wählen',false); return; }
@@ -3203,6 +3210,7 @@ function playingStats(){
 async function renderAnwesenheit(){
   const mc=document.getElementById('mainContent'); if(!mc) return;
   if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
+  if(!_trainingsLoaded && !_trainingsTableMissing){ await loadTrainings(); }
   if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
   if(_attendanceTableMissing){ mc.innerHTML=attendanceSetupHint(); return; }
 
@@ -3229,9 +3237,14 @@ async function renderAnwesenheit(){
       sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Spiele – im Bereich «Spiele» anlegen.</span>`;
     }
   } else {
-    const tDates=[...new Set(Object.values(state.attendance).filter(r=>r.type==='training'&&r.date).map(r=>r.date))].sort().reverse().slice(0,6);
-    const chips=tDates.map(d=>`<button onclick="setAttDate('${d}')" style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid ${d===state.attDate?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${d===state.attDate?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)'};color:${d===state.attDate?'#c9a84c':'rgba(255,255,255,0.5)'}">${matchDateLabel(d)}</button>`).join('');
-    sessionCtrl=`<input type="date" value="${state.attDate}" onchange="setAttDate(this.value)" style="${inputStyle}"/>${chips?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${chips}</div>`:''}`;
+    const trs=(state.trainings||[]).slice().sort((a,b)=>(b.date+(b.time_from||'')).localeCompare(a.date+(a.time_from||'')));
+    if(trs.length){
+      if(!trs.some(x=>x.id===state.attTrainId)){ state.attTrainId=trs[0].id; }
+      const opts=trs.map(t=>{const lbl=trainDateLabel(t.date)+' '+(t.time_from||'')+' · '+((TR_TYP[t.typ]||TR_TYP.training).label)+(t.titel?' · '+t.titel:'');return `<option value="${t.id}" ${t.id===state.attTrainId?'selected':''}>${esc(lbl)}</option>`;}).join('');
+      sessionCtrl=`<select onchange="setAttTrain(this.value)" style="${inputStyle};min-width:230px;flex:1">${opts}</select>`;
+    } else {
+      sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Trainings – im Bereich «Trainings» anlegen.</span>`;
+    }
   }
 
   // Erfassung
@@ -3301,7 +3314,7 @@ async function renderAnwesenheit(){
 
     <div style="display:grid;grid-template-columns:1fr;gap:14px">
       <div class="card" style="padding:14px 16px">
-        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#c9a84c"></i> ERFASSUNG · ${type==='match'?(sess.match?esc(sess.match.opponent||'Gegner offen')+' · '+matchDateLabel(date)+(sess.match.match_time?' '+sess.match.match_time+' Uhr':''):'Kein Spiel gewählt'):'Training · '+matchDateLabel(date)}</div>
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#c9a84c"></i> ERFASSUNG · ${type==='match'?(sess.match?esc(sess.match.opponent||'Gegner offen')+' · '+matchDateLabel(date)+(sess.match.match_time?' '+sess.match.match_time+' Uhr':''):'Kein Spiel gewählt'):(sess.training?((TR_TYP[sess.training.typ]||TR_TYP.training).label)+' · '+trainDateLabel(sess.training.date)+' '+(sess.training.time_from||''):'Training · '+matchDateLabel(date))}</div>
         ${rows}
       </div>
 
@@ -3371,6 +3384,274 @@ create policy attendance_all on attendance for all using (true) with check (true
       <button onclick="_attendanceTableMissing=false;_attendanceLoaded=false;renderAnwesenheit()" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;cursor:pointer"><i class="ti ti-refresh"></i> Erneut prüfen</button>
     </div>
   </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// TRAININGSPLANUNG (gemeinsam · an Makrozyklus gebunden)
+// Tabelle "trainings"; Anwesenheit pro Training via AWK
+// ═══════════════════════════════════════════════════
+state.trainView = state.trainView || 'week';
+state.trainings = state.trainings || [];
+state.attTrainId = state.attTrainId || null;
+state.trainAnchor = state.trainAnchor || new Date().toISOString().slice(0,10);
+state.trainEditId = state.trainEditId || null;
+let _trainingsTableMissing=false, _trainingsLoaded=false, _trainSaveTimers={};
+const WD_LBL=['So','Mo','Di','Mi','Do','Fr','Sa'];
+const WD_FULL=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+const TR_TYP={training:{label:'Training',color:'#3b82f6'},event:{label:'Event',color:'#c9a84c'},spiel:{label:'Spiel & Spass',color:'#a855f7'}};
+
+function _td(s){ return new Date(s+'T00:00:00'); }
+function _tiso(d){ const x=new Date(d); x.setHours(12,0,0,0); return x.toISOString().slice(0,10); }
+function isoWeek(d){ const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const day=(dt.getUTCDay()+6)%7; dt.setUTCDate(dt.getUTCDate()-day+3); const f=new Date(Date.UTC(dt.getUTCFullYear(),0,4)); const fd=(f.getUTCDay()+6)%7; f.setUTCDate(f.getUTCDate()-fd+3); return 1+Math.round((dt-f)/(7*864e5)); }
+function mondayOf(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+function trainKwData(dateStr){ const d=_td(dateStr); const kw=isoWeek(d); const arr=(d.getMonth()>=6)?MAKRO.vorrunde:MAKRO.rueckrunde; return arr.find(w=>w.kw===kw)||null; }
+function trainDateLabel(ds){ const d=_td(ds); return WD_LBL[d.getDay()]+' '+('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'; }
+
+function getTrainSchema(){ let s={}; try{ s=JSON.parse(localStorage.getItem('fe12_train_schema'))||{}; }catch(e){} return {days:s.days||[1,3,5], from:s.from||'17:00', to:s.to||'19:00', ort:s.ort||''}; }
+function setTrainSchema(s){ try{ localStorage.setItem('fe12_train_schema', JSON.stringify(s)); }catch(e){} }
+
+async function loadTrainings(){
+  try{
+    const {data,error}=await sb.from('trainings').select('*');
+    if(error){ if(error.code==='42P01'||/relation .*trainings.* does not exist/i.test(error.message||'')) _trainingsTableMissing=true; state.trainings=[]; return; }
+    _trainingsTableMissing=false;
+    state.trainings=(data||[]).map(t=>({id:t.id,date:t.date||'',time_from:t.time_from||'',time_to:t.time_to||'',ort:t.ort||'',typ:t.typ||'training',titel:t.titel||'',note:t.note||'',groups:Array.isArray(t.groups)?t.groups:(t.groups?JSON.parse(t.groups):[])}));
+    _trainingsLoaded=true;
+  }catch(e){ console.error('loadTrainings',e); state.trainings=[]; }
+}
+function getTraining(id){ return (state.trainings||[]).find(t=>t.id===id); }
+function trainPayload(t){ return {id:t.id,date:t.date||null,time_from:t.time_from||'',time_to:t.time_to||'',ort:t.ort||'',typ:t.typ||'training',titel:t.titel||'',note:t.note||'',groups:t.groups||[]}; }
+async function _trainUpsert(t){
+  let pl={...trainPayload(t)}, tries=0, dropped=[];
+  while(tries++<12){ const {error}=await sb.from('trainings').upsert(pl,{onConflict:'id'}); if(!error) return {error:null,dropped};
+    const mm=(error.message||'').match(/Could not find the '([^']+)' column/i);
+    if(error.code==='PGRST204'&&mm&&Object.prototype.hasOwnProperty.call(pl,mm[1])){ dropped.push(mm[1]); delete pl[mm[1]]; continue; }
+    return {error,dropped}; }
+  return {error:{message:'zu viele fehlende Spalten'},dropped};
+}
+function persistTraining(id){ if(window.IS_READONLY) return; const t=getTraining(id); if(!t) return;
+  clearTimeout(_trainSaveTimers[id]); _trainSaveTimers[id]=setTimeout(async()=>{ const {error}=await _trainUpsert(t); if(error){ console.error('persistTraining',error); showSavedToast('Training speichern fehlgeschlagen: '+(error.message||error.code||'?'),false); } },300); }
+
+function newTrainId(){ return 'tr-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6); }
+function addTraining(dateStr){ if(roGuard())return; const sc=getTrainSchema(); const t={id:newTrainId(),date:dateStr||state.trainAnchor,time_from:sc.from,time_to:sc.to,ort:sc.ort,typ:'training',titel:'',note:'',groups:[]}; state.trainings.push(t); state.trainEditId=t.id; persistTraining(t.id); renderTrainings(); }
+function deleteTraining(id){ if(roGuard())return; if(!confirm('Training wirklich löschen?'))return; state.trainings=(state.trainings||[]).filter(t=>t.id!==id); if(state.trainEditId===id)state.trainEditId=null; (async()=>{ try{ await sb.from('trainings').delete().eq('id',id); }catch(e){console.error(e);} })(); renderTrainings(); }
+function updateTraining(id,field,val){ if(roGuard())return; const t=getTraining(id); if(!t)return; t[field]=val; persistTraining(id); }
+function toggleTrainEdit(id){ state.trainEditId=(state.trainEditId===id?null:id); renderTrainings(); }
+function generateStandardWeek(){ if(roGuard())return; const sc=getTrainSchema(); const mon=mondayOf(_td(state.trainAnchor)); let n=0;
+  sc.days.slice().sort().forEach(wd=>{ const off=(wd+6)%7; const d=new Date(mon); d.setDate(mon.getDate()+off); const ds=_tiso(d);
+    if((state.trainings||[]).some(t=>t.date===ds && t.time_from===sc.from)) return;
+    const t={id:newTrainId(),date:ds,time_from:sc.from,time_to:sc.to,ort:sc.ort,typ:'training',titel:'',note:'',groups:[]}; state.trainings.push(t); persistTraining(t.id); n++; });
+  showSavedToast(n?('✓ '+n+' Trainings angelegt'):'Für diese Woche bereits angelegt'); renderTrainings(); }
+function trainNav(dir){ const d=_td(state.trainAnchor); d.setDate(d.getDate()+dir*(state.trainView==='month'?30:7)); state.trainAnchor=_tiso(d); renderTrainings(); }
+function setTrainView(v){ state.trainView=v; renderTrainings(); }
+function saveTrainSchemaFromUI(){ if(roGuard())return; const days=[...document.querySelectorAll('.tsday:checked')].map(c=>parseInt(c.value)); const from=document.getElementById('ts_from').value; const to=document.getElementById('ts_to').value; const ort=document.getElementById('ts_ort').value; setTrainSchema({days,from,to,ort}); showSavedToast('✓ Standard gespeichert'); renderTrainings(); }
+
+// Gruppen
+function addGroup(id){ if(roGuard())return; const t=getTraining(id); if(!t)return; t.groups=t.groups||[]; t.groups.push({name:'Gruppe '+(t.groups.length+1),players:[]}); persistTraining(id); renderTrainings(); }
+function removeGroup(id,gi){ if(roGuard())return; const t=getTraining(id); if(!t)return; t.groups.splice(gi,1); persistTraining(id); renderTrainings(); }
+function renameGroup(id,gi,val){ if(roGuard())return; const t=getTraining(id); if(!t||!t.groups[gi])return; t.groups[gi].name=val; persistTraining(id); }
+function toggleGroupPlayer(id,gi,pid){ if(roGuard())return; const t=getTraining(id); if(!t||!t.groups[gi])return; const arr=t.groups[gi].players||[]; const i=arr.indexOf(pid); if(i>=0)arr.splice(i,1); else arr.push(pid); t.groups[gi].players=arr; persistTraining(id); renderTrainings(); }
+
+function trainAttCount(t){ // wie viele anwesend (aus AWK)
+  let p=0,tot=0; Object.entries(state.attendance||{}).forEach(([k,r])=>{ if(k.startsWith('TR_'+t.id+'_')){ if(r.status==='excused')return; tot++; if(r.status==='present'||r.status==='late')p++; } }); return {p,tot};
+}
+function trainingCardHTML(t){
+  const ty=TR_TYP[t.typ]||TR_TYP.training;
+  const editing=state.trainEditId===t.id;
+  const att=trainAttCount(t);
+  const grpChips=(t.groups||[]).map(g=>`<span style="font-size:9px;color:#c9a84c;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:5px;padding:1px 6px">${esc(g.name)}: ${(g.players||[]).length}</span>`).join(' ');
+  let head=`<div onclick="toggleTrainEdit('${t.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+    <div style="width:4px;align-self:stretch;background:${ty.color};border-radius:3px"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12.5px;font-weight:700;color:#e2e8f0">${esc(t.time_from||'')}${t.time_to?'–'+esc(t.time_to):''} · ${ty.label}${t.titel?' · '+esc(t.titel):''}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.4)">${t.ort?esc(t.ort)+' · ':''}${trainDateLabel(t.date)}${att.tot?' · '+att.p+'/'+att.tot+' anwesend':''}</div>
+      ${grpChips?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px">${grpChips}</div>`:''}
+    </div>
+    <i class="ti ti-${editing?'chevron-up':'pencil'}" style="font-size:14px;color:rgba(255,255,255,0.3)"></i>
+  </div>`;
+  if(!editing) return `<div style="padding:9px 11px;border:1px solid rgba(255,255,255,0.07);border-radius:9px;margin-bottom:7px;background:rgba(255,255,255,0.02)">${head}</div>`;
+  const inp='font-size:12px;padding:6px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0';
+  const typOpts=Object.entries(TR_TYP).map(([k,v])=>`<option value="${k}" ${t.typ===k?'selected':''}>${v.label}</option>`).join('');
+  const groupsHTML=(t.groups||[]).map((g,gi)=>{
+    const chips=PLAYERS.map(p=>{ const on=(g.players||[]).includes(p.id); return `<button onclick="toggleGroupPlayer('${t.id}',${gi},${p.id})" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;cursor:pointer;border:1px solid ${on?'#c9a84c':'rgba(255,255,255,0.1)'};background:${on?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${on?'#c9a84c':'rgba(255,255,255,0.45)'}">${esc(vorname(p.name))}</button>`; }).join(' ');
+    return `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px;margin-bottom:6px">
+      <div style="display:flex;gap:6px;margin-bottom:6px"><input value="${esc(g.name)}" onchange="renameGroup('${t.id}',${gi},this.value)" style="${inp};flex:1"/><button onclick="removeGroup('${t.id}',${gi})" style="font-size:11px;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:0 9px;cursor:pointer"><i class="ti ti-trash"></i></button></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">${chips}</div>
+    </div>`;
+  }).join('');
+  const body=`<div class="edit-only" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <input type="date" value="${t.date}" onchange="updateTraining('${t.id}','date',this.value)" style="${inp}"/>
+      <input type="time" value="${t.time_from}" onchange="updateTraining('${t.id}','time_from',this.value)" style="${inp}"/>
+      <input type="time" value="${t.time_to}" onchange="updateTraining('${t.id}','time_to',this.value)" style="${inp}"/>
+      <select onchange="updateTraining('${t.id}','typ',this.value)" style="${inp}">${typOpts}</select>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <input value="${esc(t.ort)}" placeholder="Ort / Platz" onchange="updateTraining('${t.id}','ort',this.value)" style="${inp};flex:1;min-width:120px"/>
+      <input value="${esc(t.titel)}" placeholder="Titel (optional)" onchange="updateTraining('${t.id}','titel',this.value)" style="${inp};flex:1;min-width:120px"/>
+    </div>
+    <textarea placeholder="Inhalt / Übungen / Notizen..." onchange="updateTraining('${t.id}','note',this.value)" style="${inp};width:100%;min-height:54px;box-sizing:border-box;resize:vertical;margin-bottom:8px">${esc(t.note)}</textarea>
+    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);margin-bottom:6px">GRUPPEN (wer mit wem)</div>
+    ${groupsHTML}
+    <div style="display:flex;gap:6px;margin-top:4px">
+      <button onclick="addGroup('${t.id}')" style="font-size:11px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);border-radius:7px;padding:5px 11px;cursor:pointer"><i class="ti ti-plus"></i> Gruppe</button>
+      <button onclick="deleteTraining('${t.id}')" style="margin-left:auto;font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:7px;padding:5px 11px;cursor:pointer"><i class="ti ti-trash"></i> Löschen</button>
+    </div>
+  </div>`;
+  return `<div style="padding:9px 11px;border:1px solid rgba(201,168,76,0.3);border-radius:9px;margin-bottom:7px;background:rgba(201,168,76,0.04)">${head}${body}</div>`;
+}
+function makroBanner(dateStr){
+  const w=trainKwData(dateStr); if(!w) return '';
+  const parts=[w.ta,w.te,w.hp].filter(Boolean).join(' · ');
+  return `<div style="border:1px solid rgba(201,168,76,0.25);background:rgba(201,168,76,0.06);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+    <div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:#c9a84c;margin-bottom:3px"><i class="ti ti-calendar-stats"></i> MAKRO-SCHWERPUNKT · KW ${w.kw} · ${esc(w.monat)}${w.label?' · '+esc(w.label):''}</div>
+    <div style="font-size:12px;color:#e2e8f0;font-weight:600">${esc(parts||w.label||'—')}</div>
+    ${w.impulse?`<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:3px">${esc(w.impulse)}</div>`:''}
+  </div>`;
+}
+
+async function renderTrainings(){
+  const mc=document.getElementById('mainContent'); if(!mc) return;
+  if(!_trainingsLoaded && !_trainingsTableMissing){ await loadTrainings(); }
+  if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
+  if(_trainingsTableMissing){ mc.innerHTML=trainingsSetupHint(); return; }
+  const sc=getTrainSchema();
+  const logo=(typeof getTeamLogo==='function'&&getTeamLogo())?`<img src="${getTeamLogo()}" style="height:30px;border-radius:6px"/>`:'';
+  const viewBtns=[['week','Woche','calendar-week'],['month','Monat','calendar-month']].map(([k,l,ic])=>`<button onclick="setTrainView('${k}')" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;border:1px solid ${state.trainView===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${state.trainView===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${state.trainView===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
+  const dayChk=[1,2,3,4,5,6,0].map(wd=>`<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:rgba(255,255,255,0.6)"><input type="checkbox" class="tsday" value="${wd}" ${sc.days.includes(wd)?'checked':''} style="accent-color:#c9a84c"/>${WD_LBL[wd]}</label>`).join('');
+  const inp='font-size:11px;padding:5px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0';
+  const schemaBar=`<div class="edit-only card" style="padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.05em">STANDARDWOCHE</span>
+    ${dayChk}
+    <input id="ts_from" type="time" value="${sc.from}" style="${inp}"/><span style="color:rgba(255,255,255,0.3)">–</span><input id="ts_to" type="time" value="${sc.to}" style="${inp}"/>
+    <input id="ts_ort" value="${esc(sc.ort)}" placeholder="Ort" style="${inp};width:120px"/>
+    <button onclick="saveTrainSchemaFromUI()" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:5px 9px;cursor:pointer">Standard merken</button>
+    <button onclick="generateStandardWeek()" style="font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:5px 11px;cursor:pointer"><i class="ti ti-wand"></i> Diese Woche erzeugen</button>
+  </div>`;
+  const pdfBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:700">PDF:</span>
+    <button onclick="trainingsPDF('week')" style="${inp};cursor:pointer;color:#c9a84c"><i class="ti ti-file-download"></i> Woche</button>
+    <button onclick="trainingsPDF('month')" style="${inp};cursor:pointer;color:#c9a84c">Monat</button>
+    <button onclick="trainingsPDF('vor')" style="${inp};cursor:pointer;color:#c9a84c">Vorrunde</button>
+    <button onclick="trainingsPDF('rueck')" style="${inp};cursor:pointer;color:#c9a84c">Rückrunde</button>
+    <button onclick="trainingsPDF('all')" style="${inp};cursor:pointer;color:#c9a84c">Gesamt</button>
+  </div>`;
+  let bodyHTML='';
+  if(state.trainView==='week'){
+    const mon=mondayOf(_td(state.trainAnchor));
+    bodyHTML=makroBanner(_tiso(mon));
+    for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); const ds=_tiso(d);
+      const dayTr=(state.trainings||[]).filter(t=>t.date===ds).sort((a,b)=>(a.time_from||'').localeCompare(b.time_from||''));
+      bodyHTML+=`<div style="margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.55);width:90px">${WD_FULL[d.getDay()]} ${('0'+d.getDate()).slice(-2)}.${('0'+(d.getMonth()+1)).slice(-2)}.</span>
+          <button class="edit-only" onclick="addTraining('${ds}')" style="font-size:10px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:2px 8px;cursor:pointer"><i class="ti ti-plus"></i></button>
+        </div>
+        ${dayTr.map(trainingCardHTML).join('')||'<div style="font-size:10px;color:rgba(255,255,255,0.25);padding-left:2px">–</div>'}
+      </div>`;
+    }
+  } else {
+    const a=_td(state.trainAnchor); const y=a.getFullYear(), mth=a.getMonth();
+    let cur=mondayOf(new Date(y,mth,1)); const end=new Date(y,mth+1,0);
+    while(cur<=end){
+      const ws=_tiso(cur); const we=new Date(cur); we.setDate(cur.getDate()+6);
+      const wkTr=(state.trainings||[]).filter(t=>{const td=_td(t.date); return td>=cur && td<=we;}).sort((x,z)=>(x.date+ (x.time_from||'')).localeCompare(z.date+(z.time_from||'')));
+      const w=trainKwData(ws);
+      bodyHTML+=`<div class="card" style="padding:11px 13px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:800;color:#c9a84c;margin-bottom:6px">KW ${w?w.kw:isoWeek(cur)} · ${('0'+cur.getDate()).slice(-2)}.${('0'+(cur.getMonth()+1)).slice(-2)}.–${('0'+we.getDate()).slice(-2)}.${('0'+(we.getMonth()+1)).slice(-2)}.${w&&(w.ta||w.te||w.hp)?' · <span style="color:rgba(255,255,255,0.55);font-weight:600">'+esc([w.ta,w.te,w.hp].filter(Boolean).join(' · '))+'</span>':(w&&w.label?' · '+esc(w.label):'')}</div>
+        ${wkTr.map(trainingCardHTML).join('')||'<div style="font-size:10px;color:rgba(255,255,255,0.25)">Keine Trainings.</div>'}
+        <button class="edit-only" onclick="state.trainAnchor='${ws}';state.trainView='week';renderTrainings()" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 9px;cursor:pointer;margin-top:6px">Woche öffnen</button>
+      </div>`;
+      cur.setDate(cur.getDate()+7);
+    }
+  }
+  const navLabel = state.trainView==='month' ? (_td(state.trainAnchor).toLocaleDateString('de-CH',{month:'long',year:'numeric'})) : ('KW '+isoWeek(_td(state.trainAnchor)));
+  mc.innerHTML=`
+    <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      ${logo}
+      <div style="display:flex;gap:8px">${viewBtns}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <button onclick="trainNav(-1)" style="${inp};cursor:pointer"><i class="ti ti-chevron-left"></i></button>
+        <span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:120px;text-align:center">${navLabel}</span>
+        <button onclick="trainNav(1)" style="${inp};cursor:pointer"><i class="ti ti-chevron-right"></i></button>
+        <button onclick="state.trainAnchor='${new Date().toISOString().slice(0,10)}';renderTrainings()" style="${inp};cursor:pointer">Heute</button>
+      </div>
+    </div>
+    ${schemaBar}
+    ${pdfBar}
+    ${bodyHTML}`;
+}
+function trainingsSetupHint(){
+  const sql=`create table if not exists trainings (
+  id text primary key,
+  date date,
+  time_from text,
+  time_to text,
+  ort text,
+  typ text,
+  titel text,
+  note text,
+  groups jsonb default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+alter table trainings enable row level security;
+create policy trainings_read on trainings for select to authenticated using (true);
+create policy trainings_write on trainings for all to authenticated using ((select auth.email()) is distinct from 'tl@fe.ch') with check ((select auth.email()) is distinct from 'tl@fe.ch');`;
+  return `<div class="card" style="padding:24px;max-width:700px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><i class="ti ti-database-cog" style="font-size:22px;color:#f59e0b"></i><div style="font-size:15px;font-weight:700;color:#e2e8f0">Tabelle «trainings» anlegen</div></div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:12px">Einmalig in Supabase → SQL Editor ausführen, dann Seite neu laden:</p>
+    <pre style="background:#0a121e;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:11px;color:#9fb4cc;overflow:auto;white-space:pre;line-height:1.5">${esc(sql)}</pre>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`')}\`).then(()=>showSavedToast('✓ SQL kopiert'))" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:#c9a84c;cursor:pointer"><i class="ti ti-copy"></i> SQL kopieren</button>
+      <button onclick="_trainingsTableMissing=false;_trainingsLoaded=false;renderTrainings()" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;cursor:pointer"><i class="ti ti-refresh"></i> Erneut prüfen</button>
+    </div>
+  </div>`;
+}
+
+function _trainScopeRange(scope){
+  const a=_td(state.trainAnchor);
+  if(scope==='week'){ const mon=mondayOf(a); const end=new Date(mon); end.setDate(mon.getDate()+6); return [mon,end,'KW '+isoWeek(a)]; }
+  if(scope==='month'){ return [new Date(a.getFullYear(),a.getMonth(),1), new Date(a.getFullYear(),a.getMonth()+1,0), a.toLocaleDateString('de-CH',{month:'long',year:'numeric'})]; }
+  if(scope==='vor'){ return [new Date(2026,6,1), new Date(2026,11,31), 'Vorrunde 2026']; }
+  if(scope==='rueck'){ return [new Date(2027,0,1), new Date(2027,5,30), 'Rückrunde 2027']; }
+  return [new Date(2026,6,1), new Date(2027,5,30), 'Gesamte Saison']; // all
+}
+function trainingsPDF(scope){
+  if(typeof window.jspdf==='undefined'){ showSavedToast('PDF-Bibliothek nicht geladen',false); return; }
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const PWp=doc.internal.pageSize.getWidth(); const ML=14; let y=14;
+  const [from,to,label]=_trainScopeRange(scope);
+  try{ const src=(typeof getTeamLogo==='function')?getTeamLogo():null; if(src){ const fmt=/^data:image\/png/i.test(src)?'PNG':'JPEG'; doc.addImage(src,fmt,PWp-26,8,18,18); } }catch(e){}
+  doc.setFontSize(15);doc.setFont(undefined,'bold');doc.setTextColor(201,168,76); doc.text('Trainingsplan · '+label,ML,16);
+  doc.setFontSize(8.5);doc.setFont(undefined,'normal');doc.setTextColor(90,100,115); doc.text('FE12 Old Boys · '+new Date().toLocaleDateString('de-CH'),ML,22);
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);doc.line(ML,25,PWp-ML,25); y=30;
+  const list=(state.trainings||[]).filter(t=>{const d=_td(t.date); return d>=from && d<=to;}).sort((a,b)=>(a.date+(a.time_from||'')).localeCompare(b.date+(b.time_from||'')));
+  // nach KW gruppieren
+  const byWeek={};
+  list.forEach(t=>{ const mon=_tiso(mondayOf(_td(t.date))); (byWeek[mon]=byWeek[mon]||[]).push(t); });
+  const ensure=(n)=>{ if(y+n>285){ doc.addPage(); y=16; } };
+  const weeks=Object.keys(byWeek).sort();
+  if(!weeks.length){ doc.setFontSize(10);doc.setTextColor(120,130,145); doc.text('Keine Trainings in diesem Zeitraum.',ML,y); }
+  weeks.forEach(ws=>{
+    const w=trainKwData(ws); ensure(16);
+    doc.setFillColor(201,168,76); doc.roundedRect(ML,y,PWp-2*ML,7,1.5,1.5,'F');
+    doc.setFont(undefined,'bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
+    doc.text('KW '+(w?w.kw:isoWeek(_td(ws)))+(w?('  ·  '+[w.ta,w.te,w.hp].filter(Boolean).join(' · ')||w.label||''):''),ML+2,y+4.8);
+    y+=10;
+    byWeek[ws].forEach(t=>{
+      const ty=(TR_TYP[t.typ]||TR_TYP.training).label; const att=trainAttCount(t);
+      const grp=(t.groups||[]).map(g=>g.name+': '+(g.players||[]).map(pid=>{const p=PLAYERS.find(z=>z.id===pid);return p?vorname(p.name):'';}).filter(Boolean).join(', ')).join('  |  ');
+      ensure(14);
+      doc.setFont(undefined,'bold');doc.setFontSize(9);doc.setTextColor(30,41,59);
+      doc.text(trainDateLabel(t.date)+'  '+(t.time_from||'')+(t.time_to?'–'+t.time_to:'')+'  ·  '+ty+(t.ort?'  ·  '+t.ort:'')+(t.titel?'  ·  '+t.titel:''),ML,y); y+=4.5;
+      if(att.tot){ doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(34,150,80); doc.text('Anwesend: '+att.p+'/'+att.tot,ML+2,y); y+=4; }
+      if(t.note){ doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(90,100,115); const ls=doc.splitTextToSize('Inhalt: '+t.note,PWp-2*ML-4); ensure(ls.length*3.6); doc.text(ls,ML+2,y); y+=ls.length*3.6+1; }
+      if(grp){ doc.setFont(undefined,'normal');doc.setFontSize(8);doc.setTextColor(120,90,30); const ls=doc.splitTextToSize('Gruppen: '+grp,PWp-2*ML-4); ensure(ls.length*3.6); doc.text(ls,ML+2,y); y+=ls.length*3.6+1; }
+      y+=2;
+    });
+    y+=3;
+  });
+  doc.save('FE12_Trainingsplan_'+scope+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 </script>
 </body>
