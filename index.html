@@ -2702,11 +2702,11 @@ function pitchHTML(id,half,which){
     const bd = p ? 'rgba(201,168,76,0.7)' : 'rgba(255,255,255,0.3)';
     const inner = p ? esc(p.nr) : (pos.pos||pos.label);
     const tag = p
-      ? `<div style="font-size:8px;font-weight:700;color:#e2e8f0;white-space:nowrap;max-width:64px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,0.85)">${esc(vorname(p.name))}</div>`
-      : `<div style="font-size:7px;color:rgba(255,255,255,0.55);text-shadow:0 1px 2px rgba(0,0,0,0.6)">+</div>`;
-    return `<div style="position:absolute;left:${pos.x}%;top:${pos.y}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;z-index:2">
-      <div style="position:relative;width:34px;height:34px">
-        <div style="width:34px;height:34px;border-radius:50%;background:${bg};border:1.5px solid ${bd};display:flex;align-items:center;justify-content:center;font-size:${p?'11px':'8px'};font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${inner}</div>
+      ? `<div style="font-size:10px;font-weight:700;color:#fff;white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${esc(vorname(p.name))}</div>`
+      : `<div style="font-size:9px;color:rgba(255,255,255,0.6);text-shadow:0 1px 2px rgba(0,0,0,0.6)">+</div>`;
+    return `<div style="position:absolute;left:${pos.x}%;top:${pos.y}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;z-index:2">
+      <div style="position:relative;width:44px;height:44px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${bg};border:2px solid ${bd};display:flex;align-items:center;justify-content:center;font-size:${p?'15px':'9px'};font-weight:800;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.45)">${inner}</div>
         <select onchange="assignMatchLineup('${id}',${half},'${pos.id}',this.value,'${which}')" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" title="Spieler zuweisen">${opts}</select>
       </div>
       ${tag}
@@ -2714,16 +2714,20 @@ function pitchHTML(id,half,which){
   }).join('');
   const formOpts=getFormOptions(m.spielform).map(f=>`<option value="${f}" ${form===f?'selected':''}>${f}</option>`).join('');
   const count=Object.keys(lineup).length;
-  const pitch=`<div style="position:relative;width:100%;max-width:300px;margin:0 auto;aspect-ratio:3/4;background:linear-gradient(180deg,#1f7a43,#15663a);border:1px solid rgba(255,255,255,0.18);border-radius:10px;overflow:hidden">
-      <div style="position:absolute;left:6%;right:6%;top:50%;height:1px;background:rgba(255,255,255,0.25)"></div>
-      <div style="position:absolute;left:50%;top:50%;width:54px;height:54px;border:1px solid rgba(255,255,255,0.25);border-radius:50%;transform:translate(-50%,-50%)"></div>
-      <div style="position:absolute;left:24%;right:24%;bottom:0;height:13%;border:1px solid rgba(255,255,255,0.22);border-bottom:none;border-radius:4px 4px 0 0"></div>
-      <div style="position:absolute;left:24%;right:24%;top:0;height:13%;border:1px solid rgba(255,255,255,0.22);border-top:none;border-radius:0 0 4px 4px"></div>
+  const pitch=`<div style="position:relative;width:100%;max-width:380px;margin:0 auto;aspect-ratio:3/4;background:linear-gradient(180deg,#1f7a43,#15663a);border:2px solid rgba(255,255,255,0.22);border-radius:12px;overflow:hidden">
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(255,255,255,0.035) 0 11.11%,transparent 11.11% 22.22%)"></div>
+      <div style="position:absolute;left:4%;right:4%;top:50%;height:2px;background:rgba(255,255,255,0.28)"></div>
+      <div style="position:absolute;left:50%;top:50%;width:64px;height:64px;border:2px solid rgba(255,255,255,0.28);border-radius:50%;transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;left:50%;top:50%;width:5px;height:5px;background:rgba(255,255,255,0.4);border-radius:50%;transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;left:18%;right:18%;bottom:0;height:16%;border:2px solid rgba(255,255,255,0.26);border-bottom:none;border-radius:5px 5px 0 0"></div>
+      <div style="position:absolute;left:34%;right:34%;bottom:0;height:7%;border:2px solid rgba(255,255,255,0.22);border-bottom:none;border-radius:4px 4px 0 0"></div>
+      <div style="position:absolute;left:18%;right:18%;top:0;height:16%;border:2px solid rgba(255,255,255,0.26);border-top:none;border-radius:0 0 5px 5px"></div>
+      <div style="position:absolute;left:34%;right:34%;top:0;height:7%;border:2px solid rgba(255,255,255,0.22);border-top:none;border-radius:0 0 4px 4px"></div>
       ${markers}
     </div>`;
-  return `<div style="flex:1 1 240px;max-width:340px;min-width:0">
+  return `<div style="flex:1 1 300px;max-width:420px;min-width:0">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <span style="font-size:11px;font-weight:800;color:#c9a84c">Feld ${which}</span>
+      <span style="font-size:12px;font-weight:800;color:#c9a84c">Feld ${which}</span>
       <select onchange="changeMatchFormation('${id}',${half},'${which}',this.value)" style="font-size:11px;padding:4px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0;font-weight:700">${formOpts}</select>
       <span style="font-size:10px;color:rgba(255,255,255,0.35)">${count} besetzt</span>
       ${count?`<button onclick="clearMatchField('${id}',${half},'${which}')" style="margin-left:auto;font-size:10px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:3px 9px;cursor:pointer">leeren</button>`:''}
@@ -2802,24 +2806,32 @@ alter table matches add column if not exists halves jsonb default '[]'::jsonb;`;
 
 // ── MATCHBLATT PDF ─────────────────────────────────
 function _pdfDrawPitch(doc, x, y, w, h, form, lineup){
-  doc.setFillColor(31,122,67); doc.roundedRect(x,y,w,h,2,2,'F');
-  doc.setDrawColor(255,255,255); doc.setLineWidth(0.2);
-  doc.line(x+w*0.06, y+h/2, x+w*0.94, y+h/2);
-  // Mittelkreis
-  doc.circle(x+w/2, y+h/2, Math.min(w,h)*0.12, 'S');
+  doc.setFillColor(28,116,63); doc.roundedRect(x,y,w,h,2.5,2.5,'F');
+  doc.setDrawColor(255,255,255); doc.setLineWidth(0.3);
+  // Mittellinie + Mittelkreis + Punkt
+  doc.line(x+w*0.04, y+h/2, x+w*0.96, y+h/2);
+  doc.circle(x+w/2, y+h/2, Math.min(w,h)*0.13, 'S');
+  doc.setFillColor(255,255,255); doc.circle(x+w/2, y+h/2, 0.5, 'F');
+  // Strafraum + Torraum (oben & unten)
+  const paW=w*0.62, paX=x+(w-paW)/2, paH=h*0.16;
+  const gaW=w*0.32, gaX=x+(w-gaW)/2, gaH=h*0.07;
+  doc.setDrawColor(255,255,255); doc.setLineWidth(0.3);
+  doc.rect(paX, y+h-paH, paW, paH, 'S'); doc.rect(gaX, y+h-gaH, gaW, gaH, 'S');
+  doc.rect(paX, y, paW, paH, 'S'); doc.rect(gaX, y, gaW, gaH, 'S');
+  // Spieler
   const pos=getPositions(form);
   pos.forEach(p=>{
     const cx=x+w*(p.x/100), cy=y+h*(p.y/100);
     const pid=lineup?lineup[p.id]:null;
     const pl = pid!=null ? PLAYERS.find(z=>String(z.id)===String(pid)) : null;
     if(pl){ doc.setFillColor(201,168,76); doc.setDrawColor(255,255,255); }
-    else { doc.setFillColor(255,255,255); doc.setDrawColor(180,180,180); }
-    doc.setLineWidth(0.2); doc.circle(cx,cy,2.7,'FD');
-    doc.setFontSize(5.5); doc.setFont(undefined,'bold');
-    doc.setTextColor(pl?255:120, pl?255:120, pl?255:120);
-    doc.text(pl?String(pl.nr):p.label, cx, cy+0.9, {align:'center'});
-    if(pl){ doc.setFont(undefined,'normal'); doc.setFontSize(4.6); doc.setTextColor(255,255,255);
-      doc.text(vorname(pl.name).slice(0,9), cx, cy+5.0, {align:'center'}); }
+    else { doc.setFillColor(255,255,255); doc.setDrawColor(150,150,150); }
+    doc.setLineWidth(0.35); doc.circle(cx,cy,3.4,'FD');
+    doc.setFontSize(7.2); doc.setFont(undefined,'bold');
+    doc.setTextColor(pl?255:110, pl?255:110, pl?255:110);
+    doc.text(pl?String(pl.nr):(p.pos||p.label), cx, cy+1.2, {align:'center'});
+    if(pl){ doc.setFont(undefined,'bold'); doc.setFontSize(5.6); doc.setTextColor(255,255,255);
+      doc.text(vorname(pl.name).slice(0,11), cx, cy+6.4, {align:'center'}); }
   });
 }
 function exportMatchPDF(id){
@@ -2863,10 +2875,10 @@ function exportMatchPDF(id){
   y += Math.ceil(meta.length/3)*11 + 4;
 
   // Halbzeiten mit je 2 Feldern
-  const pw=(usable-10)/2, ph=64;
+  const pw=(usable-10)/2, ph=68;
   const ensure=(need)=>{ if(y+need>288){ doc.addPage(); y=18; } };
   for(let h=0; h<N_HALVES; h++){
-    ensure(8+ph+4);
+    ensure(10+ph+12);
     doc.setFillColor(201,168,76); doc.roundedRect(ML,y,usable,7,1.5,1.5,'F');
     doc.setFont(undefined,'bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
     doc.text(HALF_LABELS[h], ML+3, y+4.8);
@@ -2877,7 +2889,15 @@ function exportMatchPDF(id){
       doc.text('Feld '+fe[0]+'  ·  '+(fe[1].formation||''), x, y-1);
       _pdfDrawPitch(doc, x, y+1, pw, ph, fe[1].formation||defaultFormation(m.spielform), fe[1].lineup||{});
     });
-    y += ph+8;
+    y += ph+5;
+    // Ersatzbank dieser Halbzeit
+    const bench=PLAYERS.filter(p=>!assignedHalfIds(m,h).has(String(p.id)));
+    doc.setFont(undefined,'bold'); doc.setFontSize(7.5); doc.setTextColor(120,130,145);
+    doc.text('BANK', ML, y);
+    doc.setFont(undefined,'normal'); doc.setFontSize(8.5); doc.setTextColor(50,58,70);
+    const bt=bench.length?bench.map(p=>p.nr+' '+vorname(p.name)).join(',  '):'—';
+    const bls=doc.splitTextToSize(bt, usable-16); doc.text(bls, ML+14, y);
+    y += Math.max(4.5, bls.length*4)+6;
   }
 
   // Spielzeit & Positionen (nur aufgestellte Spieler) — 15 Min pro Halbzeit-Einsatz
@@ -3207,6 +3227,13 @@ function playingStats(){
   return per;
 }
 
+// Sitzungen nach Datum ordnen: heute/kommend (nächstliegend zuerst), dann vergangen (neueste zuerst)
+function _awkOrder(items,getDate){
+  const today=new Date().toISOString().slice(0,10);
+  const up=items.filter(x=>(getDate(x)||'')>=today).sort((a,b)=>(getDate(a)||'').localeCompare(getDate(b)||''));
+  const past=items.filter(x=>(getDate(x)||'')<today).sort((a,b)=>(getDate(b)||'').localeCompare(getDate(a)||''));
+  return {up,past};
+}
 async function renderAnwesenheit(){
   const mc=document.getElementById('mainContent'); if(!mc) return;
   if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
@@ -3216,32 +3243,35 @@ async function renderAnwesenheit(){
 
   const type=state.attType;
   const inputStyle='padding:8px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
-  // Spiel-Sessions kommen direkt aus den erstellten Spielen
-  const matchesSorted=(state.matches||[]).slice().sort((a,b)=>(a.match_date||'9999').localeCompare(b.match_date||'9999'));
-  if(type==='match' && matchesSorted.length && !matchesSorted.some(x=>x.id===state.attMatchId)){
-    const def=matchesSorted.find(isUpcoming)||matchesSorted[matchesSorted.length-1];
-    state.attMatchId=def.id; if(def.match_date) state.attDate=def.match_date;
+  // Sitzungen geordnet (heute/kommend zuerst), Standard = nächstliegende
+  const mOrd=_awkOrder(state.matches||[], m=>m.match_date);
+  const tOrd=_awkOrder(state.trainings||[], t=>t.date);
+  if(type==='match' && (mOrd.up.length||mOrd.past.length) && !(state.matches||[]).some(x=>x.id===state.attMatchId)){
+    const def=mOrd.up[0]||mOrd.past[0]; state.attMatchId=def.id; if(def.match_date) state.attDate=def.match_date;
+  }
+  if(type==='training' && (tOrd.up.length||tOrd.past.length) && !(state.trainings||[]).some(x=>x.id===state.attTrainId)){
+    const def=tOrd.up[0]||tOrd.past[0]; state.attTrainId=def.id; if(def.date) state.attDate=def.date;
   }
   const sess=currentSession();
   const date=sess.date;
   const typeBtns=[['training','Training','ball-football'],['match','Spiel','trophy']].map(([k,l,ic])=>
     `<button onclick="setAttType('${k}')" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${type===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${type===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${type===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
 
-  // Sitzungs-Auswahl: Spiel = Dropdown aus erstellten Spielen · Training = Datum + Schnellauswahl
+  // Sitzungs-Auswahl: gruppiert nach «Heute & kommend» / «Vergangen»
   let sessionCtrl='';
   if(type==='match'){
-    if(matchesSorted.length){
-      const opts=matchesSorted.map(mm=>{const lbl=matchDateLabel(mm.match_date)+(mm.match_time?' '+mm.match_time:'')+' · '+(mm.opponent||'Gegner offen')+' ('+(mm.competition||'')+')';return `<option value="${mm.id}" ${mm.id===state.attMatchId?'selected':''}>${esc(lbl)}</option>`;}).join('');
-      sessionCtrl=`<select onchange="setAttMatch(this.value)" style="${inputStyle};min-width:230px;flex:1">${opts}</select>`;
+    if(mOrd.up.length||mOrd.past.length){
+      const optM=mm=>{const lbl=matchDateLabel(mm.match_date)+(mm.match_time?' '+mm.match_time:'')+' · '+(mm.opponent||'Gegner offen')+' ('+(mm.competition||'')+')';return `<option value="${mm.id}" ${mm.id===state.attMatchId?'selected':''}>${esc(lbl)}</option>`;};
+      const grp=(l,a)=>a.length?`<optgroup label="${l}">${a.map(optM).join('')}</optgroup>`:'';
+      sessionCtrl=`<select onchange="setAttMatch(this.value)" style="${inputStyle};min-width:230px;flex:1">${grp('Heute & kommend',mOrd.up)}${grp('Vergangen',mOrd.past)}</select>`;
     } else {
       sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Spiele – im Bereich «Spiele» anlegen.</span>`;
     }
   } else {
-    const trs=(state.trainings||[]).slice().sort((a,b)=>(b.date+(b.time_from||'')).localeCompare(a.date+(a.time_from||'')));
-    if(trs.length){
-      if(!trs.some(x=>x.id===state.attTrainId)){ state.attTrainId=trs[0].id; }
-      const opts=trs.map(t=>{const lbl=trainDateLabel(t.date)+' '+(t.time_from||'')+' · '+((TR_TYP[t.typ]||TR_TYP.training).label)+(t.titel?' · '+t.titel:'');return `<option value="${t.id}" ${t.id===state.attTrainId?'selected':''}>${esc(lbl)}</option>`;}).join('');
-      sessionCtrl=`<select onchange="setAttTrain(this.value)" style="${inputStyle};min-width:230px;flex:1">${opts}</select>`;
+    if(tOrd.up.length||tOrd.past.length){
+      const optT=t=>{const lbl=trainDateLabel(t.date)+' '+(t.time_from||'')+' · '+((TR_TYP[t.typ]||TR_TYP.training).label)+(t.titel?' · '+t.titel:'');return `<option value="${t.id}" ${t.id===state.attTrainId?'selected':''}>${esc(lbl)}</option>`;};
+      const grp=(l,a)=>a.length?`<optgroup label="${l}">${a.map(optT).join('')}</optgroup>`:'';
+      sessionCtrl=`<select onchange="setAttTrain(this.value)" style="${inputStyle};min-width:230px;flex:1">${grp('Heute & kommend',tOrd.up)}${grp('Vergangen',tOrd.past)}</select>`;
     } else {
       sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Trainings – im Bereich «Trainings» anlegen.</span>`;
     }
@@ -3249,7 +3279,7 @@ async function renderAnwesenheit(){
 
   // Erfassung
   const autoIds = (type==='match' && sess.match) ? matchLineupIds(sess.match) : new Set();
-  const rows=PLAYERS.map(p=>{
+  const rows=trainPlayerOrder().map(p=>{
     const manual=state.attendance[sess.skey+'_'+p.id];
     const auto = !manual && autoIds.has(String(p.id));
     const cur = manual || (auto?{status:'present'}:null);
