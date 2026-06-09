@@ -3395,6 +3395,7 @@ state.trainings = state.trainings || [];
 state.attTrainId = state.attTrainId || null;
 state.trainAnchor = state.trainAnchor || new Date().toISOString().slice(0,10);
 state.trainEditId = state.trainEditId || null;
+state.trainCfgOpen = state.trainCfgOpen || false;
 let _trainingsTableMissing=false, _trainingsLoaded=false, _trainSaveTimers={};
 const WD_LBL=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const WD_FULL=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
@@ -3455,99 +3456,124 @@ function toggleGroupPlayer(id,gi,pid){ if(roGuard())return; const t=getTraining(
 function trainAttCount(t){ // wie viele anwesend (aus AWK)
   let p=0,tot=0; Object.entries(state.attendance||{}).forEach(([k,r])=>{ if(k.startsWith('TR_'+t.id+'_')){ if(r.status==='excused')return; tot++; if(r.status==='present'||r.status==='late')p++; } }); return {p,tot};
 }
+function toggleTrainCfg(){ state.trainCfgOpen=!state.trainCfgOpen; renderTrainings(); }
 function trainingCardHTML(t){
   const ty=TR_TYP[t.typ]||TR_TYP.training;
   const editing=state.trainEditId===t.id;
   const att=trainAttCount(t);
-  const grpChips=(t.groups||[]).map(g=>`<span style="font-size:9px;color:#c9a84c;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.2);border-radius:5px;padding:1px 6px">${esc(g.name)}: ${(g.players||[]).length}</span>`).join(' ');
-  let head=`<div onclick="toggleTrainEdit('${t.id}')" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-    <div style="width:4px;align-self:stretch;background:${ty.color};border-radius:3px"></div>
+  const gN=(t.groups||[]).length;
+  const inp='font-size:12px;padding:7px 9px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0';
+  const timeChip=t.time_from?`<span style="font-size:11px;font-weight:800;color:#e8edf3;background:rgba(255,255,255,0.07);border-radius:6px;padding:3px 7px;white-space:nowrap">${esc(t.time_from)}${t.time_to?'–'+esc(t.time_to):''}</span>`:'';
+  const badges=[
+    gN?`<span style="font-size:9.5px;font-weight:800;color:#c9a84c;background:rgba(201,168,76,0.13);border-radius:6px;padding:2px 7px"><i class="ti ti-users"></i> ${gN}</span>`:'',
+    att.tot?`<span style="font-size:9.5px;font-weight:800;color:#22c55e;background:rgba(34,197,94,0.13);border-radius:6px;padding:2px 7px"><i class="ti ti-checks"></i> ${att.p}/${att.tot}</span>`:''
+  ].filter(Boolean).join('');
+  const head=`<div onclick="toggleTrainEdit('${t.id}')" style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:10px 12px">
+    <span style="width:9px;height:9px;border-radius:50%;background:${ty.color};flex-shrink:0"></span>
+    ${timeChip}
     <div style="flex:1;min-width:0">
-      <div style="font-size:12.5px;font-weight:700;color:#e2e8f0">${esc(t.time_from||'')}${t.time_to?'–'+esc(t.time_to):''} · ${ty.label}${t.titel?' · '+esc(t.titel):''}</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.4)">${t.ort?esc(t.ort)+' · ':''}${trainDateLabel(t.date)}${att.tot?' · '+att.p+'/'+att.tot+' anwesend':''}</div>
-      ${grpChips?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px">${grpChips}</div>`:''}
+      <div style="font-size:12.5px;font-weight:700;color:#e8edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ty.label)}${t.titel?' · '+esc(t.titel):''}</div>
+      ${t.ort?`<div style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px"><i class="ti ti-map-pin" style="font-size:10px"></i> ${esc(t.ort)}</div>`:''}
     </div>
-    <i class="ti ti-${editing?'chevron-up':'pencil'}" style="font-size:14px;color:rgba(255,255,255,0.3)"></i>
+    <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">${badges}</div>
+    <i class="ti ti-${editing?'chevron-up':'chevron-right'}" style="font-size:16px;color:rgba(255,255,255,0.3);flex-shrink:0"></i>
   </div>`;
-  if(!editing) return `<div style="padding:9px 11px;border:1px solid rgba(255,255,255,0.07);border-radius:9px;margin-bottom:7px;background:rgba(255,255,255,0.02)">${head}</div>`;
-  const inp='font-size:12px;padding:6px 8px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0';
+  if(!editing) return `<div style="border:1px solid rgba(255,255,255,0.07);border-radius:11px;margin-bottom:7px;background:rgba(255,255,255,0.02)">${head}</div>`;
   const typOpts=Object.entries(TR_TYP).map(([k,v])=>`<option value="${k}" ${t.typ===k?'selected':''}>${v.label}</option>`).join('');
+  const lab=s=>`<div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:rgba(255,255,255,0.4);margin-bottom:6px">${s}</div>`;
+  const fld=(l,h)=>`<div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:9px;color:rgba(255,255,255,0.38);font-weight:600">${l}</span>${h}</div>`;
   const groupsHTML=(t.groups||[]).map((g,gi)=>{
-    const chips=PLAYERS.map(p=>{ const on=(g.players||[]).includes(p.id); return `<button onclick="toggleGroupPlayer('${t.id}',${gi},${p.id})" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;cursor:pointer;border:1px solid ${on?'#c9a84c':'rgba(255,255,255,0.1)'};background:${on?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${on?'#c9a84c':'rgba(255,255,255,0.45)'}">${esc(vorname(p.name))}</button>`; }).join(' ');
-    return `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px;margin-bottom:6px">
-      <div style="display:flex;gap:6px;margin-bottom:6px"><input value="${esc(g.name)}" onchange="renameGroup('${t.id}',${gi},this.value)" style="${inp};flex:1"/><button onclick="removeGroup('${t.id}',${gi})" style="font-size:11px;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:0 9px;cursor:pointer"><i class="ti ti-trash"></i></button></div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap">${chips}</div>
+    const sel=g.players||[];
+    const chips=PLAYERS.map(p=>{ const on=sel.includes(p.id); return `<button onclick="toggleGroupPlayer('${t.id}',${gi},${p.id})" style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:13px;cursor:pointer;border:1px solid ${on?'#c9a84c':'rgba(255,255,255,0.12)'};background:${on?'rgba(201,168,76,0.2)':'transparent'};color:${on?'#c9a84c':'rgba(255,255,255,0.5)'}">${esc(vorname(p.name))}</button>`; }).join(' ');
+    return `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:9px;margin-bottom:7px;background:rgba(255,255,255,0.02)">
+      <div style="display:flex;gap:7px;align-items:center;margin-bottom:8px"><input value="${esc(g.name)}" onchange="renameGroup('${t.id}',${gi},this.value)" style="${inp};flex:1;font-weight:700"/><span style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap">${sel.length} Sp.</span><button onclick="removeGroup('${t.id}',${gi})" title="Gruppe entfernen" style="font-size:14px;color:#ef4444;background:transparent;border:none;cursor:pointer;padding:0 2px"><i class="ti ti-x"></i></button></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${chips}</div>
     </div>`;
   }).join('');
-  const body=`<div class="edit-only" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      <input type="date" value="${t.date}" onchange="updateTraining('${t.id}','date',this.value)" style="${inp}"/>
-      <input type="time" value="${t.time_from}" onchange="updateTraining('${t.id}','time_from',this.value)" style="${inp}"/>
-      <input type="time" value="${t.time_to}" onchange="updateTraining('${t.id}','time_to',this.value)" style="${inp}"/>
-      <select onchange="updateTraining('${t.id}','typ',this.value)" style="${inp}">${typOpts}</select>
+  const body=`<div class="edit-only" style="padding:0 12px 12px">
+    ${lab('ECKDATEN')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:11px">
+      ${fld('Datum',`<input type="date" value="${t.date}" onchange="updateTraining('${t.id}','date',this.value)" style="${inp}"/>`)}
+      ${fld('Von',`<input type="time" value="${t.time_from}" onchange="updateTraining('${t.id}','time_from',this.value)" style="${inp}"/>`)}
+      ${fld('Bis',`<input type="time" value="${t.time_to}" onchange="updateTraining('${t.id}','time_to',this.value)" style="${inp}"/>`)}
+      ${fld('Typ',`<select onchange="updateTraining('${t.id}','typ',this.value)" style="${inp}">${typOpts}</select>`)}
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      <input value="${esc(t.ort)}" placeholder="Ort / Platz" onchange="updateTraining('${t.id}','ort',this.value)" style="${inp};flex:1;min-width:120px"/>
-      <input value="${esc(t.titel)}" placeholder="Titel (optional)" onchange="updateTraining('${t.id}','titel',this.value)" style="${inp};flex:1;min-width:120px"/>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      ${fld('Ort / Platz',`<input value="${esc(t.ort)}" placeholder="z.B. Kunstrasen" onchange="updateTraining('${t.id}','ort',this.value)" style="${inp};min-width:150px"/>`)}
+      ${fld('Titel (optional)',`<input value="${esc(t.titel)}" placeholder="z.B. Passspiel" onchange="updateTraining('${t.id}','titel',this.value)" style="${inp};min-width:150px"/>`)}
     </div>
-    <textarea placeholder="Inhalt / Übungen / Notizen..." onchange="updateTraining('${t.id}','note',this.value)" style="${inp};width:100%;min-height:54px;box-sizing:border-box;resize:vertical;margin-bottom:8px">${esc(t.note)}</textarea>
-    <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);margin-bottom:6px">GRUPPEN (wer mit wem)</div>
-    ${groupsHTML}
-    <div style="display:flex;gap:6px;margin-top:4px">
-      <button onclick="addGroup('${t.id}')" style="font-size:11px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.25);border-radius:7px;padding:5px 11px;cursor:pointer"><i class="ti ti-plus"></i> Gruppe</button>
-      <button onclick="deleteTraining('${t.id}')" style="margin-left:auto;font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:7px;padding:5px 11px;cursor:pointer"><i class="ti ti-trash"></i> Löschen</button>
+    ${lab('INHALT / ÜBUNGEN')}
+    <textarea placeholder="Was wird trainiert? Konkrete Übungen, Ablauf, Notizen…" onchange="updateTraining('${t.id}','note',this.value)" style="${inp};width:100%;min-height:60px;box-sizing:border-box;resize:vertical;margin-bottom:12px">${esc(t.note)}</textarea>
+    ${lab('GRUPPEN · wer mit wem')}
+    ${groupsHTML||'<div style="font-size:10.5px;color:rgba(255,255,255,0.3);margin-bottom:7px">Noch keine Gruppen. Lege eine an und tippe die Spieler an.</div>'}
+    <div style="display:flex;gap:7px;align-items:center;margin-top:4px">
+      <button onclick="addGroup('${t.id}')" style="font-size:11px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.13);border:1px solid rgba(201,168,76,0.28);border-radius:8px;padding:6px 12px;cursor:pointer"><i class="ti ti-plus"></i> Gruppe</button>
+      <button onclick="deleteTraining('${t.id}')" style="margin-left:auto;font-size:11px;font-weight:700;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:6px 12px;cursor:pointer"><i class="ti ti-trash"></i> Training löschen</button>
     </div>
   </div>`;
-  return `<div style="padding:9px 11px;border:1px solid rgba(201,168,76,0.3);border-radius:9px;margin-bottom:7px;background:rgba(201,168,76,0.04)">${head}${body}</div>`;
+  return `<div style="border:1px solid rgba(201,168,76,0.32);border-radius:11px;margin-bottom:8px;background:rgba(201,168,76,0.04)">${head}${body}</div>`;
 }
 function makroBanner(dateStr){
   const w=trainKwData(dateStr); if(!w) return '';
-  const parts=[w.ta,w.te,w.hp].filter(Boolean).join(' · ');
-  return `<div style="border:1px solid rgba(201,168,76,0.25);background:rgba(201,168,76,0.06);border-radius:10px;padding:10px 12px;margin-bottom:10px">
-    <div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:#c9a84c;margin-bottom:3px"><i class="ti ti-calendar-stats"></i> MAKRO-SCHWERPUNKT · KW ${w.kw} · ${esc(w.monat)}${w.label?' · '+esc(w.label):''}</div>
-    <div style="font-size:12px;color:#e2e8f0;font-weight:600">${esc(parts||w.label||'—')}</div>
-    ${w.impulse?`<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:3px">${esc(w.impulse)}</div>`:''}
+  const parts=[w.ta,w.te,w.hp].filter(Boolean).join('  ·  ');
+  return `<div style="border:1px solid rgba(201,168,76,0.22);background:linear-gradient(135deg,rgba(201,168,76,0.09),rgba(201,168,76,0.03));border-radius:12px;padding:11px 14px;margin-bottom:14px;display:flex;gap:11px;align-items:flex-start">
+    <i class="ti ti-target-arrow" style="font-size:19px;color:#c9a84c;margin-top:1px;flex-shrink:0"></i>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:9px;font-weight:800;letter-spacing:.07em;color:#c9a84c;margin-bottom:3px">SCHWERPUNKT DIESER WOCHE · KW ${w.kw}${w.label?' · '+esc(w.label):''}</div>
+      <div style="font-size:12.5px;color:#e8edf3;font-weight:600;line-height:1.45">${esc(parts||w.label||'—')}</div>
+      ${w.impulse?`<div style="font-size:10.5px;color:rgba(255,255,255,0.5);margin-top:4px;line-height:1.45">${esc(w.impulse)}</div>`:''}
+    </div>
   </div>`;
 }
-
 async function renderTrainings(){
   const mc=document.getElementById('mainContent'); if(!mc) return;
   if(!_trainingsLoaded && !_trainingsTableMissing){ await loadTrainings(); }
   if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
   if(_trainingsTableMissing){ mc.innerHTML=trainingsSetupHint(); return; }
   const sc=getTrainSchema();
+  const todayIso=new Date().toISOString().slice(0,10);
   const logo=(typeof getTeamLogo==='function'&&getTeamLogo())?`<img src="${getTeamLogo()}" style="height:30px;border-radius:6px"/>`:'';
-  const viewBtns=[['week','Woche','calendar-week'],['month','Monat','calendar-month']].map(([k,l,ic])=>`<button onclick="setTrainView('${k}')" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:7px;cursor:pointer;border:1px solid ${state.trainView===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${state.trainView===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${state.trainView===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
-  const dayChk=[1,2,3,4,5,6,0].map(wd=>`<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:rgba(255,255,255,0.6)"><input type="checkbox" class="tsday" value="${wd}" ${sc.days.includes(wd)?'checked':''} style="accent-color:#c9a84c"/>${WD_LBL[wd]}</label>`).join('');
-  const inp='font-size:11px;padding:5px 7px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e2e8f0';
-  const schemaBar=`<div class="edit-only card" style="padding:10px 12px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.05em">STANDARDWOCHE</span>
-    ${dayChk}
-    <input id="ts_from" type="time" value="${sc.from}" style="${inp}"/><span style="color:rgba(255,255,255,0.3)">–</span><input id="ts_to" type="time" value="${sc.to}" style="${inp}"/>
-    <input id="ts_ort" value="${esc(sc.ort)}" placeholder="Ort" style="${inp};width:120px"/>
-    <button onclick="saveTrainSchemaFromUI()" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:5px 9px;cursor:pointer">Standard merken</button>
-    <button onclick="generateStandardWeek()" style="font-size:10px;font-weight:700;color:#22c55e;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:5px 11px;cursor:pointer"><i class="ti ti-wand"></i> Diese Woche erzeugen</button>
-  </div>`;
-  const pdfBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:700">PDF:</span>
-    <button onclick="trainingsPDF('week')" style="${inp};cursor:pointer;color:#c9a84c"><i class="ti ti-file-download"></i> Woche</button>
-    <button onclick="trainingsPDF('month')" style="${inp};cursor:pointer;color:#c9a84c">Monat</button>
-    <button onclick="trainingsPDF('vor')" style="${inp};cursor:pointer;color:#c9a84c">Vorrunde</button>
-    <button onclick="trainingsPDF('rueck')" style="${inp};cursor:pointer;color:#c9a84c">Rückrunde</button>
-    <button onclick="trainingsPDF('all')" style="${inp};cursor:pointer;color:#c9a84c">Gesamt</button>
-  </div>`;
+  const inp='font-size:11px;padding:6px 9px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0';
+  const navBtn='font-size:13px;padding:6px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0;cursor:pointer';
+  const viewBtns=[['week','Woche','calendar-week'],['month','Monat','calendar-month']].map(([k,l,ic])=>`<button onclick="setTrainView('${k}')" style="font-size:11.5px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${state.trainView===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${state.trainView===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${state.trainView===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
+
+  // Werkzeuge-Panel (Standardwoche + PDF) – einklappbar
+  const dayChk=[1,2,3,4,5,6,0].map(wd=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:5px 9px;cursor:pointer"><input type="checkbox" class="tsday" value="${wd}" ${sc.days.includes(wd)?'checked':''} style="accent-color:#c9a84c;margin:0;cursor:pointer"/>${WD_LBL[wd]}</label>`).join('');
+  const pdfBtns=[['week','Diese Woche'],['month','Monat'],['vor','Vorrunde'],['rueck','Rückrunde'],['all','Gesamt']].map(([s,l])=>`<button onclick="trainingsPDF('${s}')" style="${inp};cursor:pointer;color:#c9a84c;font-weight:700"><i class="ti ti-file-download"></i> ${l}</button>`).join('');
+  const toolsPanel=state.trainCfgOpen?`<div class="card" style="padding:13px 15px;margin-bottom:14px">
+    <div class="edit-only">
+      <div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:rgba(255,255,255,0.4);margin-bottom:9px">STANDARDWOCHE · AUTOMATISCH ANLEGEN</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:11px">
+        ${dayChk}
+        <span style="margin-left:8px;font-size:10px;color:rgba(255,255,255,0.4);font-weight:700">ZEIT</span>
+        <input id="ts_from" type="time" value="${sc.from}" style="${inp}"/><span style="color:rgba(255,255,255,0.3)">–</span><input id="ts_to" type="time" value="${sc.to}" style="${inp}"/>
+        <input id="ts_ort" value="${esc(sc.ort)}" placeholder="Ort" style="${inp};width:130px"/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button onclick="saveTrainSchemaFromUI()" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 12px;cursor:pointer">Als Standard merken</button>
+        <button onclick="generateStandardWeek()" style="font-size:11.5px;font-weight:800;color:#22c55e;background:rgba(34,197,94,0.13);border:1px solid rgba(34,197,94,0.32);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-wand"></i> Diese Woche anlegen</button>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.07);margin-bottom:13px"></div>
+    </div>
+    <div style="font-size:9px;font-weight:800;letter-spacing:.06em;color:rgba(255,255,255,0.4);margin-bottom:9px">PDF EXPORTIEREN</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">${pdfBtns}</div>
+  </div>`:'';
+
+  // Inhalt
   let bodyHTML='';
   if(state.trainView==='week'){
     const mon=mondayOf(_td(state.trainAnchor));
     bodyHTML=makroBanner(_tiso(mon));
-    for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); const ds=_tiso(d);
+    for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(mon.getDate()+i); const ds=_tiso(d); const isT=ds===todayIso;
       const dayTr=(state.trainings||[]).filter(t=>t.date===ds).sort((a,b)=>(a.time_from||'').localeCompare(b.time_from||''));
-      bodyHTML+=`<div style="margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-          <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.55);width:90px">${WD_FULL[d.getDay()]} ${('0'+d.getDate()).slice(-2)}.${('0'+(d.getMonth()+1)).slice(-2)}.</span>
-          <button class="edit-only" onclick="addTraining('${ds}')" style="font-size:10px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:2px 8px;cursor:pointer"><i class="ti ti-plus"></i></button>
+      bodyHTML+=`<div style="margin-bottom:11px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+          <span style="font-size:11.5px;font-weight:800;color:${isT?'#c9a84c':'rgba(255,255,255,0.6)'}">${WD_FULL[d.getDay()]} ${('0'+d.getDate()).slice(-2)}.${('0'+(d.getMonth()+1)).slice(-2)}.</span>
+          ${isT?'<span style="font-size:8.5px;font-weight:800;background:rgba(201,168,76,0.2);color:#c9a84c;border-radius:5px;padding:2px 6px;letter-spacing:.04em">HEUTE</span>':''}
+          <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+          <button class="edit-only" onclick="addTraining('${ds}')" style="font-size:10px;font-weight:700;color:#c9a84c;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.22);border-radius:7px;padding:4px 10px;cursor:pointer"><i class="ti ti-plus"></i> Training</button>
         </div>
-        ${dayTr.map(trainingCardHTML).join('')||'<div style="font-size:10px;color:rgba(255,255,255,0.25);padding-left:2px">–</div>'}
+        ${dayTr.length?dayTr.map(trainingCardHTML).join(''):'<div style="font-size:10px;color:rgba(255,255,255,0.22);padding:1px 2px 3px">— frei —</div>'}
       </div>`;
     }
   } else {
@@ -3555,30 +3581,42 @@ async function renderTrainings(){
     let cur=mondayOf(new Date(y,mth,1)); const end=new Date(y,mth+1,0);
     while(cur<=end){
       const ws=_tiso(cur); const we=new Date(cur); we.setDate(cur.getDate()+6);
-      const wkTr=(state.trainings||[]).filter(t=>{const td=_td(t.date); return td>=cur && td<=we;}).sort((x,z)=>(x.date+ (x.time_from||'')).localeCompare(z.date+(z.time_from||'')));
-      const w=trainKwData(ws);
-      bodyHTML+=`<div class="card" style="padding:11px 13px;margin-bottom:10px">
-        <div style="font-size:10px;font-weight:800;color:#c9a84c;margin-bottom:6px">KW ${w?w.kw:isoWeek(cur)} · ${('0'+cur.getDate()).slice(-2)}.${('0'+(cur.getMonth()+1)).slice(-2)}.–${('0'+we.getDate()).slice(-2)}.${('0'+(we.getMonth()+1)).slice(-2)}.${w&&(w.ta||w.te||w.hp)?' · <span style="color:rgba(255,255,255,0.55);font-weight:600">'+esc([w.ta,w.te,w.hp].filter(Boolean).join(' · '))+'</span>':(w&&w.label?' · '+esc(w.label):'')}</div>
-        ${wkTr.map(trainingCardHTML).join('')||'<div style="font-size:10px;color:rgba(255,255,255,0.25)">Keine Trainings.</div>'}
-        <button class="edit-only" onclick="state.trainAnchor='${ws}';state.trainView='week';renderTrainings()" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 9px;cursor:pointer;margin-top:6px">Woche öffnen</button>
+      const wkTr=(state.trainings||[]).filter(t=>{const td=_td(t.date); return td>=cur && td<=we;}).sort((x,z)=>(x.date+(x.time_from||'')).localeCompare(z.date+(z.time_from||'')));
+      const w=trainKwData(ws); const sw=[w&&w.ta,w&&w.te,w&&w.hp].filter(Boolean).join(' · ');
+      bodyHTML+=`<div class="card" style="padding:12px 14px;margin-bottom:11px">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:800;color:#c9a84c">KW ${w?w.kw:isoWeek(cur)}</span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.4)">${('0'+cur.getDate()).slice(-2)}.${('0'+(cur.getMonth()+1)).slice(-2)}.–${('0'+we.getDate()).slice(-2)}.${('0'+(we.getMonth()+1)).slice(-2)}.</span>
+          ${sw?`<span style="font-size:10px;color:rgba(255,255,255,0.55);font-weight:600">· ${esc(sw)}</span>`:''}
+        </div>
+        ${wkTr.length?wkTr.map(trainingCardHTML).join(''):'<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:6px">Keine Trainings.</div>'}
+        <button class="edit-only" onclick="state.trainAnchor='${ws}';state.trainView='week';renderTrainings()" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:5px 10px;cursor:pointer;margin-top:4px"><i class="ti ti-arrow-right"></i> Woche öffnen</button>
       </div>`;
       cur.setDate(cur.getDate()+7);
     }
   }
-  const navLabel = state.trainView==='month' ? (_td(state.trainAnchor).toLocaleDateString('de-CH',{month:'long',year:'numeric'})) : ('KW '+isoWeek(_td(state.trainAnchor)));
+
+  // Nav-Label
+  let navLabel;
+  if(state.trainView==='month'){ navLabel=_td(state.trainAnchor).toLocaleDateString('de-CH',{month:'long',year:'numeric'}); }
+  else { const m=mondayOf(_td(state.trainAnchor)); const s=new Date(m); s.setDate(m.getDate()+6); navLabel='KW '+isoWeek(m)+' · '+m.getDate()+'.–'+s.getDate()+'. '+s.toLocaleDateString('de-CH',{month:'short'}); }
+
   mc.innerHTML=`
-    <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${logo}
       <div style="display:flex;gap:8px">${viewBtns}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
-        <button onclick="trainNav(-1)" style="${inp};cursor:pointer"><i class="ti ti-chevron-left"></i></button>
-        <span style="font-size:12px;font-weight:700;color:#e2e8f0;min-width:120px;text-align:center">${navLabel}</span>
-        <button onclick="trainNav(1)" style="${inp};cursor:pointer"><i class="ti ti-chevron-right"></i></button>
-        <button onclick="state.trainAnchor='${new Date().toISOString().slice(0,10)}';renderTrainings()" style="${inp};cursor:pointer">Heute</button>
+        <button onclick="trainNav(-1)" style="${navBtn}"><i class="ti ti-chevron-left"></i></button>
+        <span style="font-size:12px;font-weight:700;color:#e8edf3;min-width:135px;text-align:center">${navLabel}</span>
+        <button onclick="trainNav(1)" style="${navBtn}"><i class="ti ti-chevron-right"></i></button>
+        <button onclick="state.trainAnchor='${todayIso}';renderTrainings()" style="${navBtn};font-size:11px;font-weight:700">Heute</button>
       </div>
     </div>
-    ${schemaBar}
-    ${pdfBar}
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <button class="edit-only" onclick="addTraining()" style="font-size:11.5px;font-weight:800;padding:8px 15px;border-radius:8px;cursor:pointer;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.16);color:#c9a84c"><i class="ti ti-plus"></i> Neues Training</button>
+      <button onclick="toggleTrainCfg()" style="font-size:11px;font-weight:700;padding:8px 13px;border-radius:8px;cursor:pointer;border:1px solid ${state.trainCfgOpen?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.12)'};background:${state.trainCfgOpen?'rgba(201,168,76,0.12)':'rgba(255,255,255,0.04)'};color:${state.trainCfgOpen?'#c9a84c':'rgba(255,255,255,0.6)'}"><i class="ti ti-settings"></i> Werkzeuge ${state.trainCfgOpen?'▴':'▾'}</button>
+    </div>
+    ${toolsPanel}
     ${bodyHTML}`;
 }
 function trainingsSetupHint(){
