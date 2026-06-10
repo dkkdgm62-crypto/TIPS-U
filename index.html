@@ -104,8 +104,7 @@ body.ro .edit-only{display:none!important}
       <button class="btn-nav" id="nav-player" onclick="showView('player')"><i class="ti ti-user-circle" style="font-size:16px;flex-shrink:0"></i>Spielerprofil</button>
       <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
       <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
-      <button class="btn-nav" id="nav-spiele" onclick="showView('spiele')"><i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0"></i>Spiele</button>
-      <button class="btn-nav" id="nav-trainings" onclick="showView('trainings')"><i class="ti ti-calendar-week" style="font-size:16px;flex-shrink:0"></i>Trainings</button>
+      <button class="btn-nav" id="nav-termine" onclick="showView('termine')"><i class="ti ti-calendar-event" style="font-size:16px;flex-shrink:0"></i>Termine</button>
       <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>AWK</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
@@ -359,10 +358,13 @@ async function addPlayer(){
 
 async function savePlayer(id){
   const g=f=>document.getElementById('pf_'+f);
+  const vn=(g('vorname')?.value||'').trim();
+  const nn=(g('nachname')?.value||'').trim();
+  const name = (nn&&vn) ? (nn+', '+vn) : (nn||vn);
   const rec={
     id,
     nr:g('nr').value.trim(),
-    name:g('name').value.trim(),
+    name,
     geb:g('geb').value.trim(),
     fuss:g('fuss').value,
     nat:g('nat').value.trim(),
@@ -371,7 +373,7 @@ async function savePlayer(id){
     rae:g('rae').checked,
     deleted:false
   };
-  if(!rec.name){ alert('Bitte einen Namen eingeben.'); return; }
+  if(!name){ alert('Bitte Vor- und Nachname eingeben.'); return; }
   await sb.from('roster').upsert(rec,{onConflict:'id'});
   if(typeof logActivity==='function') logActivity(id,'meta','Stammdaten aktualisiert: '+rec.name,null,null,'roster',null,rec.name);
   await loadRoster();
@@ -871,8 +873,9 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',spiele:'Spiele & Matches',trainings:'Trainingsplanung',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
+  if(['termine','spiele','trainings'].includes(v)){ const tn=document.getElementById('nav-termine'); if(tn) tn.classList.add('active'); }
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
   renderCurrentView();
@@ -893,6 +896,7 @@ function renderCurrentView(){
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
   else if(v==='spiele')renderSpiele();
+  else if(v==='termine')renderTermine();
   else if(v==='trainings')renderTrainings();
   else if(v==='anwesenheit')renderAnwesenheit();
   else if(v==='makro')renderMakro();
@@ -1088,20 +1092,24 @@ function renderPlayer(){
   // ── HEADER: Ansicht oder Bearbeiten-Formular ──────
   let headerHTML;
   if(state.editPlayer){
-    const fussOpts=['R','L','R/L'].map(f=>`<option value="${f}"${p.fuss===f?' selected':''}>${f}</option>`).join('');
+    const _ci=String(p.name||'').indexOf(',');
+    const _nn=_ci>=0?p.name.slice(0,_ci).trim():(p.name||'').trim();
+    const _vn=_ci>=0?p.name.slice(_ci+1).trim():'';
+    const fussOpts=[['R','Rechts'],['L','Links'],['R/L','Beidfüssig']].map(([v,l])=>`<option value="${v}"${p.fuss===v?' selected':''}>${l}</option>`).join('');
     headerHTML=`
     <div class="card" style="padding:16px 20px;margin-bottom:14px;border-left:4px solid #6366f1;border-radius:0 12px 12px 0">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
         <i class="ti ti-edit" style="color:#818cf8;font-size:16px"></i>
         <span style="font-size:13px;font-weight:700;color:#e2e8f0">Stammdaten bearbeiten</span>
       </div>
-      <div style="display:grid;grid-template-columns:80px 1fr 130px;gap:10px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px;margin-bottom:10px">
         <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NUMMER</div><input id="pf_nr" value="${esc(p.nr)}" placeholder="01" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
-        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NAME (Nachname, Vorname)</div><input id="pf_name" value="${esc(p.name)}" placeholder="Muster, Max" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
-        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">GEBURTSDATUM</div><input id="pf_geb" value="${esc(p.geb)}" placeholder="01.01.2015" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">VORNAME</div><input id="pf_vorname" value="${esc(_vn)}" placeholder="Max" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NACHNAME</div><input id="pf_nachname" value="${esc(_nn)}" placeholder="Muster" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
       </div>
-      <div style="display:grid;grid-template-columns:90px 90px 1fr;gap:10px;margin-bottom:14px">
-        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">FUSS</div><select id="pf_fuss" style="width:100%;font-size:13px;padding:8px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">${fussOpts}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 90px 1fr;gap:10px;margin-bottom:14px">
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">GEBURTSDATUM</div><input id="pf_geb" value="${esc(p.geb)}" placeholder="01.01.2015" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
+        <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">STARKER FUSS</div><select id="pf_fuss" style="width:100%;font-size:13px;padding:8px 10px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0">${fussOpts}</select></div>
         <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NATION</div><input id="pf_nat" value="${esc(p.nat)}" placeholder="CH" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
         <div><div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">VEREIN</div><input id="pf_verein" value="${esc(p.verein)}" placeholder="BSC Old Boys" style="width:100%;font-size:13px;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;box-sizing:border-box"/></div>
       </div>
@@ -2417,8 +2425,68 @@ async function deleteMatch(id){
   }catch(e){ console.error('deleteMatch',e); }
   renderSpiele();
 }
-function editMatch(id){ state.matchEditId=id; renderSpiele(); }
-function closeMatchEditor(){ state.matchEditId=null; sortMatches(); renderSpiele(); }
+function editMatch(id){ state.matchEditId=id; renderCurrentView(); }
+function closeMatchEditor(){ state.matchEditId=null; sortMatches(); renderCurrentView(); }
+
+// ── TERMINE: Spiele + Trainings in EINER Ansicht ───
+function _termineRow({onclick,date,time,chip,chipColor,title,sub,right}){
+  const d=date?matchDateLabel(date).slice(0,6):'—';
+  return `<div onclick="${onclick}" style="display:flex;align-items:center;gap:11px;padding:11px 8px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;border-radius:8px;transition:background .12s" onmouseenter="this.style.background='rgba(255,255,255,0.03)'" onmouseleave="this.style.background='transparent'">
+    <div style="text-align:center;min-width:50px"><div style="font-size:12px;font-weight:700;color:#e2e8f0">${d}</div><div style="font-size:9px;color:rgba(255,255,255,0.35)">${time||''}</div></div>
+    <span style="font-size:8.5px;font-weight:800;letter-spacing:.04em;color:${chipColor};background:${chipColor}22;padding:3px 7px;border-radius:5px;white-space:nowrap;min-width:58px;text-align:center">${chip}</span>
+    <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div><div style="font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub||''}</div></div>
+    <div style="text-align:right;min-width:54px">${right||''}</div>
+  </div>`;
+}
+function termineMatchRow(m){
+  const r=matchResult(m);
+  const score=m.status==='played'?`${m.goals_for||0}:${m.goals_against||0}`:'–';
+  const sc=r?RESULT_INFO[r].color:'rgba(255,255,255,0.4)';
+  const badge=r?`<span style="font-size:9px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:2px 7px;border-radius:4px">${RESULT_INFO[r].label}</span>`:`<span style="font-size:9px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.15);padding:2px 7px;border-radius:4px">Geplant</span>`;
+  const right=`<div style="font-size:15px;font-weight:800;color:${sc};line-height:1">${score}</div><div style="margin-top:3px">${badge}</div>`;
+  return _termineRow({onclick:`editMatch('${m.id}')`,date:m.match_date,time:m.match_time,chip:'SPIEL',chipColor:'#c9a84c',title:esc(m.opponent||'Gegner offen'),sub:esc(m.competition||'')+' · '+(VENUES[m.venue]||''),right});
+}
+function termineTrainRow(t){
+  const ty=(typeof TR_TYP!=='undefined'&&TR_TYP[t.typ])||{label:'Training',color:'#3b82f6'};
+  const ac=(typeof trainAttCount==='function')?trainAttCount(t):{p:0,tot:0};
+  const right=ac.tot?`<div style="font-size:13px;font-weight:800;color:#22c55e;line-height:1">${ac.p}/${ac.tot}</div><div style="font-size:8.5px;color:rgba(255,255,255,0.35);margin-top:2px">anwesend</div>`:`<span style="font-size:9px;color:rgba(255,255,255,0.3)">offen</span>`;
+  const time=(t.time_from||'')+(t.time_to?'–'+t.time_to:'');
+  return _termineRow({onclick:`openTrainingFromTermine('${t.id}')`,date:t.date,time:t.time_from,chip:(ty.label||'Training').toUpperCase(),chipColor:ty.color||'#3b82f6',title:esc(t.titel||ty.label),sub:(t.ort?esc(t.ort):'—')+(time?' · '+time:''),right});
+}
+async function renderTermine(){
+  const mc=document.getElementById('mainContent'); if(!mc) return;
+  if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
+  if(!_trainingsLoaded && !_trainingsTableMissing){ await loadTrainings(); }
+  if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
+  if(state.matchEditId && !_matchesTableMissing){ mc.innerHTML=matchEditorHTML(state.matchEditId); return; }
+
+  const evs=[];
+  (state.matches||[]).forEach(m=>evs.push({kind:'match',date:m.match_date||'',time:m.match_time||'',m}));
+  (state.trainings||[]).forEach(t=>evs.push({kind:'training',date:t.date||'',time:t.time_from||'',t}));
+  const today=new Date().toISOString().slice(0,10);
+  const key=e=>(e.date||'')+(e.time||'');
+  const up=evs.filter(e=>(e.date||'')>=today).sort((a,b)=>key(a).localeCompare(key(b)));
+  const past=evs.filter(e=>(e.date||'')<today).sort((a,b)=>key(b).localeCompare(key(a)));
+  const rowH=e=>e.kind==='match'?termineMatchRow(e.m):termineTrainRow(e.t);
+  const nMatch=(state.matches||[]).length, nTrain=(state.trainings||[]).length;
+
+  mc.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="addMatch()" class="edit-only" style="padding:9px 15px;font-size:12.5px;font-weight:700;background:linear-gradient(135deg,#c9a84c,#9a7c2e);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-ball-football"></i> Neues Spiel</button>
+      <button onclick="addTrainingFromTermine()" class="edit-only" style="padding:9px 15px;font-size:12.5px;font-weight:700;background:rgba(59,130,246,0.16);border:1px solid rgba(59,130,246,0.4);border-radius:8px;color:#60a5fa;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-plus"></i> Neues Training</button>
+      <span style="font-size:11px;color:rgba(255,255,255,0.4);margin-left:auto">${nMatch} Spiele · ${nTrain} Trainings</span>
+    </div>
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-event" style="color:#c9a84c"></i> HEUTE &amp; KOMMEND</div>
+      ${up.length?up.map(rowH).join(''):'<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">Keine anstehenden Termine.</div>'}
+    </div>
+    <div class="card" style="padding:14px 16px">
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-history" style="color:#c9a84c"></i> VERGANGEN</div>
+      ${past.length?past.map(rowH).join(''):'<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0">Noch keine vergangenen Termine.</div>'}
+    </div>`;
+}
+function openTrainingFromTermine(id){ state.trainEditId=id; const t=(typeof getTraining==='function')?getTraining(id):null; if(t&&t.date) state.trainAnchor=t.date; showView('trainings'); }
+function addTrainingFromTermine(){ if(roGuard())return; addTraining(); showView('trainings'); }
 
 function updateMatchField(id,field,val){
   if(roGuard()) return;
@@ -2614,6 +2682,9 @@ function assignMatchLineup(id,half,posId,val,which){
     // Eindeutig nur INNERHALB derselben Halbzeit (Feld A+B) → andere Halbzeiten dürfen Spieler erneut nutzen
     ['a','b'].forEach(fk=>{ const o=m.halves[half][fk].lineup; if(o){ Object.keys(o).forEach(k=>{ if(String(o[k])===String(pid)) delete o[k]; }); } });
     fld.lineup[posId]=pid;
+    // Automatisch in die Aufstellung/Kader übernehmen (kein doppeltes Erfassen nötig)
+    if(!Array.isArray(m.lineup)) m.lineup=[];
+    if(!m.lineup.includes(pid)) m.lineup.push(pid);
   }
   persistMatch(id);
   renderSpiele();
@@ -2980,7 +3051,7 @@ function matchEditorHTML(id){
 
   return `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-      <button onclick="closeMatchEditor()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Alle Spiele</button>
+      <button onclick="closeMatchEditor()" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Zurück zu Termine</button>
       <div id="me_result_${id}" style="margin-left:auto">${r?`<span style="font-size:12px;font-weight:800;color:${RESULT_INFO[r].color};background:${RESULT_INFO[r].bg};padding:4px 12px;border-radius:6px">${RESULT_INFO[r].label} · ${m.goals_for||0}:${m.goals_against||0}</span>`:`<span style="font-size:11px;color:rgba(255,255,255,0.35)">Geplant</span>`}</div>
       <button onclick="exportMatchPDF('${id}')" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#818cf8;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:7px 12px;cursor:pointer"><i class="ti ti-file-type-pdf"></i> PDF</button>
       <button onclick="deleteMatch('${id}')" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:7px 12px;cursor:pointer"><i class="ti ti-trash"></i> Löschen</button>
@@ -3021,6 +3092,11 @@ function matchEditorHTML(id){
     </div>
 
     <div class="card" style="padding:14px 16px;margin-bottom:14px">
+      <label style="${labelStyle}">NOTIZEN ZUM SPIEL</label>
+      <textarea oninput="updateMatchField('${id}','note',this.value)" placeholder="Beobachtungen, Taktik, Bemerkungen…" style="width:100%;min-height:80px;padding:10px 12px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px;resize:vertical">${esc(m.note)}</textarea>
+    </div>
+
+    <div class="card" style="padding:14px 16px;margin-bottom:14px">
       <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:10px">AUFSTELLUNG / KADER (${(m.lineup||[]).length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${lineupChips}</div>
     </div>
@@ -3030,11 +3106,6 @@ function matchEditorHTML(id){
     <div class="card" style="padding:14px 16px;margin-bottom:14px">
       <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:6px">TORE & ASSISTS</div>
       ${statRows}
-    </div>
-
-    <div class="card" style="padding:14px 16px">
-      <label style="${labelStyle}">NOTIZEN ZUM SPIEL</label>
-      <textarea oninput="updateMatchField('${id}','note',this.value)" placeholder="Beobachtungen, Taktik, Bemerkungen…" style="width:100%;min-height:80px;padding:10px 12px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px;resize:vertical">${esc(m.note)}</textarea>
     </div>`;
 }
 
@@ -3098,9 +3169,9 @@ async function loadDashMatches(){
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <i class="ti ti-calendar-event" style="color:#c9a84c;font-size:15px"></i>
       <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em">NÄCHSTE SPIELE</span>
-      <button onclick="showView('spiele')" style="margin-left:auto;font-size:10px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:3px 10px;cursor:pointer">Alle ansehen</button>
+      <button onclick="showView('termine')" style="margin-left:auto;font-size:10px;font-weight:700;color:#818cf8;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:6px;padding:3px 10px;cursor:pointer">Alle ansehen</button>
     </div>
-    ${upcoming.map(m=>`<div onclick="showView('spiele')" style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-top:1px solid rgba(255,255,255,0.04);cursor:pointer">
+    ${upcoming.map(m=>`<div onclick="state.matchEditId='${m.id}';showView('termine')" style="display:flex;align-items:center;gap:12px;padding:9px 6px;border-top:1px solid rgba(255,255,255,0.04);cursor:pointer">
       <div style="text-align:center;min-width:50px"><div style="font-size:12px;font-weight:700;color:#e2e8f0">${matchDateLabel(m.match_date).slice(0,6)}</div>${m.match_time?`<div style="font-size:9px;color:rgba(255,255,255,0.4)">${m.match_time}</div>`:''}</div>
       <i class="ti ti-${m.venue==='home'?'home':m.venue==='away'?'plane-departure':'map-pin'}" style="font-size:13px;color:rgba(255,255,255,0.35)"></i>
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.opponent||'Gegner offen')}</div><div style="font-size:10px;color:rgba(255,255,255,0.35)">${esc(m.competition)} · ${VENUES[m.venue]||''}</div></div>
@@ -3182,6 +3253,12 @@ function setEinsComp(v){ state.einsComp=v; renderAnwesenheit(); }
 function setEinsPhase(v){ state.einsPhase=v; renderAnwesenheit(); }
 function setAttMatch(id){ const m=getMatch(id); state.attMatchId=id; if(m&&m.match_date) state.attDate=m.match_date; renderAnwesenheit(); }
 function setAttTrain(id){ state.attTrainId=id; const t=(typeof getTraining==='function')?getTraining(id):null; if(t&&t.date) state.attDate=t.date; renderAnwesenheit(); }
+function setAttEvent(val){
+  if(!val) return;
+  if(val.slice(0,3)==='TR_'){ const id=val.slice(3); state.attType='training'; state.attTrainId=id; const t=(typeof getTraining==='function')?getTraining(id):null; if(t&&t.date) state.attDate=t.date; }
+  else if(val.slice(0,2)==='M_'){ const id=val.slice(2); state.attType='match'; state.attMatchId=id; const m=getMatch(id); if(m&&m.match_date) state.attDate=m.match_date; }
+  renderAnwesenheit();
+}
 function markAllPresent(){
   if(roGuard()) return;
   const s=currentSession(); if(!s.valid){ showSavedToast('Bitte zuerst ein Spiel/Datum wählen',false); return; }
@@ -3241,40 +3318,34 @@ async function renderAnwesenheit(){
   if(state.matches.length===0 && !_matchesTableMissing){ await loadMatches(); }
   if(_attendanceTableMissing){ mc.innerHTML=attendanceSetupHint(); return; }
 
-  const type=state.attType;
+  let type=state.attType;
   const inputStyle='padding:8px 11px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e2e8f0;font-size:13px';
   // Sitzungen geordnet (heute/kommend zuerst), Standard = nächstliegende
-  const mOrd=_awkOrder(state.matches||[], m=>m.match_date);
-  const tOrd=_awkOrder(state.trainings||[], t=>t.date);
-  if(type==='match' && (mOrd.up.length||mOrd.past.length) && !(state.matches||[]).some(x=>x.id===state.attMatchId)){
-    const def=mOrd.up[0]||mOrd.past[0]; state.attMatchId=def.id; if(def.match_date) state.attDate=def.match_date;
-  }
-  if(type==='training' && (tOrd.up.length||tOrd.past.length) && !(state.trainings||[]).some(x=>x.id===state.attTrainId)){
-    const def=tOrd.up[0]||tOrd.past[0]; state.attTrainId=def.id; if(def.date) state.attDate=def.date;
+  // Kombinierte Terminliste: Spiele + Trainings in EINER chronologischen Liste
+  const _evMatches=(state.matches||[]).map(m=>({kind:'match',id:m.id,date:m.match_date||'',time:m.match_time||'',label:(m.opponent||'Gegner offen')+(m.competition?' · '+m.competition:'')}));
+  const _evTrains=(state.trainings||[]).map(t=>({kind:'training',id:t.id,date:t.date||'',time:t.time_from||'',label:((TR_TYP[t.typ]||TR_TYP.training).label)+(t.titel?' · '+t.titel:'')}));
+  const evOrd=_awkOrder(_evMatches.concat(_evTrains), e=>e.date);
+  const _hasMatch=(state.matches||[]).some(x=>x.id===state.attMatchId);
+  const _hasTrain=(state.trainings||[]).some(x=>x.id===state.attTrainId);
+  const _validSel=(state.attType==='match'&&_hasMatch)||(state.attType==='training'&&_hasTrain);
+  if(!_validSel && (evOrd.up.length||evOrd.past.length)){
+    const def=evOrd.up[0]||evOrd.past[0];
+    state.attType=def.kind;
+    if(def.kind==='match'){ state.attMatchId=def.id; } else { state.attTrainId=def.id; }
+    if(def.date) state.attDate=def.date;
   }
   const sess=currentSession();
+  type=sess.type;
   const date=sess.date;
-  const typeBtns=[['training','Training','ball-football'],['match','Spiel','trophy']].map(([k,l,ic])=>
-    `<button onclick="setAttType('${k}')" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${type===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.1)'};background:${type===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${type===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
 
-  // Sitzungs-Auswahl: gruppiert nach «Heute & kommend» / «Vergangen»
+  // EINE kombinierte Terminliste (Spiele + Trainings), chronologisch geordnet
   let sessionCtrl='';
-  if(type==='match'){
-    if(mOrd.up.length||mOrd.past.length){
-      const optM=mm=>{const lbl=matchDateLabel(mm.match_date)+(mm.match_time?' '+mm.match_time:'')+' · '+(mm.opponent||'Gegner offen')+' ('+(mm.competition||'')+')';return `<option value="${mm.id}" ${mm.id===state.attMatchId?'selected':''}>${esc(lbl)}</option>`;};
-      const grp=(l,a)=>a.length?`<optgroup label="${l}">${a.map(optM).join('')}</optgroup>`:'';
-      sessionCtrl=`<select onchange="setAttMatch(this.value)" style="${inputStyle};min-width:230px;flex:1">${grp('Heute & kommend',mOrd.up)}${grp('Vergangen',mOrd.past)}</select>`;
-    } else {
-      sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Spiele – im Bereich «Spiele» anlegen.</span>`;
-    }
+  if(evOrd.up.length||evOrd.past.length){
+    const optE=e=>{ const d=e.kind==='match'?matchDateLabel(e.date):trainDateLabel(e.date); const tag=e.kind==='match'?'Spiel':'Training'; const lbl=d+(e.time?' '+e.time:'')+' · '+tag+' · '+e.label; const val=(e.kind==='match'?'M_':'TR_')+e.id; const sel=(e.kind==='match'?(state.attType==='match'&&e.id===state.attMatchId):(state.attType==='training'&&e.id===state.attTrainId)); return `<option value="${val}" ${sel?'selected':''}>${esc(lbl)}</option>`; };
+    const grp=(l,a)=>a.length?`<optgroup label="${l}">${a.map(optE).join('')}</optgroup>`:'';
+    sessionCtrl=`<select onchange="setAttEvent(this.value)" style="${inputStyle};min-width:260px;flex:1">${grp('Heute & kommend',evOrd.up)}${grp('Vergangen',evOrd.past)}</select>`;
   } else {
-    if(tOrd.up.length||tOrd.past.length){
-      const optT=t=>{const lbl=trainDateLabel(t.date)+' '+(t.time_from||'')+' · '+((TR_TYP[t.typ]||TR_TYP.training).label)+(t.titel?' · '+t.titel:'');return `<option value="${t.id}" ${t.id===state.attTrainId?'selected':''}>${esc(lbl)}</option>`;};
-      const grp=(l,a)=>a.length?`<optgroup label="${l}">${a.map(optT).join('')}</optgroup>`:'';
-      sessionCtrl=`<select onchange="setAttTrain(this.value)" style="${inputStyle};min-width:230px;flex:1">${grp('Heute & kommend',tOrd.up)}${grp('Vergangen',tOrd.past)}</select>`;
-    } else {
-      sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Trainings – im Bereich «Trainings» anlegen.</span>`;
-    }
+    sessionCtrl=`<span style="font-size:12px;color:rgba(255,255,255,0.45)"><i class="ti ti-info-circle"></i> Noch keine Termine – Spiele/Trainings in den jeweiligen Bereichen anlegen.</span>`;
   }
 
   // Erfassung
@@ -3337,7 +3408,7 @@ async function renderAnwesenheit(){
 
   mc.innerHTML=`
     <div class="card" style="padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="display:flex;gap:8px">${typeBtns}</div>
+      <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em">TERMIN</span>
       ${sessionCtrl}
       <button class="edit-only" onclick="markAllPresent()" style="margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.12);color:#22c55e"><i class="ti ti-checks"></i> Alle anwesend</button>
     </div>
@@ -3420,7 +3491,7 @@ create policy attendance_all on attendance for all using (true) with check (true
 // TRAININGSPLANUNG (gemeinsam · an Makrozyklus gebunden)
 // Tabelle "trainings"; Anwesenheit pro Training via AWK
 // ═══════════════════════════════════════════════════
-state.trainView = state.trainView || 'week';
+state.trainView = state.trainView || 'month';
 state.trainings = state.trainings || [];
 state.attTrainId = state.attTrainId || null;
 state.trainAnchor = state.trainAnchor || new Date().toISOString().slice(0,10);
@@ -3606,7 +3677,7 @@ async function renderTrainings(){
   const logo=(typeof getTeamLogo==='function'&&getTeamLogo())?`<img src="${getTeamLogo()}" style="height:30px;border-radius:6px"/>`:'';
   const inp='font-size:11px;padding:6px 9px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0';
   const navBtn='font-size:13px;padding:6px 10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0;cursor:pointer';
-  const viewBtns=[['week','Woche','calendar-week'],['month','Monat','calendar-month']].map(([k,l,ic])=>`<button onclick="setTrainView('${k}')" style="font-size:11.5px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${state.trainView===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${state.trainView===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${state.trainView===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
+  const viewBtns=[['month','Monat','calendar-month'],['week','Woche','calendar-week']].map(([k,l,ic])=>`<button onclick="setTrainView('${k}')" style="font-size:11.5px;font-weight:700;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid ${state.trainView===k?'rgba(201,168,76,0.5)':'rgba(255,255,255,0.12)'};background:${state.trainView===k?'rgba(201,168,76,0.18)':'rgba(255,255,255,0.04)'};color:${state.trainView===k?'#c9a84c':'rgba(255,255,255,0.55)'}"><i class="ti ti-${ic}"></i> ${l}</button>`).join('');
 
   // Werkzeuge-Panel (Standardwoche + PDF) – einklappbar
   const dayChk=[1,2,3,4,5,6,0].map(wd=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:5px 9px;cursor:pointer"><input type="checkbox" class="tsday" value="${wd}" ${sc.days.includes(wd)?'checked':''} style="accent-color:#c9a84c;margin:0;cursor:pointer"/>${WD_LBL[wd]}</label>`).join('');
@@ -3683,6 +3754,7 @@ async function renderTrainings(){
   else { const m=mondayOf(_td(state.trainAnchor)); const s=new Date(m); s.setDate(m.getDate()+6); navLabel='KW '+isoWeek(m)+' · '+m.getDate()+'.–'+s.getDate()+'. '+s.toLocaleDateString('de-CH',{month:'short'}); }
 
   mc.innerHTML=`
+    <div style="margin-bottom:12px"><button onclick="state.trainEditId=null;showView('termine')" style="display:flex;align-items:center;gap:5px;font-size:13px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 14px;cursor:pointer"><i class="ti ti-arrow-left"></i> Zurück zu Termine</button></div>
     <div class="card" style="padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${logo}
       <div style="display:flex;gap:8px">${viewBtns}</div>
