@@ -58,6 +58,123 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(201,168,76,0.4)!i
 .kader-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
 body.ro .edit-only{display:none!important}
 .login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1520}
+
+/* 🎓 LMS MASTERCLASS CUSTOM STYLES */
+.lms-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.lms-sidebar-column {
+  flex: 1;
+  min-width: 280px;
+  max-width: 380px;
+}
+.lms-content-column {
+  flex: 2;
+  min-width: 320px;
+}
+.lms-subtab-content {
+  margin-top: 12px;
+}
+@media (max-width: 768px) {
+  .lms-layout {
+    flex-direction: column;
+  }
+  .lms-sidebar-column {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+.badge-tw {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+}
+.badge-foot-r {
+  background: rgba(245,158,11,0.15);
+  color: #f59e0b;
+}
+.badge-foot-l {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.academy-sub-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.academy-sub-nav-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.academy-sub-nav-btn.active {
+  background: rgba(201, 168, 76, 0.18);
+  border-color: rgba(201, 168, 76, 0.5);
+  color: #c9a84c;
+  box-shadow: 0 0 10px rgba(201, 168, 76, 0.05);
+}
+.academy-sub-nav-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #e2e8f0;
+}
+.list-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.list-item.active {
+  background: rgba(201, 168, 76, 0.1);
+  border-color: rgba(201, 168, 76, 0.3);
+  color: #c9a84c;
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.05);
+}
+#lms-mod-theory-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #c9d1d9;
+}
+#lms-mod-theory-text strong {
+  color: #e7d18a;
+  font-weight: 700;
+}
+#lms-mod-theory-text p {
+  margin-bottom: 14px;
+}
+#lms-mod-theory-text p:last-child {
+  margin-bottom: 0;
+}
+#lms-mod-theory-text ul {
+  margin: 8px 0 14px 20px;
+  padding: 0;
+}
+#lms-mod-theory-text li {
+  margin-bottom: 6px;
+}
+#lms-mod-theory-text li:last-child {
+  margin-bottom: 0;
+}
 </style>
 </head>
 <body>
@@ -107,6 +224,7 @@ body.ro .edit-only{display:none!important}
       <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>AWK</button>
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
+      <button class="btn-nav" id="nav-lms" onclick="showView('lms')"><i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>Masterclass</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
@@ -966,7 +1084,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   if(['termine','spiele','trainings'].includes(v)){ const tn=document.getElementById('nav-termine'); if(tn) tn.classList.add('active'); }
   if(v==='player'){ const kn=document.getElementById('nav-kader'); if(kn) kn.classList.add('active'); }
@@ -989,6 +1107,7 @@ function renderCurrentView(){
   else if(v==='detail')renderTipsDetail();
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
+  else if(v==='lms')renderLms();
   else if(v==='spiele')renderSpiele();
   else if(v==='termine')renderTermine();
   else if(v==='trainings')renderTrainings();
@@ -2355,6 +2474,1158 @@ async function exportPDF(){
   }
   doc.save(`FE12_OldBoys_${cyLabel}_${(coachLabel(state.viewCoach)||'').replace(/[^a-zA-Z0-9]/g,'')}_${new Date().toISOString().slice(0,10)}.pdf`);
 }
+
+    // =========================================================================
+    // 🎓 LMS MASTERCLASS LOGIC (Dogus Kaplan Integration)
+    // =========================================================================
+
+    const LMS_MODULES = [
+      {
+        id: 0,
+        title: "Modul 0: Das Fundament (Ursprung & Konzept)",
+        theory: `Das **Positional Play (Positionsspiel)** basiert auf dem "Total Football" (Totalen Fußball) der 1970er Jahre aus den Niederlanden, exportiert durch Rinus Michels und Johan Cruyff nach Spanien und perfektioniert von Pep Guardiola.\\n\\n* **Die Philosophie:** Die Offensive bestimmt das Spiel ("determine how the game of football will be played"). Ballbesitz manipuliert den Gegner.\\n\\n* **Der "Free-Man" (Freie/r Spieler/in):** Das Hauptziel ist es, einen ungedeckten Spieler mit Raum und Zeit für mindestens zwei Ballberührungen ("two or more touches") zu finden, um sich aufzudrehen.\\n\\n* **Die 3 Überlegenheiten ("Superiorities"):**\\n1. **Numerical Superiority (Numerische Überlegenheit):** Den Ballraum überladen ("overloading"), oft unter Einbindung des Torwarts ("goalkeepers").\\n2. **Qualitative Superiority (Qualitative Überlegenheit):** Ein 1-gegen-1-Vorteil, z. B. ein schneller Flügelspieler/in ("winger") gegen einen langsamen Verteidiger ("full-back").\\n3. **Positional Superiority (Positionelle Überlegenheit):** Spieler in unterschiedlichen Linien (max. 2 vertikal, max. 3 horizontal) bilden Dreiecke ("triangular shapes") für optimale Passwinkel.`,
+        offlineTask: "Schreibe die drei englischen Begriffe 'Numerical', 'Qualitative' und 'Positional Superiority' auf und skizziere zu jedem Begriff ein kurzes Beispiel-Schaubild auf dem Platz.",
+        quiz: [
+          {
+            question: "Was ist die primäre Definition des 'Free-Man' im Positionsspiel?",
+            answers: [
+              { text: "Ein ungedeckter Spieler mit Zeit und Raum für mindestens zwei Ballberührungen ('touches').", correct: true },
+              { text: "Ein Spieler, der von Defensivaufgaben befreit ist.", correct: false },
+              { text: "Der Torwart, wenn er sich im Spielaufbau anbietet.", correct: false },
+              { text: "Ein Flügelspieler/in, der sich in den Halbraum fallen lässt.", correct: false }
+            ]
+          },
+          {
+            question: "Wer exportierte das Grundgerüst des Positionsspiels nach Spanien?",
+            answers: [
+              { text: "Rinus Michels und Johan Cruyff.", correct: true },
+              { text: "Pep Guardiola allein.", correct: false },
+              { text: "Marcelo Bielsa und Louis van Gaal.", correct: false },
+              { text: "Arrigo Sacchi und Jose Mourinho.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 1,
+        title: "Modul 1: Prinzip 1 – 'Playing out from the back' (Spielaufbau)",
+        theory: `* **Der Torwart ("Goalkeeper"):** Er ist entscheidend, um durch mittellange oder lange Pässe den Raum hinter einer pressenden Mannschaft auszunutzen (wie Ederson bei Man City).\\n\\n* **Numerische Überlastung:** Ein Passspieler mehr als der Gegner presst, garantiert das Überspielen der ersten Linie ("numerical overload").\\n\\n* **"La Salida Lavolpiana":** Ein taktischer Aufbau, bei dem der defensive Mittelfeldspieler zwischen die Innenverteidiger ("centre-backs") kippt und die Außenverteidiger ("full-backs") hoch und breit schieben. Dies wird oft gegen Teams mit zwei Stürmern genutzt.`,
+        offlineTask: "Zeichne 'La Salida Lavolpiana'. Zeichne die Abkipp-Bewegung des defensiven Mittelfeldspielers zwischen die breit fächernden Innenverteidiger ein.",
+        quiz: [
+          {
+            question: "Was passiert bei 'La Salida Lavolpiana'?",
+            answers: [
+              { text: "Der defensive Mittelfeldspieler lässt sich zwischen die Innenverteidiger fallen.", correct: true },
+              { text: "Der Torwart rückt ins Mittelfeld auf.", correct: false },
+              { text: "Die Außenverteidiger rücken ins Zentrum ein.", correct: false },
+              { text: "Die Innenverteidiger schieben hoch zur Mittellinie.", correct: false }
+            ]
+          },
+          {
+            question: "Warum spielen Positionsspiel-Teams konsequent von hinten heraus?",
+            answers: [
+              { text: "Um eine numerische Überlegenheit in der ersten Aufbaulinie zu erschaffen ('numerical overload').", correct: true },
+              { text: "Um den eigenen Fans ein Spektakel zu bieten.", correct: false },
+              { text: "Um Zeitspiel zu betreiben.", correct: false },
+              { text: "Weil lange Bälle per Reglement verboten sind.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 2,
+        title: "Modul 2: Prinzip 2 – 'Control Possession' (Ballbesitzkontrolle)",
+        theory: `* **Zweck:** Ballbesitz in der eigenen Hälfte ist nutzlos ("useless and dangerous"). Er dient dazu, den Gegner in dessen Hälfte zu drücken und Konter zu verhindern.\\n\\n* **"15-pass rule" (15-Pässe-Regel):** Guardiola fordert 15 Pässe, bevor ein Angriff strukturiert ist, damit alle Spieler ihre Positionen in der Offensivstruktur einnehmen können.\\n\\n* **"7 outside, 3 inside":** Eine Mittelfeld-Strategie, bei der 3 innere Spieler das Tempo ("tempo") lenken und 7 äußere Spieler Breite und Tiefe geben.\\n\\n* **"La Pausa":** Der Ballführende pausiert kurz, um einen Verteidiger anzulocken, und nutzt dann den Raum, der durch diese Bewegung entsteht.`,
+        offlineTask: "Erkläre den Begriff 'La Pausa' in zwei eigenen Sätzen schriftlich.",
+        quiz: [
+          {
+            question: "Warum Guardiola die '15-pass rule' (15-Pässe-Regel) fordert?",
+            answers: [
+              { text: "Um den Spielern Zeit zu geben, ihre vorgesehenen Rollen in der offensiven Struktur einzunehmen.", correct: true },
+              { text: "Um Zeitspiel zu betreiben.", correct: false },
+              { text: "Um die physische Ausdauer der Mannschaft zu trainieren.", correct: false },
+              { text: "Um den Gegner schwindelig zu spielen, ohne Raumgewinn zu erzielen.", correct: false }
+            ]
+          },
+          {
+            question: "Welchen defensiven Vorteil hat hoher Ballbesitz in der gegnerischen Hälfte?",
+            answers: [
+              { text: "Er zwingt den Gegner in eine tiefe Defensive und negiert dessen Fähigkeit zu kontern ('negates their ability to counter-attack').", correct: true },
+              { text: "Er ermüdet den eigenen Torwart nicht.", correct: false },
+              { text: "Er führt automatisch zu weniger gelben Karten.", correct: false },
+              { text: "Der Schiedsrichter pfeift seltener Abseits.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 3,
+        title: "Modul 3: Prinzip 3 – 'Positioning' (Positionierung)",
+        theory: `* **Das Grid (Raster):** Guardiola teilt das Feld in 4 horizontale Zonen und 5 vertikale Kanäle ("channels") auf.\\n\\n* **Die Regel:** Niemals mehr als 2 Spieler/innen in einer vertikalen Linie und 3 Spieler/innen in einer horizontalen Linie. Der Ball sollte nicht innerhalb derselben Zone gespielt, sondern von Zone zu Zone zirkuliert werden ("circulated from zone to zone").\\n\\n* **Diagonale Pässe:** Sie sind vertikalen oder horizontalen Pässen überlegen, da sie beide gegnerischen Linien überspielen und der Empfänger bereits aufs Tor ausgerichtet ist.`,
+        offlineTask: "Zeichne das komplette Spielfeld und teile es in die 5 vertikalen Kanäle (inkl. Halbräumen / 'half-spaces') auf.",
+        quiz: [
+          {
+            question: "Warum sind diagonale Pässe effizienter als vertikale?",
+            answers: [
+              { text: "Sie überspielen vertikale und horizontale Linien und der Empfänger hat eine bessere Körperausrichtung zum Tor.", correct: true },
+              { text: "Sie rollen auf nassem Rasen schneller.", correct: false },
+              { text: "Sie erfordern weniger Kraft beim Schlagen.", correct: false },
+              { text: "Der gegnerische Torwart kann sie schwerer abfangen.", correct: false }
+            ]
+          },
+          {
+            question: "Wie lautet die eiserne Regel der Positions-Struktur?",
+            answers: [
+              { text: "Maximal 2 Spieler/innen in einer vertikalen Linie, maximal 3 Spieler/innen in einer horizontalen Linie.", correct: true },
+              { text: "Alle Spieler/innen müssen in einer Spielfeldhälfte sein.", correct: false },
+              { text: "Mindestens 3 Spieler/innen in jedem vertikalen Kanal.", correct: false },
+              { text: "Der Torwart darf sich nicht an der Zirkulation beteiligen.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 4,
+        title: "Modul 4: Prinzip 4 – 'Movement' (Bewegung)",
+        theory: `* **"Third-man" (Der dritte Mann):** Ein ungedeckter Spieler in einer 3v2-Situation. Typisches Muster: Pass auf den Stürmer, der ihn prallen lässt ("bounce"), um einen einlaufenden dritten Mann freizuspielen.\\n\\n* **Rotations (Rotationen):** Verlässt ein Spieler seine Zone, rückt ein anderer nach, um die Lücke zu kompensieren ("compensate for his vacancy"). Das verwirrt den Gegner.`,
+        offlineTask: "Zeichne ein Passdreieck, das das 'Third-man' Prinzip demonstriert (Pass, Prallenlassen, Durchlauf).",
+        quiz: [
+          {
+            question: "Was ist das Hauptziel von planvollen Bewegungen ('Movement') im Positionsspiel?",
+            answers: [
+              { text: "Den 'Free-man' (freien Spieler) zu generieren, um die Abwehrlinien zu durchbrechen.", correct: true },
+              { text: "Den Schiedsrichter zu irritieren.", correct: false },
+              { text: "Den Ballbesitzanteil auf über 80% zu schrauben.", correct: false },
+              { text: "Die physische Belastung aller Spieler gleichmäßig zu verteilen.", correct: false }
+            ]
+          },
+          {
+            question: "Was erfordern 'Rotations' (Positionswechsel) zwingend?",
+            answers: [
+              { text: "Wenn ein Spieler seinen Raum verlässt, muss ein another Spieler diese Zone besetzen.", correct: true },
+              { text: "Alle Spieler/innen bleiben auf ihren fixen Positionen.", correct: false },
+              { text: "Der Ballführende must immer die Position mit dem Stürmer tauschen.", correct: false },
+              { text: "Ein Signal des Trainers von der Seitenlinie.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 5,
+        title: "Modul 5: Prinzip 5 – 'Verticality' (Vertikalität)",
+        theory: `* **Kein Tiki-Taka:** Guardiola hasst "Tiki-Taka" (Ballbesitz um des Ballbesitzes willen). Wenn ein vertikaler Pass möglich ist, must er sofort gespielt werden.\\n\\n* **Den Block knacken:** Ein vertikaler Pass umgeht Gegner und zwingt gegnerische Mittelfeldspieler, in Richtung des eigenen Tores zu laufen ("running back towards their own goal"), was sehr unkomfortabel zu verteidigen ist.\\n\\n* **Attacking transitions (Offensive Übergänge):** Bei Kontern geht es nicht um kurze Pässe, sondern um Dringlichkeit ("urgency") und den besten Pass in den Raum hinter die Abwehr.`,
+        offlineTask: "Schreibe in einem Satz auf, warum Guardiolas System KEIN 'Tiki-Taka' ist.",
+        quiz: [
+          {
+            question: "Welche Priorität gilt im Spielaufbau bezüglich der Passrichtung?",
+            answers: [
+              { text: "Ein vertikaler Pass hinter die Pressinglinie hat immer Priorität, wenn er möglich ist.", correct: true },
+              { text: "Querpässe ('horizontal pass') haben immer Vorrang.", correct: false },
+              { text: "Ein hoher Ball auf den Flügel ist die erste Option.", correct: false },
+              { text: "Der Ball muss immer zuerst zum Torwart zurückgespielt werden.", correct: false }
+            ]
+          },
+          {
+            question: "Welchen negativen Effekt hat ein vertikaler Pass auf die gegnerischen Mittelfeldspieler?",
+            answers: [
+              { text: "Sie müssen sich umdrehen und zum eigenen Tor laufen, was extrem unkomfortabel zu verteidigen ist.", correct: true },
+              { text: "Sie können sich ausruhen.", correct: false },
+              { text: "Sie können leichter den Ball abfangen.", correct: false },
+              { text: "Sie werden zu unnötigen Fouls gezwungen.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 6,
+        title: "Modul 6: Prinzip 6 – 'Compactness' (Kompaktheit)",
+        theory: `* **Die Abstände:** Kompaktheit bedeutet optimale Distanzen zwischen den Spielern, um Verbindungen zu halten ("maintaining connections").\\n\\n* **Energie sparen:** Da die Wege kurz sind, müssen die Spieler weniger laufen und sparen Energie ("preserve energy") für ein durchgehend hohes Spieltempo.\\n\\n* **Zonal Marking (Zonendeckung):** Gibt der Verteidigung die Initiative. Man-marking (Manndeckung) ist reaktiv ("reactionary defence"). Defensiv nutzt City oft einen kompakten 4-5-1 oder 4-4-2 Block.`,
+        offlineTask: "Zeichne einen extrem engstehenden 4-4-2 Defensivblock im Zentrum des Spielfelds.",
+        quiz: [
+          {
+            question: "Warum spart ein kompaktes Team im Positionsspiel-Ansatz Energie ('preserve energy')?",
+            answers: [
+              { text: "Weil die kurzen Distanzen zwischen den Spielern im Ballbesitz und gegen den Ball Laufwege verkürzen.", correct: true },
+              { text: "Weil das Team nie sprinten muss.", correct: false },
+              { text: "Weil der Ball die meiste Arbeit erledigt und man nur steht.", correct: false },
+              { text: "Weil man sich in der eigenen Hälfte ausruht.", correct: false }
+            ]
+          },
+          {
+            question: "Warum wird 'Zonal marking' (Zonendeckung) bevorzugt?",
+            answers: [
+              { text: "Es bestimmt proaktiv, wie verteidigt wird, während Manndeckung nur eine Reaktion auf den Gegner ist.", correct: true },
+              { text: "Es erlaubt den Verteidigern, Manndeckung zu ignorieren.", correct: false },
+              { text: "Es spart dem Torwart Laufarbeit.", correct: false },
+              { text: "Es ist körperlich weniger anstrengend als Zonendeckung.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 7,
+        title: "Modul 7: Prinzip 7 – 'Counter-Pressing' (Gegenpressing)",
+        theory: `* **Vorbereitung:** Weil das Team im Angriff so extrem kompakt positioniert ist, sind die Spieler bei Ballverlust bereits perfekt für das Gegenpressing positioniert ("well positioned for an immediate counter-pressing").\\n\\n* **Die 6-Sekunden-Regel:** Unmittelbar nach Ballverlust wird 6 Sekunden lang intensiv gepresst. Der Spieler, der den Ball verloren hat, leitet oft die Jagd ein ("leads the hunt"). Gelingt die Rückeroberung nicht, fällt das Team in die defensive Ordnung zurück.\\n\\n* **Das Zentrum:** Der Gegner wird nach Balleroberung oft nach außen oder hinten gedrängt, um ihm Optionen zu nehmen.`,
+        offlineTask: "Notiere dir, wie viele Sekunden im Guardiola-System nach Ballverlust maximal intensiv gepresst wird.",
+        quiz: [
+          {
+            question: "Was ist die strukturelle Voraussetzung für erfolgreiches Gegenpressing?",
+            answers: [
+              { text: "Die vertikale und horizontale Kompaktheit des Teams während des eigenen Angriffs.", correct: true },
+              { text: "Alle Spieler/innen müssen im eigenen Strafraum stehen.", correct: false },
+              { text: "Ein schneller linker Außenverteidiger.", correct: false },
+              { text: "Dass der Gegner in Unterzahl angreift.", correct: false }
+            ]
+          },
+          {
+            question: "Was passiert nach der '6 seconds rule' (6-Sekunden-Regel), wenn der Ball nicht erobert wird?",
+            answers: [
+              { text: "Das Team zieht sich geordnet in seine Defensivformation ('defensive shape') zurück.", correct: true },
+              { text: "Die Spieler foulen den Gegner taktisch.", correct: false },
+              { text: "Der Torwart rückt aus seinem Kasten, um zu klären.", correct: false },
+              { text: "Die Stürmer stellen das Laufen ein.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 8,
+        title: "Modul 8: Prinzip 8 – 'Combination Play' (Kombinationsspiel)",
+        theory: `* **Automatismen:** Festgelegte Kombinationen ("patterns of play") erhöhen die Spielgeschwindigkeit, was in einem engen letzten Drittel entscheidend ist ("speed is crucial").\\n\\n* **\"Up, back, through\" (Vor, zurück, durch):** Der Ball wird in die Spitze gespielt ("Up"), abgelegt ("back") und der dritte Mann wird in die Tiefe geschickt ("through").\\n\\n* **\"False 9\" (Falsche 9):** Ein Stürmer, der sich ins Mittelfeld fallen lässt, um dort eine Überzahl ("numerical superiority") herzustellen und Räume für nachrückende Spieler zu öffnen.`,
+        offlineTask: "Zeichne das Marcelo-Bielsa-Konzept 'Up, back, through' mit drei durchnummerierten Pfeilen auf dein Blatt.",
+        quiz: [
+          {
+            question: "Warum sind einstudierte Passkombinationen ('patterns of play') so wichtig?",
+            answers: [
+              { text: "Sie erzeugen Automatismen, die die Handlungsgeschwindigkeit in engen Räumen massiv erhöhen.", correct: true },
+              { text: "Sie sehen für die Zuschauer schöner aus.", correct: false },
+              { text: "Sie verhindern Verletzungen bei den Spielern.", correct: false },
+              { text: "Sie sparen Trainingszeit.", correct: false }
+            ]
+          },
+          {
+            question: "Was ist der Zweck der 'False 9' (Falschen 9)?",
+            answers: [
+              { text: "Sich zwischen die Linien fallen zu lassen, Überzahl zu schaffen und die gegnerische Abwehr zu verwirren ('confusing the opponents').", correct: true },
+              { text: "Nur auf Flanken im Strafraum zu warten.", correct: false },
+              { text: "Den gegnerischen Torwart im Spielaufbau zu attackieren.", correct: false },
+              { text: "Einen zusätzlichen Innenverteidiger in der Abwehr zu stellen.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 9,
+        title: "Modul 9: Prinzip 9 – 'Overload to Isolate' (Überladen zum Isolieren)",
+        theory: `* **Das Concept:** Einen Bereich des Platzes überladen ("overloading"), um den Gegner dorthin zu ziehen. Gleichzeitig bleibt ein eigener Angreifer auf der ballfernen Seite strikt an der Seitenlinie ("touchline"), um dort ein isoliertes 1-gegen-1 ("1v1 isolation") zu bekommen.\\n\\n* **Pass-Ausführung:** Hohe Diagonalbälle ("cross-field pass") geben dem Gegner zu viel Zeit. Guardiola bevorzugt flache Diagonalpässe ("low cross-field passes") oder Ablagen ("lay-off pass") auf unterstützende Mitspieler/innen im Zentrum, die dann verlagern.`,
+        offlineTask: "Zeichne das Spielfeld. Markiere 5 Spieler/innen extrem eng auf der linken Seite. Markiere deinen Stürmer isoliert auf der rechten Außenlinie.",
+        quiz: [
+          {
+            question: "Was fordert Guardiola vom Spieler auf der unterbesetzten ('underloaded') Seite?",
+            answers: [
+              { text: "Er muss strikt an der Außenlinie ('touchline') bleiben, um die Abwehr zu strecken.", correct: true },
+              { text: "Er muss sofort ins Zentrum sprinten.", correct: false },
+              { text: "Er soll sich defensiv fallen lassen.", correct: false },
+              { text: "Er muss die Position mit dem Innenverteidiger tauschen.", correct: false }
+            ]
+          },
+          {
+            question: "Welche Passform ist für die Spielverlagerung statistisch effizienter als der hohe Diagonalball?",
+            answers: [
+              { text: "Flache Diagonalpässe oder Ablagen ('lay-off passes') über das zentrale Mittelfeld.", correct: true },
+              { text: "Ein weiter Befreiungsschlag des Torwarts.", correct: false },
+              { text: "Ein hoher Lupfer in den Strafraum.", correct: false },
+              { text: "Ein direkter Steilpass die Linie entlang.", correct: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 10,
+        title: "Modul 10: Prinzip 10 – 'Exploit Half-Spaces' (Halbräume ausnutzen)",
+        theory: `* **Die Halbräume ("half-spaces / interior corridors"):** Der Raum zwischen dem gegnerischen Innen- und Außenverteidiger. Hier hat ein Angreifer eine bessere Körperausrichtung zum Tor als ganz außen ("better body position").\\n\\n* **\"Interiores\" / \"Free 8\":** Kreative Mittelfeldspieler operieren gezielt in diesen Räumen, um zwischen den Linien zu agieren ("weave between the opposition lines").\\n\\n* **Die 2-3-5 Formation:** In der Offensive besetzen 5 Angreifer alle 5 vertikalen Kanäle. Dies zwingt eine gegnerische Viererkette zu Entscheidungen: Bleibt sie kompakt, sind die Außen frei; geht sie breit, öffnen sich die tödlichen Halbräume.`,
+        offlineTask: "Zeichne die 2-3-5 Offensivformation. Platziere die 5 Angreifer exakt in den 5 Kanälen (Außen, Halbraum, Zentrum, Halbraum, Außen).",
+        quiz: [
+          {
+            question: "Warum ist der Halbraum ('half-space') für kreative Spieler ('Interiores') so wichtig?",
+            answers: [
+              { text: "Sie haben dort bessere Passwinkel und eine bessere Ausrichtung zum Tor als an der Seitenlinie ('touchline').", correct: true },
+              { text: "Dort dürfen keine Tacklings durchgeführt werden.", correct: false },
+              { text: "Weil dort weniger Abseits gepfiffen wird.", correct: false },
+              { text: "Weil die Abstände zum eigenen Tor dort am kürzesten sind.", correct: false }
+            ]
+          },
+          {
+            question: "Welchen effekt hat die Besetzung aller 5 vertikalen Kanäle (2-3-5 Formation) auf die gegnerische Abwehr?",
+            answers: [
+              { text: "Sie streckt die Abwehr extrem in die Breite und erzwingt Lücken in den Halbräumen.", correct: true },
+              { text: "Sie konzentriert alle Spieler im Mittelkreis.", correct: false },
+              { text: "Sie macht die eigene Abwehr anfälliger für Konter.", correct: false },
+              { text: "Sie zwingt den Gegner zu einer 3-Back-Formation.", correct: false }
+            ]
+          }
+        ]
+      }
+    ];
+
+    let lmsProgressState = null;
+    let activeLmsModuleId = null;
+    let lmsQuizTimerInterval = null;
+    let currentShuffledQuiz = [];
+
+    function ensureLmsFields() {
+      if (!lmsProgressState) {
+        try {
+          lmsProgressState = JSON.parse(localStorage.getItem('fe12_lms_progress'));
+        } catch(e) {}
+        if (!lmsProgressState) {
+          lmsProgressState = {
+            moduleStates: {},
+            quizLocks: {},
+            history: []
+          };
+        }
+      }
+      if (!lmsProgressState.moduleStates) {
+        lmsProgressState.moduleStates = {};
+      }
+      if (!lmsProgressState.quizLocks) {
+        lmsProgressState.quizLocks = {};
+      }
+      if (!Array.isArray(lmsProgressState.history)) {
+        lmsProgressState.history = [];
+      }
+      
+      LMS_MODULES.forEach((mod, idx) => {
+        if (!lmsProgressState.moduleStates[idx]) {
+          lmsProgressState.moduleStates[idx] = {
+            status: 'unlocked',
+            score: null,
+            completedAt: null,
+            offlineVerified: false
+          };
+        } else if (lmsProgressState.moduleStates[idx].status === 'locked') {
+          lmsProgressState.moduleStates[idx].status = 'unlocked';
+        }
+      });
+      // Locks löschen, um sofortigen Zugriff zu erlauben
+      lmsProgressState.quizLocks = {};
+    }
+
+    function saveLmsState() {
+      try {
+        localStorage.setItem('fe12_lms_progress', JSON.stringify(lmsProgressState));
+      } catch(e) {
+        console.error('Error saving LMS state', e);
+      }
+    }
+
+    function initLms() {
+      ensureLmsFields();
+      renderLmsModuleList();
+      updateLmsProgressUI();
+      updateLmsLastActionsUI();
+      
+      if (activeLmsModuleId !== null) {
+        selectLmsModule(activeLmsModuleId);
+      } else {
+        const placeholder = document.getElementById('lms-active-module-placeholder');
+        const card = document.getElementById('lms-active-module-card');
+        if (placeholder) placeholder.style.display = 'block';
+        if (card) card.style.display = 'none';
+      }
+    }
+
+    function renderLmsModuleList() {
+      const container = document.getElementById('lms-module-list');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      LMS_MODULES.forEach((mod, idx) => {
+        const modState = lmsProgressState.moduleStates[idx] || { status: 'unlocked', score: null };
+        const isActive = activeLmsModuleId === idx;
+        
+        const isLocked = modState.status === 'locked';
+        const isCompleted = modState.status === 'completed';
+        
+        const item = document.createElement('div');
+        item.className = `list-item ${isActive ? 'active' : ''}`;
+        
+        const leftWrap = document.createElement('div');
+        leftWrap.style = "display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;";
+        leftWrap.onclick = () => {
+          if (isLocked) {
+            showSavedToast('Dieses Modul ist gesperrt!', false);
+          } else {
+            selectLmsModule(idx);
+          }
+        };
+        
+        let iconHtml = '';
+        if (isCompleted) {
+          iconHtml = '<i class="ti ti-circle-check-filled" style="color:#22c55e; font-size:16px;"></i>';
+        } else if (isLocked) {
+          iconHtml = '<i class="ti ti-lock" style="color:rgba(255,255,255,0.3); font-size:16px;"></i>';
+        } else {
+          iconHtml = '<i class="ti ti-book" style="color:#c9a84c; font-size:16px;"></i>';
+        }
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.style = "font-size:12px; font-weight:700; color:#e2e8f0;";
+        titleSpan.textContent = mod.title;
+        
+        leftWrap.innerHTML = iconHtml;
+        leftWrap.appendChild(titleSpan);
+        item.appendChild(leftWrap);
+        
+        const rightWrap = document.createElement('div');
+        rightWrap.style = "display:flex; align-items:center; gap:8px;";
+        
+        if (isCompleted && modState.score !== null) {
+          const scoreBadge = document.createElement('span');
+          scoreBadge.className = 'badge badge-tw';
+          scoreBadge.textContent = `${modState.score}/2`;
+          rightWrap.appendChild(scoreBadge);
+        }
+        
+        if (!window.IS_READONLY) {
+          const overrideBtn = document.createElement('button');
+          overrideBtn.style = "background:none; border:none; padding:4px; cursor:pointer; color:rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; transition:color 0.2s;";
+          overrideBtn.title = isLocked ? "Modul manuell freischalten" : "Modul manuell sperren";
+          overrideBtn.innerHTML = isLocked ? '<i class="ti ti-lock-open" style="font-size:14px;"></i>' : '<i class="ti ti-lock" style="font-size:14px;"></i>';
+          overrideBtn.onmouseenter = () => overrideBtn.style.color = '#c9a84c';
+          overrideBtn.onmouseleave = () => overrideBtn.style.color = 'rgba(255,255,255,0.4)';
+          overrideBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleLmsModuleOverride(idx);
+          };
+          rightWrap.appendChild(overrideBtn);
+        }
+        
+        item.appendChild(rightWrap);
+        container.appendChild(item);
+      });
+    }
+
+    function toggleLmsModuleOverride(moduleId) {
+      if (window.IS_READONLY) return;
+      ensureLmsFields();
+      
+      const currentState = lmsProgressState.moduleStates[moduleId];
+      const oldStatus = currentState ? currentState.status : 'unlocked';
+      
+      let newStatus = 'locked';
+      if (oldStatus === 'locked') {
+        newStatus = 'unlocked';
+      } else if (oldStatus === 'unlocked' || oldStatus === 'completed') {
+        newStatus = 'locked';
+      }
+      
+      if (!lmsProgressState.moduleStates[moduleId]) {
+        lmsProgressState.moduleStates[moduleId] = { status: newStatus, score: null, completedAt: null, offlineVerified: false };
+      } else {
+        lmsProgressState.moduleStates[moduleId].status = newStatus;
+      }
+      
+      const actionText = `Admin: Modul ${moduleId} manuell ${newStatus === 'unlocked' ? 'freigeschaltet' : 'gesperrt'}`;
+      addLmsHistoryEntry(actionText);
+      
+      renderLmsModuleList();
+      if (activeLmsModuleId === moduleId) {
+        selectLmsModule(moduleId);
+      }
+      saveLmsState();
+      showSavedToast(`Modul ${moduleId} wurde manuell ${newStatus === 'unlocked' ? 'freigeschaltet' : 'gesperrt'}.`);
+    }
+
+    function selectLmsModule(moduleId) {
+      activeLmsModuleId = moduleId;
+      ensureLmsFields();
+      
+      const mod = LMS_MODULES[moduleId];
+      if (!mod) return;
+      
+      const placeholder = document.getElementById('lms-active-module-placeholder');
+      const card = document.getElementById('lms-active-module-card');
+      if (placeholder) placeholder.style.display = 'none';
+      if (card) card.style.display = 'block';
+      
+      const titleEl = document.getElementById('lms-mod-title');
+      if (titleEl) titleEl.textContent = mod.title;
+      
+      let theoryHtml = mod.theory
+        .split('\\n\\n')
+        .map(p => {
+          let cleanedBlock = p.trim();
+          if (cleanedBlock.startsWith('*') || cleanedBlock.startsWith('•')) {
+            const listItems = cleanedBlock
+              .split(/\\n[*•-]?\s*/)
+              .map(line => {
+                let cleanedLine = line.trim()
+                  .replace(/^[*•-]\s*/, '')
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                return cleanedLine ? `<li>${cleanedLine}</li>` : '';
+              })
+              .filter(Boolean)
+              .join('');
+            return `<ul style="margin: 8px 0 14px 20px; padding: 0; list-style-type: disc;">${listItems}</ul>`;
+          } else {
+            let cleanedText = cleanedBlock
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\\n/g, '<br>');
+            return `<p style="margin-bottom: 12px; line-height: 1.7;">${cleanedText}</p>`;
+          }
+        })
+        .join('');
+      
+      const theoryTextEl = document.getElementById('lms-mod-theory-text');
+      if (theoryTextEl) theoryTextEl.innerHTML = theoryHtml;
+      
+      const practiceTextEl = document.getElementById('lms-mod-practice-text');
+      if (practiceTextEl) practiceTextEl.textContent = mod.offlineTask;
+      
+      const modState = lmsProgressState.moduleStates[moduleId] || { offlineVerified: false, status: 'locked' };
+      
+      const checkbox = document.getElementById('lms-offline-checkbox');
+      if (checkbox) {
+        checkbox.checked = modState.offlineVerified || false;
+        checkbox.disabled = window.IS_READONLY;
+      }
+      
+      const badge = document.getElementById('lms-mod-status-badge');
+      if (badge) {
+        badge.className = 'badge';
+        if (modState.status === 'completed') {
+          badge.textContent = 'Bestanden';
+          badge.classList.add('badge-tw');
+        } else if (modState.status === 'unlocked') {
+          badge.textContent = 'Offen';
+          badge.classList.add('badge-foot-r');
+        } else {
+          badge.textContent = 'Gesperrt';
+          badge.classList.add('badge-foot-l');
+        }
+      }
+      
+      renderLmsModuleList();
+      switchLmsSubTab('theory');
+    }
+
+    function switchLmsSubTab(subTabId) {
+      document.querySelectorAll('.lms-subtab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.academy-sub-nav-btn').forEach(btn => {
+        if (btn.id.startsWith('lms-tab-')) btn.classList.remove('active');
+      });
+      
+      const targetContent = document.getElementById(`lms-subtab-${subTabId}`);
+      if (targetContent) targetContent.style.display = 'block';
+      
+      const targetBtn = document.getElementById(`lms-tab-${subTabId}-btn`);
+      if (targetBtn) targetBtn.classList.add('active');
+      
+      if (subTabId === 'quiz') {
+        refreshLmsQuizView();
+      }
+    }
+
+    function refreshLmsQuizView() {
+      if (activeLmsModuleId === null) return;
+      ensureLmsFields();
+      
+      const modState = lmsProgressState.moduleStates[activeLmsModuleId] || { status: 'locked', offlineVerified: false };
+      const quizLockExpiry = lmsProgressState.quizLocks[activeLmsModuleId] || 0;
+      const now = Date.now();
+      
+      const lockView = document.getElementById('lms-quiz-lock-view');
+      const unlockRequiredView = document.getElementById('lms-quiz-unlock-required');
+      const quizEngineView = document.getElementById('lms-quiz-engine-view');
+      const passedView = document.getElementById('lms-quiz-passed-view');
+      
+      if (lockView) lockView.style.display = 'none';
+      if (unlockRequiredView) unlockRequiredView.style.display = 'none';
+      if (quizEngineView) quizEngineView.style.display = 'none';
+      if (passedView) passedView.style.display = 'none';
+      
+      if (modState.status === 'completed') {
+        if (passedView) {
+          passedView.style.display = 'block';
+          const info = document.getElementById('lms-quiz-passed-info');
+          if (info) info.textContent = `Bestanden mit ${modState.score || 2} von 2 Fragen.`;
+        }
+        return;
+      }
+      
+      if (now < quizLockExpiry) {
+        if (lockView) {
+          lockView.style.display = 'block';
+          startQuizTimer(quizLockExpiry);
+        }
+        return;
+      }
+      
+      if (!modState.offlineVerified) {
+        if (unlockRequiredView) unlockRequiredView.style.display = 'block';
+        return;
+      }
+      
+      if (quizEngineView) {
+        quizEngineView.style.display = 'block';
+        buildQuizQuestions();
+      }
+    }
+
+    function startQuizTimer(expiryTimestamp) {
+      if (lmsQuizTimerInterval) clearInterval(lmsQuizTimerInterval);
+      
+      const updateTimer = () => {
+        const remaining = expiryTimestamp - Date.now();
+        if (remaining <= 0) {
+          clearInterval(lmsQuizTimerInterval);
+          refreshLmsQuizView();
+          return;
+        }
+        
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        const timerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        const timerEl = document.getElementById('lms-quiz-timer');
+        if (timerEl) timerEl.textContent = timerText;
+      };
+      
+      updateTimer();
+      lmsQuizTimerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function shuffleArray(array) {
+      const arr = array.slice();
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+        function buildQuizQuestions() {
+      const container = document.getElementById('lms-quiz-questions-container');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      const mod = LMS_MODULES[activeLmsModuleId];
+      if (!mod) return;
+      
+      const shuffledQuestions = shuffleArray(mod.quiz);
+      currentShuffledQuiz = shuffledQuestions.map(q => {
+        return {
+          questionText: q.question,
+          shuffledAnswers: shuffleArray(q.answers)
+        };
+      });
+      
+      currentShuffledQuiz.forEach((q, qIdx) => {
+        const qDiv = document.createElement('div');
+        qDiv.style = "background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px;";
+        
+        const qTitle = document.createElement('h5');
+        qTitle.style = "font-size: 13px; font-weight: 800; color: #c9a84c; margin: 0; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); line-height:1.4;";
+        qTitle.textContent = `Frage ${qIdx + 1}: ${q.questionText}`;
+        qDiv.appendChild(qTitle);
+        
+        const answersContainer = document.createElement('div');
+        answersContainer.style = "display: flex; flex-direction: column; gap: 8px;";
+        
+        q.shuffledAnswers.forEach((ans, aIdx) => {
+          const label = document.createElement('label');
+          label.style = "display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; font-size: 12px; color: #e2e8f0; cursor: pointer; transition: all 0.2s; line-height: 1.4; user-select: none;";
+          
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = `lms-q-${qIdx}`;
+          radio.value = aIdx;
+          radio.required = true;
+          radio.style = "margin: 0; accent-color: #c9a84c; width: 16px; height: 16px; flex-shrink: 0; cursor: pointer;";
+          
+          const textSpan = document.createElement('span');
+          textSpan.textContent = ans.text;
+          
+          // Hover effect on label
+          label.onmouseenter = () => {
+            if (!radio.checked) {
+              label.style.background = "rgba(255, 255, 255, 0.06)";
+              label.style.borderColor = "rgba(255, 255, 255, 0.12)";
+            }
+          };
+          label.onmouseleave = () => {
+            if (!radio.checked) {
+              label.style.background = "rgba(255, 255, 255, 0.03)";
+              label.style.borderColor = "rgba(255, 255, 255, 0.06)";
+            }
+          };
+          
+          radio.onchange = () => {
+            // Uncheck/reset other labels in the same question container
+            answersContainer.querySelectorAll('label').forEach(lbl => {
+              lbl.style.background = "rgba(255, 255, 255, 0.03)";
+              lbl.style.borderColor = "rgba(255, 255, 255, 0.06)";
+              lbl.style.color = "#e2e8f0";
+            });
+            // Highlight selected label
+            label.style.background = "rgba(201, 168, 76, 0.08)";
+            label.style.borderColor = "rgba(201, 168, 76, 0.3)";
+            label.style.color = "#c9a84c";
+          };
+          
+          label.appendChild(radio);
+          label.appendChild(textSpan);
+          answersContainer.appendChild(label);
+        });
+        
+        qDiv.appendChild(answersContainer);
+        container.appendChild(qDiv);
+      });
+    }
+
+    function toggleOfflineVerification(checked) {
+      if (activeLmsModuleId === null || window.IS_READONLY) return;
+      ensureLmsFields();
+      
+      lmsProgressState.moduleStates[activeLmsModuleId].offlineVerified = checked;
+      
+      const actionText = `Modul ${activeLmsModuleId}: Offline-Praxisaufgabe ${checked ? 'bestätigt' : 'zurückgesetzt'}`;
+      addLmsHistoryEntry(actionText);
+      
+      saveLmsState();
+    }
+
+    function submitLmsQuiz(event) {
+      if (event) event.preventDefault();
+      if (activeLmsModuleId === null || window.IS_READONLY) return;
+      
+      const form = document.getElementById('lms-quiz-form');
+      let score = 0;
+      let total = currentShuffledQuiz.length;
+      let allCorrect = true;
+      
+      currentShuffledQuiz.forEach((q, qIdx) => {
+        const radios = form.elements[`lms-q-${qIdx}`];
+        let selectedValue = null;
+        
+        if (radios.value !== undefined) {
+          selectedValue = parseInt(radios.value);
+        } else {
+          for (let i = 0; i < radios.length; i++) {
+            if (radios[i].checked) {
+              selectedValue = parseInt(radios[i].value);
+              break;
+            }
+          }
+        }
+        
+        if (selectedValue !== null) {
+          const chosenAnswer = q.shuffledAnswers[selectedValue];
+          if (chosenAnswer && chosenAnswer.correct) {
+            score++;
+          } else {
+            allCorrect = false;
+          }
+        } else {
+          allCorrect = false;
+        }
+      });
+      
+      if (allCorrect) {
+        lmsProgressState.moduleStates[activeLmsModuleId].status = 'completed';
+        lmsProgressState.moduleStates[activeLmsModuleId].score = score;
+        lmsProgressState.moduleStates[activeLmsModuleId].completedAt = Date.now();
+        
+        const actionText = `Modul ${activeLmsModuleId} bestanden (${score}/${total})`;
+        addLmsHistoryEntry(actionText);
+        
+        const nextId = activeLmsModuleId + 1;
+        if (nextId < LMS_MODULES.length) {
+          if (!lmsProgressState.moduleStates[nextId]) {
+            lmsProgressState.moduleStates[nextId] = { status: 'unlocked', score: null, completedAt: null, offlineVerified: false };
+          } else if (lmsProgressState.moduleStates[nextId].status === 'locked') {
+            lmsProgressState.moduleStates[nextId].status = 'unlocked';
+          }
+          addLmsHistoryEntry(`Modul ${nextId} freigeschaltet`);
+        }
+        
+        showSavedToast('🎉 Prüfung bestanden! 100%', true);
+        saveLmsState();
+        renderLmsModuleList();
+        updateLmsProgressUI();
+        refreshLmsQuizView();
+        
+        const select = document.getElementById('lms-offline-checkbox');
+        if (select) select.checked = false;
+      } else {
+        const actionText = `Modul ${activeLmsModuleId} nicht bestanden (${score}/${total})`;
+        addLmsHistoryEntry(actionText);
+        
+        showSavedToast('❌ Prüfung nicht bestanden! (100% erforderlich). Versuche es direkt noch einmal.', false);
+        saveLmsState();
+        renderLmsModuleList();
+        buildQuizQuestions(); // Mische die Fragen neu für einen sofortigen neuen Versuch
+        refreshLmsQuizView();
+      }
+    }
+
+    function selectNextLmsModule() {
+      if (activeLmsModuleId === null) return;
+      const nextId = activeLmsModuleId + 1;
+      if (nextId < LMS_MODULES.length) {
+        const modState = lmsProgressState.moduleStates[nextId];
+        if (modState && modState.status !== 'locked') {
+          selectLmsModule(nextId);
+        } else {
+          showSavedToast('Nächstes Modul ist noch gesperrt.', false);
+        }
+      } else {
+        showSavedToast('Glückwunsch! Du hast die gesamte Masterclass absolviert.', true);
+      }
+    }
+
+    function updateLmsProgressUI() {
+      let passedCount = 0;
+      LMS_MODULES.forEach((mod, idx) => {
+        const modState = lmsProgressState.moduleStates[idx];
+        if (modState && modState.status === 'completed') {
+          passedCount++;
+        }
+      });
+      
+      const percent = Math.round((passedCount / LMS_MODULES.length) * 100);
+      
+      const txt = document.getElementById('lms-global-progress-txt');
+      if (txt) {
+        txt.textContent = `${percent}% (${passedCount} von ${LMS_MODULES.length} Modulen bestanden)`;
+      }
+      
+      const bar = document.getElementById('lms-global-progress-bar');
+      if (bar) {
+        bar.style.width = `${percent}%`;
+      }
+    }
+
+    function addLmsHistoryEntry(actionText) {
+      if (!lmsProgressState.history) {
+        lmsProgressState.history = [];
+      }
+      lmsProgressState.history.push({
+        action: actionText,
+        timestamp: Date.now()
+      });
+      updateLmsLastActionsUI();
+    }
+
+    function updateLmsLastActionsUI() {
+      const list = document.getElementById('lms-last-actions-list');
+      if (!list) return;
+      list.innerHTML = '';
+      
+      const history = lmsProgressState.history || [];
+      if (history.length === 0) {
+        list.innerHTML = '<div style="color:rgba(255,255,255,0.4); font-style:italic;">Noch keine Aktivitäten.</div>';
+        return;
+      }
+      
+      const last2 = history.slice(-2).reverse();
+      last2.forEach(h => {
+        const date = new Date(h.timestamp);
+        const dateStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+        const div = document.createElement('div');
+        div.style = "display:flex; justify-content:space-between; margin-bottom:2px; gap:8px;";
+        div.innerHTML = `<span>• ${h.action}</span><span style="color:rgba(255,255,255,0.4); font-size:9px; flex-shrink:0;">${dateStr}</span>`;
+        list.appendChild(div);
+      });
+    }
+
+    function exportLmsProgressPDF() {
+      if (typeof window.jspdf === 'undefined') {
+        showSavedToast('PDF-Bibliothek nicht geladen', false);
+        return;
+      }
+      const {jsPDF} = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      
+      // Page styling
+      doc.setFillColor(13,21,32);
+      doc.rect(0,0,210,297,'F');
+      
+      doc.setTextColor(201,168,76); // Gold
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      doc.text('Masterclass: Positionsspiel-Prinzipien', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(160,170,185); // Muted gray
+      doc.text(`Lernfortschritts-Report · ${new Date().toLocaleDateString('de-CH')}`, 14, 27);
+      
+      doc.setDrawColor(201,168,76);
+      doc.setLineWidth(0.5);
+      doc.line(14,30,196,30);
+      
+      let passedCount = 0;
+      LMS_MODULES.forEach((mod, idx) => {
+        const modState = lmsProgressState.moduleStates[idx];
+        if (modState && modState.status === 'completed') {
+          passedCount++;
+        }
+      });
+      const percent = Math.round((passedCount / LMS_MODULES.length) * 100);
+      
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(201,168,76);
+      doc.text('GESAMTFORTSCHRITT:', 14, 38);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(226,232,240);
+      doc.text(`${percent}% (${passedCount} von ${LMS_MODULES.length} Modulen bestanden)`, 65, 38);
+      
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(201,168,76);
+      doc.text('KÜRZLICHER LERNVERLAUF (LETZTE 2 AKTIVITÄTEN):', 14, 46);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(226,232,240);
+      
+      const history = lmsProgressState.history || [];
+      let yOffset = 52;
+      if (history.length === 0) {
+        doc.text('Keine Aktivitäten verzeichnet.', 14, yOffset);
+        yOffset += 8;
+      } else {
+        const last2 = history.slice(-2).reverse();
+        last2.forEach((h) => {
+          const dateStr = new Date(h.timestamp).toLocaleString('de-CH');
+          doc.text(`• ${h.action} (${dateStr})`, 14, yOffset);
+          yOffset += 6;
+        });
+        yOffset += 2;
+      }
+      
+      const tableData = LMS_MODULES.map((mod, idx) => {
+        const modState = lmsProgressState.moduleStates[idx] || { status: 'unlocked', score: null, completedAt: null };
+        let statusText = 'Gesperrt';
+        if (modState.status === 'completed') statusText = 'Bestanden';
+        else if (modState.status === 'unlocked') statusText = 'Bereit / Offen';
+        
+        const scoreText = modState.score !== null ? `${modState.score}/2 (100%)` : '—';
+        const dateText = modState.completedAt ? new Date(modState.completedAt).toLocaleDateString('de-CH') : '—';
+        
+        return [
+          String(idx),
+          mod.title.replace("Modul ", ""),
+          statusText,
+          scoreText,
+          dateText
+        ];
+      });
+      
+      doc.autoTable({
+        startY: yOffset,
+        head: [['ID', 'Modul / Prinzip', 'Status', 'Testergebnis', 'Abgeschlossen am']],
+        body: tableData,
+        theme: 'plain',
+        styles: { fontSize: 8, cellPadding: 2, textColor: [200, 210, 220], fillColor: [20, 30, 45] },
+        headStyles: { fillColor: [30, 42, 58], textColor: [180, 190, 205], fontStyle: 'bold' },
+        columnStyles: { 
+          0: { halign: 'center', cellWidth: 10 }, 
+          2: { halign: 'center', cellWidth: 30 },
+          3: { halign: 'center', cellWidth: 30 },
+          4: { halign: 'center', cellWidth: 30 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+      
+      doc.save(`FE12_LMS_Fortschritt_${new Date().toISOString().slice(0,10)}.pdf`);
+      showSavedToast('✓ Masterclass-PDF erfolgreich generiert!');
+    }
+
+    function renderLms() {
+      ensureLmsFields();
+      
+      const placeholderStyle = `padding: 24px; margin-bottom:0; background: rgba(255,255,255,0.015); border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px;`;
+      const textContainerStyle = `font-size:13px; line-height:1.7; color:rgba(255,255,255,0.85); display:flex; flex-direction:column; gap:14px;`;
+      
+      document.getElementById('mainContent').innerHTML = `
+          <div class="card" style="padding:0; margin-bottom:16px; overflow:hidden">
+            <div style="background:linear-gradient(135deg,#0a1018 0%,#13233a 60%,#1a2c44 100%); padding:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-left:3px solid #c9a84c">
+              <div>
+                <h2 style="font-size:18px; font-weight:900; margin:0; background:linear-gradient(135deg, #e7d18a, #b8923a); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Masterclass: Prinzipien zum Positionsspiel</h2>
+                <p style="font-size:11.5px; color: rgba(255,255,255,0.45); line-height:1.5; margin-top:4px;">
+                  Lerne die 10 fundamentalen taktischen Prinzipien des Positionsspiels und schließe die Prüfungen ab.
+                </p>
+              </div>
+              <div>
+                <button onclick="exportLmsProgressPDF()" class="btn" style="padding: 8px 12px; font-size:11px; font-weight:700; border-radius:8px; display:inline-flex; align-items:center; gap:6px; background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.25); color: #c9a84c; cursor: pointer; letter-spacing: .04em; transition: all 0.2s;">
+                  <i class="ti ti-file-text" style="font-size:14px"></i>
+                  PDF Report
+                </button>
+              </div>
+            </div>
+            
+            <div style="padding:16px; border-left:3px solid #c9a84c; border-top:1px solid rgba(255,255,255,0.03);">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:800; color:rgba(255,255,255,0.4); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">
+                  <span>Gesamtfortschritt</span>
+                  <span id="lms-global-progress-txt" style="color:#c9a84c;">0% (0 von 11 Modulen bestanden)</span>
+                </div>
+                <div style="height:8px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; border:1px solid rgba(255,255,255,0.04);">
+                  <div id="lms-global-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #c9a84c, #e7d18a); transition:width 0.4s ease;"></div>
+                </div>
+              </div>
+
+              <div id="lms-last-actions-card" style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); font-size:10px; color:rgba(255,255,255,0.4);">
+                <span style="font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">Kürzlicher Lernverlauf:</span>
+                <div id="lms-last-actions-list" style="margin-top:4px; display:flex; flex-direction:column; gap:2px;">
+                  <div style="color:rgba(255,255,255,0.4); font-style:italic;">Noch keine Aktivitäten.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lms-layout">
+            <!-- Links: Modulliste -->
+            <div class="lms-sidebar-column">
+              <div class="card" style="padding: 16px; margin-bottom: 0;">
+                <div class="card-title" style="margin-bottom:12px; font-weight: 800; font-size: 13px; color:#c9a84c; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:6px;">
+                  <i class="ti ti-list-details"></i> Module
+                </div>
+                <div id="lms-module-list" style="display:flex; flex-direction:column; gap:2px; max-height: 60vh; overflow-y: auto; padding-right: 4px;">
+                  <!-- Wird dynamisch befüllt -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Rechts: Aktives Modul -->
+            <div class="lms-content-column">
+              <div id="lms-active-module-placeholder" class="card" style="${placeholderStyle}">
+                <div style="text-align:center; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom:16px;">
+                  <i class="ti ti-school" style="font-size: 48px; color: #c9a84c; display: inline-block; margin-bottom: 8px;"></i>
+                  <h3 style="font-size:18px; font-weight:900; color:#e2e8f0; margin:0; letter-spacing: -0.01em;">Leitfaden: Positionsspiel-Prinzipien</h3>
+                  <p style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:4px;">Ein umfassender Leitfaden zum Verständnis und Training des Positionsspiels</p>
+                </div>
+                
+                <div style="${textContainerStyle}">
+                  <p>
+                    Willkommen bei der <b>Masterclass des Positionsspiels</b>. Die taktische Theorie umfasst zehn fundamentale Prinzipien, die von Meistern des Positionsspiels wie <b>Johan Cruyff</b> und <b>Pep Guardiola</b> erfolgreich angewendet wurden.
+                  </p>
+                  
+                  <div style="background:rgba(201,168,76,0.05); border-left:3px solid #c9a84c; padding:12px 16px; border-radius:6px; font-size:12.5px; line-height:1.6; color:#e2e8f0;">
+                    <strong>Das Ziel:</strong> Durch intelligentes Raumverhalten und gezielte Zonenbesetzung eine ständige Überzahl (numerisch, qualitativ oder positionell) herbeizuführen, um den Gegner systematisch zu dominieren und Lücken aufzureißen.
+                  </div>
+
+                  <div>
+                    <strong style="color:#c9a84c; display:block; margin-bottom:10px; font-size:13px; text-transform:uppercase; letter-spacing:0.04em;">Die 10 Kernprinzipien im Lernpfad:</strong>
+                    <ul style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:8px; line-height:1.5;">
+                      <li><b>1. Spielaufbau von hinten:</b> Gezieltes, kontrolliertes Kurzpassspiel aus der Defensive unter Gegnerdruck.</li>
+                      <li><b>2. Ballkontrolle:</b> Zirkulation des Balls mit dem Ziel, den Gegner zu verschieben und Räume freizuziehen.</li>
+                      <li><b>3. Positionierung:</b> Disziplinierte Verteilung der Spieler auf dem Zonenraster zur Maximierung von Passwinkeln.</li>
+                      <li><b>4. Bewegung:</b> Planvolles Freilaufen und Rotieren, um konstante Anspielstationen anzubieten.</li>
+                      <li><b>5. Kompaktheit:</b> Enges Zusammenrücken der Linien zur optimalen Absicherung und schnellen Ballrückgewinnung.</li>
+                      <li><b>6. Nutzung von Halbräumen:</b> Gezieltes Bespielen der Halbräume zwischen Zentrum und Flügel für kreative Durchbrüche.</li>
+                      <li><b>7. Kombinationsspiel:</b> Schaffen von Dreiecken und Rauten zur ständigen Absicherung und Umspielung des Gegners.</li>
+                      <li><b>8. Gegenpressing:</b> Aggressive, sofortige Jagd auf den Ball in den ersten 6 Sekunden nach einem Ballverlust.</li>
+                      <li><b>9. Vertikalspiel:</b> Mutiges, präzises Spiel in die Tiefe durch Schnittstellen, sobald sich die Gelegenheit bietet.</li>
+                      <li><b>10. Überzahlspiel zur Isolierung:</b> Überladen (Overload) einer Spielfeldseite, um den Gegner dort zu binden und den Flügelspieler/in auf der verlagerten Seite im 1-gegen-1 (Isolation) freizuspielen.</li>
+                    </ul>
+                  </div>
+
+                  <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); padding:12px; border-radius:8px; font-size:11.5px; color:rgba(255,255,255,0.5); display:flex; gap:10px; align-items:flex-start; line-height:1.5;">
+                    <i class="ti ti-info-circle-filled" style="font-size:16px; color:#c9a84c; flex-shrink:0; margin-top:1px;"></i>
+                    <span><strong>Lernhinweis:</strong> Wähle ein Modul aus der linken Spalte aus. Jedes Modul besteht aus <strong>Theorie</strong>, einer praktischen Stift-und-Papier-Aufgabe (<strong>Praxis</strong>) und der anschließenden <strong>Prüfung</strong>, um das nächste Modul freizuschalten.</span>
+                  </div>
+
+                  <p style="font-size:12px; color:rgba(255,255,255,0.4); text-align:center; margin-top:8px; border-top:1px solid rgba(255,255,255,0.05); padding-top:12px; font-style:italic;">
+                    👈 Wähle links ein Modul aus, um mit dem Lernen zu beginnen.
+                  </p>
+                </div>
+              </div>
+
+              <div id="lms-active-module-card" class="card" style="display:none; padding:20px; margin-bottom:0; min-height:400px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:10px; margin-bottom:14px; gap:8px;">
+                  <h3 id="lms-mod-title" style="font-size:15px; font-weight:800; color:#c9a84c; margin:0; line-height:1.3; letter-spacing:-0.01em;"></h3>
+                  <span id="lms-mod-status-badge" class="badge"></span>
+                </div>
+
+                <div class="academy-sub-nav" style="margin-bottom:14px;">
+                  <button id="lms-tab-theory-btn" class="academy-sub-nav-btn active" onclick="switchLmsSubTab('theory')"><i class="ti ti-book" style="font-size:14px; margin-right:4px;"></i> Theorie</button>
+                  <button id="lms-tab-practice-btn" class="academy-sub-nav-btn" onclick="switchLmsSubTab('practice')"><i class="ti ti-pencil" style="font-size:14px; margin-right:4px;"></i> Praxis</button>
+                  <button id="lms-tab-quiz-btn" class="academy-sub-nav-btn" onclick="switchLmsSubTab('quiz')"><i class="ti ti-shield-check" style="font-size:14px; margin-right:4px;"></i> Prüfung</button>
+                </div>
+
+                <!-- Theorie -->
+                <div id="lms-subtab-theory" class="lms-subtab-content">
+                  <div id="lms-mod-theory-text" style="overflow-y:auto; max-height:45vh; padding-right:6px;">
+                    <!-- Dynamisch -->
+                  </div>
+                </div>
+
+                <!-- Praxis -->
+                <div id="lms-subtab-practice" class="lms-subtab-content" style="display:none;">
+                  <h4 style="font-size:11px; font-weight:800; color:#c9a84c; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">✍️ Offline-Repetition (Stift &amp; Papier)</h4>
+                  <div id="lms-mod-practice-text" style="font-size:13px; line-height:1.6; background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.05); padding:14px; border-radius:8px; margin-bottom:14px; color:rgba(255,255,255,0.85); font-style:italic;"></div>
+                  
+                  <div style="background:rgba(201,168,76,0.05); border:1px solid rgba(201,168,76,0.2); padding:14px; border-radius:8px; transition:all 0.2s;">
+                    <label style="font-size:12px; font-weight:700; color:#e2e8f0; margin:0; display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;">
+                      <input type="checkbox" id="lms-offline-checkbox" onchange="toggleOfflineVerification(this.checked)" style="width:18px; height:18px; accent-color:#c9a84c; cursor:pointer; flex-shrink:0; border-radius:4px;">
+                      <span>Ich bestätige die Durchführung die Stift- &amp; Papieraufgabe.</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Quiz -->
+                <div id="lms-subtab-quiz" class="lms-subtab-content" style="display:none;">
+                  <div id="lms-quiz-lock-view" style="display:none; text-align:center; padding:24px 16px; border:1px solid rgba(239,68,68,0.25); background:rgba(239,68,68,0.05); border-radius:10px;">
+                    <i class="ti ti-lock" style="font-size:36px; color:#ef4444; margin-bottom:8px; display:inline-block;"></i>
+                    <h4 style="color:#ef4444; font-size:14px; font-weight:800; margin-bottom:4px;">Prüfung vorübergehend gesperrt</h4>
+                    <p style="font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:16px; line-height:1.4;">Du hast das Quiz nicht bestanden. Nach einer Sperrfrist von 10 Minuten kannst du es erneut versuchen.</p>
+                    <div id="lms-quiz-timer" style="font-size:26px; font-weight:900; color:#ef4444; letter-spacing:0.05em;">10:00</div>
+                  </div>
+
+                  <div id="lms-quiz-unlock-required" style="text-align:center; padding:24px 16px; border:1px dashed rgba(255,255,255,0.12); background:rgba(255,255,255,0.015); border-radius:10px;">
+                    <i class="ti ti-lock" style="font-size:36px; color:#c9a84c; opacity:0.6; margin-bottom:8px; display:inline-block;"></i>
+                    <h4 style="font-size:13px; font-weight:800; color:#e2e8f0; margin-bottom:4px;">Prüfung gesperrt</h4>
+                    <p style="font-size:11.5px; color:rgba(255,255,255,0.5); margin:0; line-height:1.5;">Schließe zuerst die Offline-Praxisaufgabe ab und aktiviere die Bestätigung im Reiter <strong>"Praxis"</strong>, um diese Prüfung freizuschalten.</p>
+                  </div>
+
+                  <div id="lms-quiz-engine-view" style="display:none;">
+                    <form id="lms-quiz-form" onsubmit="submitLmsQuiz(event)">
+                      <div id="lms-quiz-questions-container" style="display:flex; flex-direction:column; gap:12px;">
+                        <!-- Fragen -->
+                      </div>
+                      <button type="submit" class="btn" style="margin-top: 16px; width: 100%; padding: 12px; background: linear-gradient(135deg, #c9a84c, #9a7c2e); border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; letter-spacing: .05em; transition: all 0.2s;">
+                        Prüfung einreichen
+                      </button>
+                    </form>
+                  </div>
+
+                  <div id="lms-quiz-passed-view" style="display:none; text-align:center; padding:24px 16px; border:1px solid rgba(34,197,94,0.25); background:rgba(34,197,94,0.05); border-radius:10px;">
+                    <i class="ti ti-circle-check-filled" style="font-size:36px; color:#22c55e; margin-bottom:8px; display:inline-block;"></i>
+                    <h4 style="color:#22c55e; font-size:14px; font-weight:800; margin-bottom:4px;">Prüfung bestanden (100%)</h4>
+                    <p id="lms-quiz-passed-info" style="font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:16px; line-height:1.4;">Herzlichen Glückwunsch! Dieses Modul wurde erfolgreich abgeschlossen.</p>
+                    <button onclick="selectNextLmsModule()" class="btn" style="font-size:12px; padding:10px 14px; width:100%; cursor:pointer; background: linear-gradient(135deg, #22c55e, #15803d); border:none; border-radius:8px; color:#fff; font-weight:800; letter-spacing:0.04em;">Nächstes Modul</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+      `;
+      initLms();
+    }
+
+    // Attach LMS handlers to window for HTML inline access
+    window.ensureLmsFields = ensureLmsFields;
+    window.initLms = initLms;
+    window.toggleLmsModuleOverride = toggleLmsModuleOverride;
+    window.switchLmsSubTab = switchLmsSubTab;
+    window.toggleOfflineVerification = toggleOfflineVerification;
+    window.submitLmsQuiz = submitLmsQuiz;
+    window.selectNextLmsModule = selectNextLmsModule;
+    window.exportLmsProgressPDF = exportLmsProgressPDF;
+    window.renderLms = renderLms;
 
 // Init
 initState();
