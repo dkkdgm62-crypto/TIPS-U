@@ -175,6 +175,317 @@ body.ro .edit-only{display:none!important}
 #lms-mod-theory-text li:last-child {
   margin-bottom: 0;
 }
+
+/* 🧭 LEHRE / SPIELPHILOSOPHIE STYLES */
+.kompass-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 14px;
+}
+.kompass-svg { width: 100%; max-width: 320px; height: auto; }
+.kompass-quad {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kompass-quad:hover {
+  filter: brightness(1.22);
+}
+.kompass-quad.dimmed {
+  opacity: 0.15;
+  filter: saturate(0.5) brightness(0.7);
+}
+.kompass-label {
+  font-size: 7.5px;
+  font-weight: 900;
+  fill: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+.kompass-center-txt {
+  font-size: 7px;
+  font-weight: 700;
+  fill: rgba(255,255,255,0.75);
+  pointer-events: none;
+}
+
+.phase-filter {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+.phase-filter::-webkit-scrollbar { height: 0; }
+.phase-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+.phase-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.phase-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+}
+.phase-chip:hover .dot {
+  transform: scale(1.2);
+}
+.phase-chip.active .dot {
+  transform: scale(1.25);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+.phase-chip[data-phase="all"].active {
+  background: linear-gradient(135deg, rgba(201, 168, 76, 0.25), rgba(201, 168, 76, 0.1));
+  border-color: #c9a84c;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+.phase-chip[data-phase="haben"].active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.05));
+  border-color: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+.phase-chip[data-phase="verlieren"].active {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.25), rgba(249, 115, 22, 0.05));
+  border-color: #f97316;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+.phase-chip[data-phase="habennicht"].active {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.05));
+  border-color: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+.phase-chip[data-phase="erobern"].active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(245, 158, 11, 0.05));
+  border-color: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+
+.phase-block { margin-bottom: 18px; }
+.phase-block.hidden { display: none; }
+.phase-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+.phase-head .phase-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 8px currentColor;
+}
+.phase-head h3 {
+  font-size: 13px; font-weight: 900; color: #e2e8f0; line-height: 1.2;
+}
+.phase-block[data-phase="haben"] .phase-head {
+  border-left: 3px solid #10b981;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06), transparent);
+}
+.phase-block[data-phase="verlieren"] .phase-head {
+  border-left: 3px solid #f97316;
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.06), transparent);
+}
+.phase-block[data-phase="habennicht"] .phase-head {
+  border-left: 3px solid #ef4444;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.06), transparent);
+}
+.phase-block[data-phase="erobern"] .phase-head {
+  border-left: 3px solid #f59e0b;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.06), transparent);
+}
+.phase-head .phase-sub {
+  font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.4);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.ziele-box, .phase-prinzipien {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.02);
+}
+.ziele-box .ziele-lbl, .phase-prinzipien .ziele-lbl {
+  font-size: 9px; font-weight: 800; color: #c9a84c;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
+}
+.ziele-box ul, .phase-prinzipien ul, .zone-body ul { list-style: none; padding: 0; margin: 0; }
+.ziele-box li, .phase-prinzipien li, .zone-body li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+.ziele-box li::before, .phase-prinzipien li::before, .zone-body li::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 8px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #c9a84c;
+}
+.zone-body li.sub {
+  padding-left: 28px; font-size: 11px; color: rgba(255,255,255,0.4);
+}
+.zone-body li.sub::before {
+  left: 16px; top: 9px; width: 4px; height: 4px;
+  background: rgba(255,255,255,0.4); border-radius: 0;
+}
+.zone-body li.fallback {
+  font-style: italic; color: rgba(255,255,255,0.4); font-size: 10.5px;
+}
+.zone-body li.fallback::before { background: transparent; }
+
+.phase-block[data-phase="haben"] .ziele-box,
+.phase-block[data-phase="haben"] .phase-prinzipien {
+  background: rgba(16, 185, 129, 0.02);
+  border-color: rgba(16, 185, 129, 0.12);
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.04), inset 0 1px 1px rgba(255,255,255,0.02);
+}
+.phase-block[data-phase="haben"] .ziele-lbl { color: #10b981; }
+.phase-block[data-phase="haben"] li::before { background: #10b981; }
+.phase-block[data-phase="haben"] .zone-acc { border-color: rgba(16, 185, 129, 0.06); }
+.phase-block[data-phase="haben"] .zone-acc[open] {
+  border-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
+}
+
+.phase-block[data-phase="verlieren"] .ziele-box,
+.phase-block[data-phase="verlieren"] .phase-prinzipien {
+  background: rgba(249, 115, 22, 0.02);
+  border-color: rgba(249, 115, 22, 0.12);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.04), inset 0 1px 1px rgba(255,255,255,0.02);
+}
+.phase-block[data-phase="verlieren"] .ziele-lbl { color: #f97316; }
+.phase-block[data-phase="verlieren"] li::before { background: #f97316; }
+.phase-block[data-phase="verlieren"] .zone-acc { border-color: rgba(249, 115, 22, 0.06); }
+.phase-block[data-phase="verlieren"] .zone-acc[open] {
+  border-color: rgba(249, 115, 22, 0.25);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.1);
+}
+
+.phase-block[data-phase="habennicht"] .ziele-box,
+.phase-block[data-phase="habennicht"] .phase-prinzipien {
+  background: rgba(239, 68, 68, 0.02);
+  border-color: rgba(239, 68, 68, 0.12);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.04), inset 0 1px 1px rgba(255,255,255,0.02);
+}
+.phase-block[data-phase="habennicht"] .ziele-lbl { color: #ef4444; }
+.phase-block[data-phase="habennicht"] li::before { background: #ef4444; }
+.phase-block[data-phase="habennicht"] .zone-acc { border-color: rgba(239, 68, 68, 0.06); }
+.phase-block[data-phase="habennicht"] .zone-acc[open] {
+  border-color: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
+}
+
+.phase-block[data-phase="erobern"] .ziele-box,
+.phase-block[data-phase="erobern"] .phase-prinzipien {
+  background: rgba(245, 158, 11, 0.02);
+  border-color: rgba(245, 158, 11, 0.12);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.04), inset 0 1px 1px rgba(255,255,255,0.02);
+}
+.phase-block[data-phase="erobern"] .ziele-lbl { color: #f59e0b; }
+.phase-block[data-phase="erobern"] li::before { background: #f59e0b; }
+.phase-block[data-phase="erobern"] .zone-acc { border-color: rgba(245, 158, 11, 0.06); }
+.phase-block[data-phase="erobern"] .zone-acc[open] {
+  border-color: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);
+}
+
+.zone-acc {
+  background: linear-gradient(145deg, #101926, #0d1520);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.25s ease;
+}
+.zone-acc:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.zone-acc[open] {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+.zone-acc > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  font-size: 12px;
+  color: #e2e8f0;
+  transition: background 0.2s ease;
+}
+.zone-acc > summary:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.zone-acc > summary::-webkit-details-marker { display: none; }
+.zone-acc .zone-num {
+  flex: 0 0 auto;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px; font-weight: 900; color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.zone-acc .zone-num small { font-size: 7px; margin-left: 1px; opacity: 0.9; }
+.zone-acc .zone-title-txt { flex: 1; }
+.zone-acc .chevron {
+  width: 16px; height: 16px;
+  stroke: rgba(255,255,255,0.4); fill: none;
+  transition: transform 0.2s ease;
+}
+.zone-acc[open] .chevron { transform: rotate(180deg); }
+.zone-body {
+  padding: 2px 14px 14px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 12px;
+}
 </style>
 </head>
 <body>
@@ -225,6 +536,7 @@ body.ro .edit-only{display:none!important}
       <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
       <button class="btn-nav" id="nav-lms" onclick="showView('lms')"><i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>Masterclass</button>
+      <button class="btn-nav" id="nav-lehre" onclick="showView('lehre')"><i class="ti ti-compass" style="font-size:16px;flex-shrink:0"></i>SFV Lehre</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
@@ -1084,7 +1396,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',lehre:'Spielphilosophie',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   if(['termine','spiele','trainings'].includes(v)){ const tn=document.getElementById('nav-termine'); if(tn) tn.classList.add('active'); }
   if(v==='player'){ const kn=document.getElementById('nav-kader'); if(kn) kn.classList.add('active'); }
@@ -1108,6 +1420,7 @@ function renderCurrentView(){
   else if(v==='vergleich')renderVergleich();
   else if(v==='si')renderSI();
   else if(v==='lms')renderLms();
+  else if(v==='lehre')renderLehre();
   else if(v==='spiele')renderSpiele();
   else if(v==='termine')renderTermine();
   else if(v==='trainings')renderTrainings();
@@ -3627,6 +3940,350 @@ async function exportPDF(){
     window.exportLmsProgressPDF = exportLmsProgressPDF;
     window.renderLms = renderLms;
 
+    function renderLehre() {
+      document.getElementById('mainContent').innerHTML = `
+          <div class="card" style="padding:0; margin-bottom:16px; overflow:hidden">
+            <div style="background:linear-gradient(135deg,#0a1018 0%,#13233a 60%,#1a2c44 100%); padding:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-left:3px solid #c9a84c">
+              <div>
+                <h2 style="font-size:18px; font-weight:900; margin:0; background:linear-gradient(135deg, #e7d18a, #b8923a); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Spielphilosophie</h2>
+                <p style="font-size:11.5px; color: rgba(255,255,255,0.45); line-height:1.5; margin-top:4px;">
+                  Nachschlagewerk für SFV-Trainer/innen. Tippe im Spielkompass auf eine Phase oder nutze die Filter, um Ziele, Prinzipien und die Umsetzung pro Zone aufzuklappen.
+                </p>
+              </div>
+              <div>
+                <a href="https://www.football.ch/portaldata/27/Resources/dokumente/trainer/de/aus-_und_fortbildung/planung_trainingslektion/d_Trainingsvorbereitung.pdf?v=1780292590" target="_blank" rel="noopener" style="text-decoration: none;">
+                  <button class="btn" style="padding: 8px 12px; font-size:11px; font-weight:700; border-radius:8px; display:inline-flex; align-items:center; gap:6px; background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.25); color: #c9a84c; cursor: pointer; letter-spacing: .04em; transition: all 0.2s;">
+                    <i class="ti ti-file-text" style="font-size:14px"></i>
+                    Trainingsvorbereitung PDF
+                  </button>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interaktiver Spielkompass -->
+          <div class="card" style="margin-bottom:16px; padding:16px;">
+            <div class="card-title" style="margin-bottom:12px; font-weight: 800; font-size: 13px; color:#c9a84c; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:6px;">
+              <i class="ti ti-compass"></i> Der Spielkompass
+            </div>
+            <div class="kompass-wrap">
+              <svg class="kompass-svg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <radialGradient id="grad-haben" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#064e3b" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#10b981" stop-opacity="0.95"/>
+                  </radialGradient>
+                  <radialGradient id="grad-verlieren" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#7c2d12" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#f97316" stop-opacity="0.95"/>
+                  </radialGradient>
+                  <radialGradient id="grad-habennicht" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#7f1d1d" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0.95"/>
+                  </radialGradient>
+                  <radialGradient id="grad-erobern" cx="50%" cy="50%" r="70%">
+                    <stop offset="0%" stop-color="#78350f" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.95"/>
+                  </radialGradient>
+                  <radialGradient id="grad-center" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#1e293b"/>
+                    <stop offset="100%" stop-color="#0f172a"/>
+                  </radialGradient>
+                  <linearGradient id="grad-center-border" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#c9a84c"/>
+                    <stop offset="100%" stop-color="#c9a84c"/>
+                  </linearGradient>
+                </defs>
+                <path class="kompass-quad" data-phase="haben" onclick="filterLehre('haben')"
+                  d="M110,110 L15,110 A95,95 0 0 1 110,15 Z" fill="url(#grad-haben)" stroke="#10b981" stroke-width="1.8"/>
+                <path class="kompass-quad" data-phase="verlieren" onclick="filterLehre('verlieren')"
+                  d="M110,110 L110,15 A95,95 0 0 1 205,110 Z" fill="url(#grad-verlieren)" stroke="#f97316" stroke-width="1.8"/>
+                <path class="kompass-quad" data-phase="habennicht" onclick="filterLehre('habennicht')"
+                  d="M110,110 L205,110 A95,95 0 0 1 110,205 Z" fill="url(#grad-habennicht)" stroke="#ef4444" stroke-width="1.8"/>
+                <path class="kompass-quad" data-phase="erobern" onclick="filterLehre('erobern')"
+                  d="M110,110 L110,205 A95,95 0 0 1 15,110 Z" fill="url(#grad-erobern)" stroke="#fbbf24" stroke-width="1.8"/>
+                <text class="kompass-label" x="68" y="62" text-anchor="middle">BALL</text>
+                <text class="kompass-label" x="68" y="74" text-anchor="middle">HABEN</text>
+                <text class="kompass-label" x="152" y="62" text-anchor="middle">BALL</text>
+                <text class="kompass-label" x="152" y="74" text-anchor="middle">VERLIEREN</text>
+                <text class="kompass-label" x="152" y="152" text-anchor="middle">OHNE</text>
+                <text class="kompass-label" x="152" y="164" text-anchor="middle">BALL</text>
+                <text class="kompass-label" x="68" y="152" text-anchor="middle">BALL</text>
+                <text class="kompass-label" x="68" y="164" text-anchor="middle">EROBERN</text>
+                <g onclick="filterLehre('all')" style="cursor: pointer;">
+                  <circle cx="110" cy="110" r="30" fill="url(#grad-center)" stroke="url(#grad-center-border)" stroke-width="1.8"/>
+                  <text class="kompass-center-txt" x="110" y="105" text-anchor="middle" style="font-size:4.6px; font-weight:900; fill:#c9a84c; letter-spacing:0.04em; pointer-events: none;">SPIELPHILOSOPHIE</text>
+                  <text class="kompass-center-txt" x="110" y="117" text-anchor="middle" style="font-size:8px; font-weight:900; fill:#ffffff; letter-spacing:0.08em; pointer-events: none;">SFV</text>
+                </g>
+              </svg>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:9px; font-weight:800; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.05em; padding:0 6px;">
+              <span style="color:#10b981;">↑ Angreifen</span>
+              <span style="color:#ef4444;">↓ Verteidigen</span>
+            </div>
+          </div>
+
+          <!-- Phasen-Filter -->
+          <div class="phase-filter" id="lehre-phase-filter">
+            <button class="phase-chip active" data-phase="all" onclick="filterLehre('all')">Alle Phasen</button>
+            <button class="phase-chip" data-phase="haben" onclick="filterLehre('haben')"><span class="dot" style="background:#10b981"></span>Ball haben</button>
+            <button class="phase-chip" data-phase="verlieren" onclick="filterLehre('verlieren')"><span class="dot" style="background:#f97316"></span>Ball verlieren</button>
+            <button class="phase-chip" data-phase="habennicht" onclick="filterLehre('habennicht')"><span class="dot" style="background:#ef4444"></span>Ball nicht haben</button>
+            <button class="phase-chip" data-phase="erobern" onclick="filterLehre('erobern')"><span class="dot" style="background:#fbbf24"></span>Ball erobern</button>
+          </div>
+
+          <div id="lehre-phases-container">
+            <!-- PHASE 1: WIR HABEN DEN BALL -->
+            <div class="phase-block" data-phase="haben">
+              <div class="phase-head">
+                <span class="phase-dot" style="background:#10b981;"></span>
+                <div><h3>Wir haben den Ball</h3><span class="phase-sub">Spiel gestalten – Tor erzielen</span></div>
+              </div>
+              <div class="ziele-box">
+                <div class="ziele-lbl">Ziele</div>
+                <ul>
+                  <li>Initiativ sein, dynamisch nach vorne spielen</li>
+                  <li>Eigenes Spiel durchsetzen und Gegner dominieren</li>
+                  <li>Lösungen finden, Spiel beschleunigen und Tore erzielen</li>
+                </ul>
+              </div>
+              <div class="phase-prinzipien">
+                <div class="ziele-lbl">Prinzipien</div>
+                <ul>
+                  <li>Alle 11 Spieler/innen beteiligen sich am Offensivspiel – zusammen angreifen, Überzahlsituationen schaffen, Gegner ins Ungleichgewicht bringen</li>
+                  <li>Optimale Feldbesetzung: Breite und Tiefe nutzen und Lösungen anbieten, getimtes Freilaufen (Dreiecks- und Rhombusbildung)</li>
+                  <li>Den Spielrhythmus unter Berücksichtigung von Raum und Zeit bestimmen: den direkten Weg zum gegnerischen Tor suchen (Spiel beschleunigen) bzw. konstruktiver, dynamischer Spielaufbau mit Geduld</li>
+                  <li>Duell suchen und gewinnen (Zone 2 und 3)</li>
+                  <li>Ideale Position einnehmen, um bei einem möglichen Ballverlust den Gegenangriff zu verhindern</li>
+                </ul>
+              </div>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#047857;">1</span><span class="zone-title-txt">Spiel aufbauen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Breite nutzen &amp; präzise Pässe mit Variation kurz, lang oder diagonal</li>
+                  <li>Initiative der Innenverteidiger und Einbezug der zentralen Mittelfeldspieler</li>
+                  <li>Freilaufbewegungen, Orientierung, Signale erkennen</li>
+                  <li>Einen «Zielspieler/in» einbeziehen</li>
+                  <li>Den freien Raum erkennen und nutzen; Pass oder Dribbling in Zone 2</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Vorbereitete lange Bälle vertikal, mit dem Ziel Ballgewinn (2. Ball)</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#10b981;">2</span><span class="zone-title-txt">Spiel bestimmen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Spiel zwischen den Linien (Vertikalpass) mit Dreiecks- und Rhombusbildung (Einbezug der Stürmer)</li>
+                  <li>Gegner fixieren im 1:1, Spielverlagerung (Diagonal) oder Dribbling in den freien Raum</li>
+                  <li>Dosierte, präzise Pässe und Timing der Freilaufbewegungen (zentrale Mittelfeldspieler und Aussenspieler)</li>
+                  <li>Vertikales Spiel, «Zielspieler/in» finden</li>
+                  <li>Räume schaffen und besetzen, Signale erkennen</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#34d399;">3<small>BOX</small></span><span class="zone-title-txt">Angriff abschliessen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Den freien Raum nutzen, um in Richtung gegnerisches Tor zu gelangen und abzuschliessen</li>
+                  <li>Kombinationsspiel mit hoher Intensität: Doppelpass, Hinterlaufen, Kreuzen, Virgola, Spiel über Dritte (Lösungen im Rücken der gegnerischen Abwehr finden)</li>
+                  <li>Besetzung der Box: Entschlossenheit und Qualität im Abschluss, um das Tor zu erzielen</li>
+                  <li>Sprints, Signale erkennen</li>
+                  <li>1:1</li>
+                </ul></div>
+              </details>
+            </div>
+
+            <!-- PHASE 2: WIR VERLIEREN DEN BALL -->
+            <div class="phase-block" data-phase="verlieren">
+              <div class="phase-head">
+                <span class="phase-dot" style="background:#f97316;"></span>
+                <div><h3>Wir verlieren den Ball</h3><span class="phase-sub">Umschalten OFF – DEF</span></div>
+              </div>
+              <div class="ziele-box">
+                <div class="ziele-lbl">Ziele</div>
+                <ul>
+                  <li>Initiative behalten, weiterhin agieren</li>
+                  <li>Spielsituation rasch erkennen und blitzschnell entscheiden</li>
+                  <li>Raum und Zeit für den Gegner einschränken, um Gegentor zu verhindern</li>
+                </ul>
+              </div>
+              <div class="phase-prinzipien">
+                <div class="ziele-lbl">Prinzipien</div>
+                <ul>
+                  <li>Den schnellen Gegenangriff verhindern (1. oder 2. Pass des Gegners nach vorne blockieren) und den direkten Weg zum eigenen Tor schliessen</li>
+                  <li>Sofort individuelle Position einnehmen, um rasch das kollektive Gleichgewicht zu erlangen – den ballführenden Spieler des Gegners sofort unter Druck setzen (Prinzip der 3 Kreise)</li>
+                  <li>Wenn nicht möglich: Rasche Blockbildung, um den Ball gemeinsam zu erobern</li>
+                  <li>Duell suchen und gewinnen</li>
+                </ul>
+              </div>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#c2410c;">1<small>BOX</small></span><span class="zone-title-txt">Tor verteidigen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Direkten Weg zum Tor schützen</li>
+                  <li>So schnell wie möglich Überzahl in Ballnähe schaffen (Pyramide bilden und Diagonale absichern)</li>
+                  <li>Ballführenden Spieler unter Druck setzen</li>
+                  <li>Duell suchen, Schuss und Flanke blockieren</li>
+                  <li>Duell 1:1 in der Box gewinnen</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#f97316;">2</span><span class="zone-title-txt">Gegenangriff bremsen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Ballführenden Spieler sofort unter Druck setzen, Nähe zum Gegenspieler/in suchen und vertikalen Pass verhindern (Tiefe absichern)</li>
+                  <li>So schnell wie möglich Überzahl in Ballnähe schaffen (Pyramide bilden)</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Fallen lassen, sich organisieren, mit dem Ziel, den Ball zu erobern</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#fdba74;">3</span><span class="zone-title-txt">Gegenpressing</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Nach vorne verteidigen</li>
+                  <li>Ballführenden Spieler sofort unter Druck setzen</li>
+                  <li>Prinzip der 3 Kreise</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Fallen lassen, sich organisieren, mit dem Ziel, den Ball zu erobern</li>
+                </ul></div>
+              </details>
+            </div>
+
+            <!-- PHASE 3: WIR HABEN DEN BALL NICHT -->
+            <div class="phase-block" data-phase="habennicht">
+              <div class="phase-head">
+                <span class="phase-dot" style="background:#ef4444;"></span>
+                <div><h3>Wir haben den Ball nicht</h3><span class="phase-sub">Ball erobern – Tor verhindern</span></div>
+              </div>
+              <div class="ziele-box">
+                <div class="ziele-lbl">Ziele</div>
+                <ul>
+                  <li>Initiativ sein, agieren</li>
+                  <li>Ball zurückerobern und Tor verhindern</li>
+                  <li>Spiel des Gegners stören und ihn zu Fehlern zwingen (Raum und Zeit)</li>
+                </ul>
+              </div>
+              <div class="phase-prinzipien">
+                <div class="ziele-lbl">Prinzipien</div>
+                <ul>
+                  <li>Kompaktes Verteidigen: Alle 11 Spieler/innen beteiligen sich am Defensivspiel (optimale Positionierung)</li>
+                  <li>Prinzip der 3 Kreise – Kreis 1: Ball jagen · Kreis 2: Nähe zum Gegenspieler/in und vertikale Pässe verhindern · Kreis 3: Tiefe antizipieren und absichern</li>
+                  <li>Den direkten Weg zum Tor kontrollieren</li>
+                  <li>Das Duell suchen und gewinnen</li>
+                  <li>Die Passlinien schliessen und Fehler des Gegners provozieren</li>
+                  <li>Mögliche Anspielstationen («Zielspieler/in») für das Umschalten DEF – OFF behalten</li>
+                </ul>
+              </div>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#b91c1c;">1<small>BOX</small></span><span class="zone-title-txt">Tief verteidigen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Ballführenden Spieler permanent unter Druck setzen, Überzahl in Ballnähe schaffen</li>
+                  <li>Steuern: Von der Gefahr weg (nach aussen)</li>
+                  <li>Tiefe absichern (Pyramide oder Diagonale)</li>
+                  <li>Flanken und Torschüsse blocken</li>
+                  <li>In der Box: Situativ zwischen Mann- oder Raumdeckung entscheiden (Duell 1:1 in der Box gewinnen)</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#ef4444;">2</span><span class="zone-title-txt">Gegner kontrollieren</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Ballführenden Spieler permanent unter Druck setzen (Mittelfeldpressing)</li>
+                  <li>Prinzip der 3 Kreise</li>
+                  <li>Wenn der Druck auf den ballführenden Spieler nicht (mehr) möglich ist, fallen lassen und Gegner möglichst schnell wieder unter Druck setzen</li>
+                  <li>Steuern: a) Zur Überzahl (zur Mitte) · b) Von der Gefahr weg (nach aussen)</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#f87171;">3</span><span class="zone-title-txt">Hoch verteidigen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Angriffspressing</li>
+                  <li>Nach vorne verteidigen: Bei Quer-/Rückpass des Gegners</li>
+                  <li>Prinzip der 3 Kreise</li>
+                  <li>Ballführenden Spieler permanent unter Druck setzen, falls nicht möglich: Fallen lassen (hoch – Mitte – tief)</li>
+                  <li>Den Angriff des Gegners in eine «günstige Position» steuern (nach aussen / zur Mitte)</li>
+                </ul></div>
+              </details>
+            </div>
+
+            <!-- PHASE 4: WIR EROBERN DEN BALL -->
+            <div class="phase-block" data-phase="erobern">
+              <div class="phase-head">
+                <span class="phase-dot" style="background:#f59e0b;"></span>
+                <div><h3>Wir erobern den Ball</h3><span class="phase-sub">Umschalten DEF – OFF</span></div>
+              </div>
+              <div class="ziele-box">
+                <div class="ziele-lbl">Ziele</div>
+                <ul>
+                  <li>Initiative behalten, weiterhin agieren</li>
+                  <li>Spielsituation rasch erkennen und blitzschnell entscheiden</li>
+                  <li>Verfügbaren Raum und Zeit nutzen, um Tore zu erzielen</li>
+                </ul>
+              </div>
+              <div class="phase-prinzipien">
+                <div class="ziele-lbl">Prinzipien</div>
+                <ul>
+                  <li>Ballgewinnzone verlassen mit der Priorität vorwärts</li>
+                  <li>Sofort situative Lösungen anbieten</li>
+                  <li>Vom Ungleichgewicht des Gegners in seiner Organisation profitieren – direkten Weg zum Tor suchen (freie Räume attackieren mit und ohne Ball)</li>
+                  <li>Wenn nicht möglich: Ballsicherung, um einen neuen Angriff vorzubereiten</li>
+                </ul>
+              </div>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#b45309;">1</span><span class="zone-title-txt">Nach vorne spielen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Tiefe nutzen: Direkt oder nach dem zweiten oder dritten Pass (Freilaufbewegungen)</li>
+                  <li>Die Zone 2 oder 3 mit «Zielspieler/inn» suchen</li>
+                  <li>Gezielter langer Ball in den Raum (in den Rücken der gegnerischen Defensive)</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Ballsicherung (Spielrhythmus kontrollieren) mit dem Ziel Neuaufbau</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#f59e0b;">2</span><span class="zone-title-txt">In die Zone 3 spielen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>«Zielspieler/in» in der Zone 3 finden</li>
+                  <li>Schnittstellenpass aus der Zone 2 in die Zone 3 oder gezielter langer Ball in den Rücken der gegnerischen Defensive</li>
+                  <li>Individuelle Aktion: Einzeldurchbruch mit oder ohne Ball durch die gegnerische Abwehr</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Ballsicherung (Spielrhythmus kontrollieren) mit dem Ziel Neuaufbau</li>
+                </ul></div>
+              </details>
+              <details class="zone-acc">
+                <summary><span class="zone-num" style="background:#fbbf24;">3<small>BOX</small></span><span class="zone-title-txt">Tor erzielen</span><svg class="chevron" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></summary>
+                <div class="zone-body"><ul>
+                  <li>Gegner fixieren, 1:1 suchen und gewinnen</li>
+                  <li>Dosierter, präziser 1. Pass</li>
+                  <li>Pässe und Laufwege aufeinander abstimmen</li>
+                  <li>Raschmöglichst, mit Entschlossenheit und Qualität abschliessen und das Tor erzielen</li>
+                  <li class="fallback">Wenn nicht möglich, dann:</li>
+                  <li class="sub">Ballsicherung mit dem Ziel, eine neue Spielsituation zu schaffen</li>
+                </ul></div>
+              </details>
+            </div>
+          </div>
+          <p style="text-align:center; font-size:9px; color:rgba(255,255,255,0.35); margin-top:8px;">© 2017 SFV · Spielphilosophie</p>
+      `;
+    }
+
+    function filterLehre(key) {
+      document.querySelectorAll('.phase-block').forEach(block => {
+        if (block.dataset.phase) {
+          const match = (key === 'all' || block.dataset.phase === key);
+          block.classList.toggle('hidden', !match);
+        }
+      });
+      document.querySelectorAll('#lehre-phase-filter .phase-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.phase === key);
+      });
+      document.querySelectorAll('.kompass-quad').forEach(q => {
+        q.classList.toggle('dimmed', key !== 'all' && q.dataset.phase !== key);
+      });
+      if (key !== 'all') {
+        const target = document.querySelector('.phase-block:not(.hidden)');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    window.renderLehre = renderLehre;
+    window.filterLehre = filterLehre;
+    window.renderLms = renderLms;
+
 // Init
 initState();
 if(typeof applyTeamLogo === 'function') applyTeamLogo();
@@ -3880,7 +4537,7 @@ async function renderTermine(){
   if(!_attendanceLoaded && !_attendanceTableMissing){ await loadAttendance(); }
   if(state.matchEditId && !_matchesTableMissing){ mc.innerHTML=matchEditorHTML(state.matchEditId); return; }
 
-  const today=new Date().toISOString().slice(0,7); // YYYY-MM
+  const todayStr=new Date().toISOString().slice(0,10); // YYYY-MM-DD
   const _isGameTrain=t=>t.typ&&t.typ!=='training';
   const gameItems=[];
   (state.matches||[]).forEach(m=>gameItems.push({date:m.match_date||'',time:m.match_time||'',html:termineMatchRow(m)}));
@@ -3889,24 +4546,67 @@ async function renderTermine(){
   const nMatch=gameItems.length, nTrain=trainItems.length;
 
   const monthLabel=mk=>{ if(mk==='0000-00') return 'Ohne Datum'; const a=mk.split('-'); return new Date(+a[0],+a[1]-1,1).toLocaleDateString('de-CH',{month:'long',year:'numeric'}); };
-  const groupByMonth=(items,getDate,getTime,rowFn,accent)=>{
-    if(!items.length) return `<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:16px 4px;text-align:center">Noch keine Einträge.</div>`;
-    const by={};
-    items.forEach(it=>{ const d=getDate(it)||''; const mk=d?d.slice(0,7):'0000-00'; (by[mk]=by[mk]||[]).push(it); });
-    const keys=Object.keys(by);
-    const future=keys.filter(k=>k!=='0000-00'&&k>=today).sort();
-    const pastK=keys.filter(k=>k!=='0000-00'&&k<today).sort().reverse();
-    const noDate=keys.filter(k=>k==='0000-00');
-    return future.concat(pastK).concat(noDate).map(mk=>{
-      const isPast=mk!=='0000-00'&&mk<today;
-      const rows=by[mk].sort((a,b)=>((getDate(a)||'')+(getTime(a)||'')).localeCompare((getDate(b)||'')+(getTime(b)||''))).map(rowFn).join('');
-      return `<div style="margin-bottom:2px"><div style="display:flex;align-items:center;gap:8px;padding:10px 4px 5px;margin-top:4px"><span style="font-size:10.5px;font-weight:800;letter-spacing:.04em;color:${accent};text-transform:capitalize">${monthLabel(mk)}</span><span style="flex:1;height:1px;background:linear-gradient(90deg,${accent}40,transparent)"></span>${isPast?'<span style="font-size:8px;font-weight:700;letter-spacing:.04em;color:rgba(255,255,255,0.28)">VERGANGEN</span>':''}</div>${rows}</div>`;
+  
+  const renderGroupedList = (items, isPast, accent) => {
+    if (!items.length) return '';
+    const by = {};
+    items.forEach(it => {
+      const d = it.date || '';
+      const mk = d ? d.slice(0, 7) : '0000-00';
+      (by[mk] = by[mk] || []).push(it);
+    });
+    const keys = Object.keys(by);
+    if (isPast) {
+      keys.sort().reverse();
+    } else {
+      keys.sort((a, b) => {
+        if (a === '0000-00') return 1;
+        if (b === '0000-00') return -1;
+        return a.localeCompare(b);
+      });
+    }
+    return keys.map(mk => {
+      const sortedRows = by[mk].sort((a, b) => {
+        const da = a.date || '';
+        const db = b.date || '';
+        if (da !== db) {
+          return isPast ? db.localeCompare(da) : da.localeCompare(db);
+        }
+        const ta = a.time || '';
+        const tb = b.time || '';
+        return isPast ? tb.localeCompare(ta) : ta.localeCompare(tb);
+      });
+      const rowsHtml = sortedRows.map(it => it.html).join('');
+      return `<div style="margin-bottom:2px">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 4px 4px;margin-top:4px">
+          <span style="font-size:10.5px;font-weight:800;letter-spacing:.04em;color:${accent};text-transform:capitalize">${monthLabel(mk)}</span>
+          <span style="flex:1;height:1px;background:linear-gradient(90deg,${accent}40,transparent)"></span>
+        </div>
+        ${rowsHtml}
+      </div>`;
     }).join('');
   };
 
-  const _gd=it=>it.date, _gt=it=>it.time, _gh=it=>it.html;
-  const matchSection=groupByMonth(gameItems, _gd, _gt, _gh, '#c9a84c');
-  const trainSection=groupByMonth(trainItems, _gd, _gt, _gh, '#60a5fa');
+  const buildColumnContent = (items, accent) => {
+    if (!items.length) {
+      return `<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:16px 4px;text-align:center">Noch keine Einträge.</div>`;
+    }
+    const upcomingItems = items.filter(it => !it.date || it.date >= todayStr);
+    const pastItems = items.filter(it => it.date && it.date < todayStr);
+    let html = '';
+    if (upcomingItems.length) {
+      html += `<div style="font-size:9.5px;font-weight:800;color:rgba(255,255,255,0.35);letter-spacing:0.06em;padding:4px 4px 2px;text-transform:uppercase;display:flex;align-items:center;gap:6px"><i class="ti ti-arrow-up-right" style="color:${accent}"></i> Anstehend</div>`;
+      html += renderGroupedList(upcomingItems, false, accent);
+    }
+    if (pastItems.length) {
+      html += `<div style="font-size:9.5px;font-weight:800;color:rgba(255,255,255,0.35);letter-spacing:0.06em;padding:16px 4px 2px;text-transform:uppercase;margin-top:12px;border-top:1px dashed rgba(255,255,255,0.08);display:flex;align-items:center;gap:6px"><i class="ti ti-arrow-down-left" style="color:rgba(255,255,255,0.3)"></i> Vergangen</div>`;
+      html += renderGroupedList(pastItems, true, accent);
+    }
+    return html;
+  };
+
+  const matchSection = buildColumnContent(gameItems, '#c9a84c');
+  const trainSection = buildColumnContent(trainItems, '#60a5fa');
 
   mc.innerHTML=`
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
@@ -3934,7 +4634,7 @@ async function renderTermine(){
     <style>@media(max-width:900px){.termine-cols{grid-template-columns:1fr!important}}</style>`;
 }
 function openTrainingFromTermine(id){ state.trainEditId=id; const t=(typeof getTraining==='function')?getTraining(id):null; if(t&&t.date) state.trainAnchor=t.date; showView('trainings'); }
-function addTrainingFromTermine(){ if(roGuard())return; addTraining(); showView('trainings'); }
+function addTrainingFromTermine(){ if(roGuard())return; addTraining(); }
 
 function updateMatchField(id,field,val){
   if(roGuard()) return;
@@ -4926,7 +5626,7 @@ create policy attendance_all on attendance for all using (true) with check (true
       <i class="ti ti-database-cog" style="font-size:22px;color:#f59e0b"></i>
       <div style="font-size:15px;font-weight:700;color:#e2e8f0">Tabelle «attendance» fehlt noch</div>
     </div>
-    <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:14px">Lege die Tabelle einmalig an: Supabase → <b>SQL Editor</b> → einfügen, ausführen, Seite neu laden. (Die sicheren Lese-Regeln aus dem separaten RLS-Skript ersetzen die offene Policy danach.)</p>
+    <p style="font-size:13px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:14px">Lege die Tabelle einmalig an: Supabase → <b>SQL Editor</b> → einfügen, ausführen, Seite neu laden. (Die sicheren Lese-Regeln aus dem separaten RLS-Skript ersetzen die open Policy danach.)</p>
     <pre style="background:#0a121e;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:11px;color:#9fb4cc;overflow:auto;white-space:pre;line-height:1.5">${esc(sql)}</pre>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button onclick="navigator.clipboard.writeText(\`${sql.replace(/`/g,'\\`')}\`).then(()=>showSavedToast('✓ SQL kopiert'))" style="padding:9px 16px;font-size:12px;font-weight:700;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:#c9a84c;cursor:pointer"><i class="ti ti-copy"></i> SQL kopieren</button>
@@ -4984,9 +5684,246 @@ function persistTraining(id){ if(window.IS_READONLY) return; const t=getTraining
   clearTimeout(_trainSaveTimers[id]); _trainSaveTimers[id]=setTimeout(async()=>{ const {error}=await _trainUpsert(t); if(error){ console.error('persistTraining',error); showSavedToast('Training speichern fehlgeschlagen: '+(error.message||error.code||'?'),false); } },300); }
 
 function newTrainId(){ return 'tr-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6); }
-function addTraining(dateStr){ if(roGuard())return; const sc=getTrainSchema(); const t={id:newTrainId(),date:dateStr||state.trainAnchor,time_from:sc.from,time_to:sc.to,ort:sc.ort,typ:'training',titel:'',note:'',groups:[]}; state.trainings.push(t); state.trainEditId=t.id; persistTraining(t.id); renderTrainings(); }
+function addTraining(dateStr){ if(roGuard())return; openCreateTrainingModal(dateStr); }
+
+function openCreateTrainingModal(dateStr) {
+  if (roGuard()) return;
+  const sc = getTrainSchema() || { from: '18:00', to: '19:30', ort: '', days: [1, 3, 5] };
+  const defaultDate = dateStr || state.trainAnchor || new Date().toISOString().slice(0, 10);
+  const inp = 'width:100%;font-size:13px;padding:9px 11px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0;box-sizing:border-box';
+  
+  const old = document.getElementById('createTrainingModal');
+  if (old) old.remove();
+  
+  const typOpts = Object.entries(TR_TYP).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
+  
+  const wrap = document.createElement('div');
+  wrap.id = 'createTrainingModal';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.62);display:flex;align-items:center;justify-content:center;padding:18px';
+  wrap.onclick = e => { if (e.target === wrap) closeCreateTrainingModal(); };
+  
+  wrap.innerHTML = `
+    <div style="width:100%;max-width:540px;max-height:90vh;overflow:auto;background:#111d2e;border:1px solid rgba(255,255,255,0.1);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div style="width:34px;height:34px;border-radius:9px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center"><i class="ti ti-calendar-plus" style="color:#60a5fa;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:15px;font-weight:800;color:#e2e8f0">Training(s) erstellen</div><div style="font-size:10px;color:rgba(255,255,255,0.4)">Konfiguration für eine Einheit oder einen Block</div></div>
+        <button onclick="closeCreateTrainingModal()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.55);width:32px;height:32px;cursor:pointer"><i class="ti ti-x" style="font-size:16px"></i></button>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding:18px 20px">
+        <!-- Mode Toggles -->
+        <div style="display:flex;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:3px;margin-bottom:14px">
+          <button id="ct_mode_single" onclick="setCreateTrainingMode('single')" style="flex:1;padding:8px;font-size:12px;font-weight:700;border:none;border-radius:6px;cursor:pointer;background:#3b82f6;color:#fff;transition:all 0.15s">Einzelnes Training</button>
+          <button id="ct_mode_block" onclick="setCreateTrainingMode('block')" style="flex:1;padding:8px;font-size:12px;font-weight:700;border:none;border-radius:6px;cursor:pointer;background:transparent;color:rgba(255,255,255,0.6);transition:all 0.15s">Trainingsblock (mehrere Tage)</button>
+        </div>
+        
+        <!-- Single Date Container -->
+        <div id="ct_single_date_container" style="margin-bottom:12px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">DATUM</div>
+          <input type="date" id="ct_date" style="${inp}" value="${defaultDate}"/>
+        </div>
+        
+        <!-- Block Date Container -->
+        <div id="ct_block_date_container" style="display:none;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">STARTDATUM (VON)</div>
+              <input type="date" id="ct_date_start" style="${inp}" value="${defaultDate}"/>
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">ENDDATUM (BIS)</div>
+              <input type="date" id="ct_date_end" style="${inp}" value="${defaultDate}"/>
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:6px">WOCHENTAGE FÜR WIEDERHOLUNG</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${[['1','Mo',1],['2','Di',2],['3','Mi',3],['4','Do',4],['5','Fr',5],['6','Sa',6],['0','So',0]].map(([val,lbl,num]) => {
+                const isChecked = sc.days ? sc.days.includes(num) : [1,3,5].includes(num);
+                return `
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;color:#e2e8f0">
+                    <input type="checkbox" class="ct-weekday" value="${val}" ${isChecked?'checked':''} style="accent-color:#3b82f6;cursor:pointer"/> ${lbl}
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+        
+        <!-- General Details -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">UHRZEIT VON</div>
+            <input type="time" id="ct_time_from" style="${inp}" value="${sc.from || '18:00'}"/>
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">UHRZEIT BIS</div>
+            <input type="time" id="ct_time_to" style="${inp}" value="${sc.to || '19:30'}"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">ORT</div>
+            <input type="text" id="ct_ort" style="${inp}" value="${esc(sc.ort || '')}" placeholder="Sportplatz"/>
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">TRAININGSTYP</div>
+            <select id="ct_typ" style="${inp};background:#1e2a3a">${typOpts}</select>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">TITEL (OPTIONAL)</div>
+          <input type="text" id="ct_titel" style="${inp}" placeholder="z.B. Defensivverhalten"/>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:.06em;margin-bottom:4px">NOTIZ (OPTIONAL)</div>
+          <textarea id="ct_note" style="${inp};height:60px;resize:vertical;font-family:inherit" placeholder="Zusätzliche Infos..."></textarea>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid rgba(255,255,255,0.07)">
+        <button onclick="submitCreateTrainingModal()" style="padding:10px 20px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="ti ti-device-floppy"></i> Erstellen</button>
+        <button onclick="closeCreateTrainingModal()" style="padding:10px 16px;font-size:13px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.6);cursor:pointer">Abbrechen</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  wrap.dataset.mode = 'single';
+}
+
+function closeCreateTrainingModal() {
+  const m = document.getElementById('createTrainingModal');
+  if (m) m.remove();
+}
+
+function setCreateTrainingMode(mode) {
+  const isSingle = mode === 'single';
+  document.getElementById('ct_single_date_container').style.display = isSingle ? 'block' : 'none';
+  document.getElementById('ct_block_date_container').style.display = isSingle ? 'none' : 'block';
+  
+  const btnSingle = document.getElementById('ct_mode_single');
+  const btnBlock = document.getElementById('ct_mode_block');
+  
+  if (isSingle) {
+    btnSingle.style.background = '#3b82f6';
+    btnSingle.style.color = '#fff';
+    btnBlock.style.background = 'transparent';
+    btnBlock.style.color = 'rgba(255,255,255,0.6)';
+  } else {
+    btnBlock.style.background = '#3b82f6';
+    btnBlock.style.color = '#fff';
+    btnSingle.style.background = 'transparent';
+    btnSingle.style.color = 'rgba(255,255,255,0.6)';
+  }
+  
+  const modal = document.getElementById('createTrainingModal');
+  if (modal) modal.dataset.mode = mode;
+}
+
+async function submitCreateTrainingModal() {
+  if (roGuard()) return;
+  const modal = document.getElementById('createTrainingModal');
+  if (!modal) return;
+  const mode = modal.dataset.mode || 'single';
+  
+  const tf = document.getElementById('ct_time_from').value;
+  const tt = document.getElementById('ct_time_to').value;
+  const ort = document.getElementById('ct_ort').value.trim();
+  const typ = document.getElementById('ct_typ').value;
+  const titel = document.getElementById('ct_titel').value.trim();
+  const note = document.getElementById('ct_note').value.trim();
+  
+  const createdIds = [];
+  
+  if (mode === 'single') {
+    const dateStr = document.getElementById('ct_date').value;
+    if (!dateStr) { alert('Bitte ein Datum auswählen.'); return; }
+    
+    const t = {
+      id: newTrainId(),
+      date: dateStr,
+      time_from: tf,
+      time_to: tt,
+      ort: ort,
+      typ: typ,
+      titel: titel,
+      note: note,
+      groups: []
+    };
+    state.trainings.push(t);
+    persistTraining(t.id);
+    createdIds.push(t.id);
+  } else {
+    const ds = document.getElementById('ct_date_start').value;
+    const de = document.getElementById('ct_date_end').value;
+    if (!ds || !de) { alert('Bitte Start- und Enddatum auswählen.'); return; }
+    
+    const parseLocalDate = (s) => {
+      const parts = s.split('-');
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+    };
+    const start = parseLocalDate(ds);
+    const end = parseLocalDate(de);
+    if (start > end) { alert('Startdatum darf nicht nach Enddatum liegen.'); return; }
+    
+    const checkedWeekdays = Array.from(document.querySelectorAll('.ct-weekday:checked')).map(el => parseInt(el.value));
+    if (!checkedWeekdays.length) { alert('Bitte mindestens einen Wochentag auswählen.'); return; }
+    
+    let current = new Date(start);
+    while (current <= end) {
+      const day = current.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (checkedWeekdays.includes(day)) {
+        const dateStr = current.getFullYear() + '-' + 
+                        String(current.getMonth() + 1).padStart(2, '0') + '-' + 
+                        String(current.getDate()).padStart(2, '0');
+        const t = {
+          id: newTrainId(),
+          date: dateStr,
+          time_from: tf,
+          time_to: tt,
+          ort: ort,
+          typ: typ,
+          titel: titel,
+          note: note,
+          groups: []
+        };
+        state.trainings.push(t);
+        persistTraining(t.id);
+        createdIds.push(t.id);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
+  
+  if (createdIds.length === 0) {
+    alert('Kein Training erstellt. Bitte überprüfen Sie, ob die ausgewählten Wochentage in den Datumsbereich fallen.');
+    return;
+  }
+  
+  closeCreateTrainingModal();
+  
+  if (createdIds.length === 1) {
+    state.trainEditId = createdIds[0];
+    state.trainAnchor = state.trainings.find(x => x.id === createdIds[0]).date;
+  } else {
+    state.trainEditId = null;
+    const firstT = state.trainings.find(x => x.id === createdIds[0]);
+    if (firstT && firstT.date) state.trainAnchor = firstT.date;
+  }
+  
+  showSavedToast('✓ ' + createdIds.length + ' Training(s) erstellt');
+  showView('trainings');
+  renderTrainings();
+  
+  if (state.view === 'termine') {
+    renderTermine();
+  }
+}
 function deleteTraining(id){ if(roGuard())return; if(!confirm('Training wirklich löschen?'))return; state.trainings=(state.trainings||[]).filter(t=>t.id!==id); if(state.trainEditId===id)state.trainEditId=null; (async()=>{ try{ await sb.from('trainings').delete().eq('id',id); }catch(e){console.error(e);} })(); renderTrainings(); }
-function updateTraining(id,field,val){ if(roGuard())return; const t=getTraining(id); if(!t)return; t[field]=val; persistTraining(id); }
+function updateTraining(id,field,val){ if(roGuard())return; const t=getTraining(id); if(!t)return; t[field]=val; persistTraining(id); if(field==='date'||field==='typ'||field==='time_from'||field==='time_to'||field==='ort'||field==='titel') { renderTrainings(); } }
 function toggleTrainEdit(id){ state.trainEditId=(state.trainEditId===id?null:id); renderTrainings(); }
 function generateStandardWeek(){ if(roGuard())return; const sc=getTrainSchema(); const mon=mondayOf(_td(state.trainAnchor)); let n=0;
   sc.days.slice().sort().forEach(wd=>{ const off=(wd+6)%7; const d=new Date(mon); d.setDate(mon.getDate()+off); const ds=_tiso(d);
@@ -5015,7 +5952,7 @@ function _durH(t){ const a=_minOf(t.time_from),b=_minOf(t.time_to); return (a!=n
 function getGroupTemplates(){ try{ return JSON.parse(localStorage.getItem('fe12_group_templates'))||[]; }catch(e){ return []; } }
 function setGroupTemplates(a){ try{ localStorage.setItem('fe12_group_templates',JSON.stringify(a)); }catch(e){} }
 function saveGroupTemplate(id){ if(roGuard())return; const t=getTraining(id); if(!t||!(t.groups||[]).length){ showSavedToast('Keine Gruppen zum Speichern',false); return; } const name=prompt('Name der Vorlage:', t.titel||'Vorlage'); if(!name)return; const arr=getGroupTemplates(); arr.push({name:name.trim(), groups:JSON.parse(JSON.stringify(t.groups))}); setGroupTemplates(arr); showSavedToast('✓ Vorlage gespeichert'); renderTrainings(); }
-function applyGroupTemplate(id,idx){ if(roGuard())return; const tpl=getGroupTemplates()[idx]; const t=getTraining(id); if(!tpl||!t)return; t.groups=JSON.parse(JSON.stringify(tpl.groups||[])); persistTraining(id); showSavedToast('✓ Vorlage angewendet'); renderTrainings(); }
+function applyGroupTemplate(id,idx){ if(roGuard())return; const tpl=getGroupTemplates()[idx]; const t=getTraining(id); if(!t)return; t.groups=JSON.parse(JSON.stringify(tpl.groups||[])); persistTraining(id); showSavedToast('✓ Vorlage angewendet'); renderTrainings(); }
 function deleteGroupTemplate(idx){ if(roGuard())return; const arr=getGroupTemplates(); if(!arr[idx])return; if(!confirm('Vorlage „'+arr[idx].name+'" löschen?'))return; arr.splice(idx,1); setGroupTemplates(arr); renderTrainings(); }
 // Anwesenheit direkt im Training (schreibt in denselben AWK-Speicher)
 function toggleTrainAtt(id){ state.trainAttOpenId=(state.trainAttOpenId===id?null:id); renderTrainings(); }
@@ -5023,6 +5960,399 @@ function setTrainAtt(tid,pid,status){ if(roGuard())return; const t=getTraining(t
 function markTrainAllPresent(tid){ if(roGuard())return; const t=getTraining(tid); if(!t)return; PLAYERS.forEach(p=>{ const key='TR_'+tid+'_'+p.id; state.attendance[key]={id:key,player_id:p.id,date:t.date||null,type:'training',status:'present'}; _attSave(key,p.id,t.date,'training','present'); }); renderTrainings(); }
 // Training duplizieren (gleicher Tag, danach anpassbar)
 function duplicateTraining(id){ if(roGuard())return; const t=getTraining(id); if(!t)return; const c=JSON.parse(JSON.stringify(t)); c.id=newTrainId(); state.trainings.push(c); state.trainEditId=c.id; persistTraining(c.id); showSavedToast('✓ Dupliziert – Datum/Zeit anpassen'); renderTrainings(); }
+
+// SFV LEHRE SPIELPHILOSOPHIE DATENBANK & HELPER
+const SFV_LEHRE_DATA = {
+  haben: {
+    color: '#10b981',
+    bg: 'rgba(16,185,129,0.08)',
+    border: 'rgba(16,185,129,0.25)',
+    title: 'Wir haben den Ball',
+    subtitle: 'Spiel gestalten – Tor erzielen',
+    ziele: [
+      'Initiativ sein, dynamisch nach vorne spielen',
+      'Eigenes Spiel durchsetzen und Gegner dominieren',
+      'Lösungen finden, Spiel beschleunigen und Tore erzielen'
+    ],
+    prinzipien: [
+      'Alle 11 Spieler/innen beteiligen sich am Offensivspiel – zusammen angreifen, Überzahlsituationen schaffen, Gegner ins Ungleichgewicht bringen',
+      'Optimale Feldbesetzung: Breite und Tiefe nutzen und Lösungen anbieten, getimtes Freilaufen (Dreiecks- und Rhombusbildung)',
+      'Den Spielrhythmus unter Berücksichtigung von Raum und Zeit bestimmen: den direkten Weg zum gegnerischen Tor suchen (Spiel beschleunigen) bzw. konstruktiver, dynamischer Spielaufbau mit Geduld',
+      'Duell suchen und gewinnen (Zone 2 und 3)',
+      'Ideale Position einnehmen, um bei einem möglichen Ballverlust den Gegenangriff zu verhindern'
+    ],
+    zones: {
+      1: {
+        title: 'Spiel aufbauen (Zone 1)',
+        points: [
+          'Breite nutzen & präzise Pässe mit Variation kurz, lang oder diagonal',
+          'Initiative der Innenverteidiger und Einbezug der zentralen Mittelfeldspieler',
+          'Freilaufbewegungen, Orientierung, Signale erkennen',
+          'Einen «Zielspieler/in» einbeziehen',
+          'Den freien Raum erkennen und nutzen; Pass oder Dribbling in Zone 2',
+          'Fallback: Wenn nicht möglich, dann vorbereitete lange Bälle vertikal mit Ziel Ballgewinn (2. Ball)'
+        ]
+      },
+      2: {
+        title: 'Spiel bestimmen (Zone 2)',
+        points: [
+          'Spiel zwischen den Linien (Vertikalpass) mit Dreiecks- und Rhombusbildung (Einbezug der Stürmer)',
+          'Gegner fixieren im 1:1, Spielverlagerung (Diagonal) oder Dribbling in den freien Raum',
+          'Dosierte, präzise Pässe und Timing der Freilaufbewegungen (zentrale Mittelfeldspieler und Aussenspieler)',
+          'Vertikales Spiel, «Zielspieler/in» finden',
+          'Räume schaffen und besetzen, Signale erkennen'
+        ]
+      },
+      3: {
+        title: 'Angriff abschliessen (Zone 3 / Box)',
+        points: [
+          'Den freien Raum nutzen, um in Richtung gegnerisches Tor zu gelangen und abzuschliessen',
+          'Kombinationsspiel mit hoher Intensität: Doppelpass, Hinterlaufen, Kreuzen, Virgola, Spiel über Dritte (Lösungen im Rücken der gegnerischen Abwehr)',
+          'Besetzung der Box: Entschlossenheit und Qualität im Abschluss, um das Tor zu erzielen',
+          'Sprints, Signale erkennen',
+          '1:1 suchen und gewinnen'
+        ]
+      }
+    }
+  },
+  verlieren: {
+    color: '#f97316',
+    bg: 'rgba(249,115,22,0.08)',
+    border: 'rgba(249,115,22,0.25)',
+    title: 'Wir verlieren den Ball',
+    subtitle: 'Umschalten OFF – DEF',
+    ziele: [
+      'Initiative behalten, weiterhin agieren',
+      'Spielsituation rasch erkennen und blitzschnell entscheiden',
+      'Raum und Zeit für den Gegner einschränken, um Gegentor zu verhindern'
+    ],
+    prinzipien: [
+      'Den schnellen Gegenangriff verhindern (1. oder 2. Pass des Gegners nach vorne blockieren) und den direkten Weg zum eigenen Tor schliessen',
+      'Sofort individuelle Position einnehmen, um rasch das kollektive Gleichgewicht zu erlangen – den ballführenden Spieler des Gegners sofort unter Druck setzen (Prinzip der 3 Kreise)',
+      'Wenn nicht möglich: Rasche Blockbildung, um den Ball gemeinsam zu erobern',
+      'Duell suchen und gewinnen'
+    ],
+    zones: {
+      1: {
+        title: 'Tor verteidigen (Zone 1 / Box)',
+        points: [
+          'Direkten Weg zum Tor schützen',
+          'So schnell wie möglich Überzahl in Ballnähe schaffen (Pyramide bilden und Diagonale absichern)',
+          'Ballführenden Spieler unter Druck setzen',
+          'Duell suchen, Schuss und Flanke blockieren',
+          'Duell 1:1 in der Box gewinnen'
+        ]
+      },
+      2: {
+        title: 'Gegenangriff bremsen (Zone 2)',
+        points: [
+          'Ballführenden Spieler sofort unter Druck setzen, Nähe zum Gegenspieler/in suchen und vertikalen Pass verhindern (Tiefe absichern)',
+          'So schnell wie möglich Überzahl in Ballnähe schaffen (Pyramide bilden)',
+          'Fallback: Wenn nicht möglich, fallen lassen, sich organisieren, mit dem Ziel, den Ball zu erobern'
+        ]
+      },
+      3: {
+        title: 'Gegenpressing (Zone 3)',
+        points: [
+          'Nach vorne verteidigen',
+          'Ballführenden Spieler sofort unter Druck setzen',
+          'Prinzip der 3 Kreise',
+          'Fallback: Wenn nicht möglich, fallen lassen, sich organisieren, mit dem Ziel, den Ball zu erobern'
+        ]
+      }
+    }
+  },
+  habennicht: {
+    color: '#ef4444',
+    bg: 'rgba(239,68,68,0.08)',
+    border: 'rgba(239,68,68,0.25)',
+    title: 'Wir haben den Ball nicht',
+    subtitle: 'Ball erobern – Tor verhindern',
+    ziele: [
+      'Initiativ sein, agieren',
+      'Ball zurückerobern und Tor verhindern',
+      'Spiel des Gegners stören und ihn zu Fehlern zwingen (Raum und Zeit)'
+    ],
+    prinzipien: [
+      'Kompaktes Verteidigen: Alle 11 Spieler/innen beteiligen sich am Defensivspiel (optimale Positionierung)',
+      'Prinzip der 3 Kreise – Kreis 1: Ball jagen · Kreis 2: Nähe zum Gegenspieler/in und vertikale Pässe verhindern · Kreis 3: Tiefe antizipieren und absichern',
+      'Den direkten Weg zum Tor kontrollieren',
+      'Das Duell suchen und gewinnen',
+      'Die Passlinien schliessen und Fehler des Gegners provozieren',
+      'Mögliche Anspielstationen («Zielspieler/in») für das Umschalten DEF – OFF behalten'
+    ],
+    zones: {
+      1: {
+        title: 'Tief verteidigen (Zone 1 / Box)',
+        points: [
+          'Ballführenden Spieler permanent unter Druck setzen, Überzahl in Ballnähe schaffen',
+          'Steuern: Von der Gefahr weg (nach aussen)',
+          'Tiefe absichern (Pyramide oder Diagonale)',
+          'Flanken und Torschüsse blocken',
+          'In der Box: Situativ zwischen Mann- oder Raumdeckung entscheiden (Duell 1:1 in der Box gewinnen)'
+        ]
+      },
+      2: {
+        title: 'Gegner kontrollieren (Zone 2)',
+        points: [
+          'Ballführenden Spieler permanent unter Druck setzen (Mittelfeldpressing)',
+          'Prinzip der 3 Kreise',
+          'Wenn der Druck auf den ballführenden Spieler nicht (mehr) möglich ist, fallen lassen und Gegner möglichst schnell wieder unter Druck setzen',
+          'Steuern: a) Zur Überzahl (zur Mitte) · b) Von der Gefahr weg (nach aussen)'
+        ]
+      },
+      3: {
+        title: 'Hoch verteidigen (Zone 3)',
+        points: [
+          'Angriffspressing',
+          'Nach vorne verteidigen: Bei Quer-/Rückpass des Gegners',
+          'Prinzip der 3 Kreise',
+          'Ballführenden Spieler permanent unter Druck setzen, falls nicht möglich: Fallen lassen (hoch – Mitte – tief)',
+          'Den Angriff des Gegners in eine «günstige Position» steuern (nach aussen / zur Mitte)'
+        ]
+      }
+    }
+  },
+  erobern: {
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.08)',
+    border: 'rgba(251,191,36,0.25)',
+    title: 'Wir erobern den Ball',
+    subtitle: 'Umschalten DEF – OFF',
+    ziele: [
+      'Initiative behalten, weiterhin agieren',
+      'Spielsituation rasch erkennen und blitzschnell entscheiden',
+      'Verfügbaren Raum und Zeit nutzen, um Tore zu erzielen'
+    ],
+    prinzipien: [
+      'Ballgewinnzone verlassen mit der Priorität vorwärts',
+      'Sofort situative Lösungen anbieten',
+      'Vom Ungleichgewicht des Gegners in seiner Organisation profitieren – direkten Weg zum Tor suchen (freie Räume attackieren mit und ohne Ball)',
+      'Wenn nicht möglich: Ballsicherung, um einen neuen Angriff vorzubereiten'
+    ],
+    zones: {
+      1: {
+        title: 'Nach vorne spielen (Zone 1)',
+        points: [
+          'Tiefe nutzen: Direkt oder nach dem zweiten oder dritten Pass (Freilaufbewegungen)',
+          'Die Zone 2 oder 3 mit «Zielspieler/inn» suchen',
+          'Gezielter langer Ball in den Raum (in den Rücken der gegnerischen Defensive)',
+          'Fallback: Wenn nicht möglich, Ballsicherung (Spielrhythmus kontrollieren) mit dem Ziel Neuaufbau'
+        ]
+      },
+      2: {
+        title: 'In die Zone 3 spielen (Zone 2)',
+        points: [
+          '«Zielspieler/in» in der Zone 3 finden',
+          'Schnittstellenpass aus der Zone 2 in die Zone 3 oder gezielter langer Ball in den Rücken der gegnerischen Defensive',
+          'Individuelle Aktion: Einzeldurchbruch mit oder ohne Ball durch die gegnerische Abwehr',
+          'Fallback: Wenn nicht möglich, Ballsicherung (Spielrhythmus kontrollieren) mit dem Ziel Neuaufbau'
+        ]
+      },
+      3: {
+        title: 'Tor erzielen (Zone 3 / Box)',
+        points: [
+          'Gegner fixieren, 1:1 suchen und gewinnen',
+          'Dosierter, präziser 1. Pass',
+          'Pässe und Laufwege aufeinander abstimmen',
+          'Raschmöglichst, mit Entschlossenheit und Qualität abschliessen und das Tor erzielen',
+          'Fallback: Wenn nicht möglich, Ballsicherung mit dem Ziel, eine neue Spielsituation zu schaffen'
+        ]
+      }
+    }
+  }
+};
+
+function getLehreMatchForDate(dateStr) {
+  const w = trainKwData(dateStr);
+  if (!w) return null;
+
+  const text = `${w.ta || ''} ${w.te || ''} ${w.hp || ''} ${w.impulse || ''} ${w.label || ''}`.toLowerCase();
+  const matchedPhases = [];
+  const matchedZones = [];
+
+  // Phase matching
+  if (
+    (text.includes('haben') && !text.includes('nicht haben')) ||
+    text.includes('aufbauen') ||
+    text.includes('aufbau') ||
+    text.includes('bestimmen') ||
+    text.includes('angreifen') ||
+    text.includes('ballbesitz') ||
+    text.includes('offensiv') ||
+    text.includes('tore erzielen') ||
+    text.includes('angriff abschliessen')
+  ) {
+    matchedPhases.push('haben');
+  }
+  if (
+    text.includes('verlieren') ||
+    text.includes('off-def') ||
+    text.includes('umschalten off-def') ||
+    text.includes('gegenpressing') ||
+    text.includes('gegenangriff bremsen')
+  ) {
+    matchedPhases.push('verlieren');
+  }
+  if (
+    text.includes('nicht haben') ||
+    text.includes('block') ||
+    text.includes('verteidigen') ||
+    text.includes('defensiv') ||
+    text.includes('gegentor verhindern') ||
+    text.includes('tief verteidigen') ||
+    text.includes('gegner kontrollieren') ||
+    text.includes('hoch verteidigen')
+  ) {
+    matchedPhases.push('habennicht');
+  }
+  if (
+    text.includes('erobern') ||
+    text.includes('def-off') ||
+    text.includes('umschalten def-off') ||
+    text.includes('ballgewinn') ||
+    text.includes('nach vorne spielen') ||
+    text.includes('in die zone 3 spielen') ||
+    text.includes('tor erzielen')
+  ) {
+    matchedPhases.push('erobern');
+  }
+
+  // Fallbacks for general training terms
+  if (matchedPhases.length === 0) {
+    if (text.includes('angriff') || text.includes('off')) {
+      matchedPhases.push('haben');
+    } else if (text.includes('def') || text.includes('schützen') || text.includes('sichern') || text.includes('block')) {
+      matchedPhases.push('habennicht');
+    }
+  }
+
+  // Zone matching
+  const keywordsZ1 = ['z1', 'zone 1', 'aufbau', 'aufbauen', 'tief verteidigen', 'tor verteidigen', 'nach vorne spielen', 'innenverteidiger'];
+  const keywordsZ2 = ['z2', 'zone 2', 'bestimmen', 'mittelfeld', 'gegner kontrollieren', 'gegenangriff bremsen', 'in die zone 3 spielen', 'angreifen'];
+  const keywordsZ3 = ['z3', 'zone 3', 'erzielen', 'abschliessen', 'box', 'torschuss', 'tore erzielen', 'gegenpressing', 'hoch verteidigen', 'stürmer', '1:1 in der box'];
+
+  if (keywordsZ1.some(k => text.includes(k))) matchedZones.push(1);
+  if (keywordsZ2.some(k => text.includes(k))) matchedZones.push(2);
+  if (keywordsZ3.some(k => text.includes(k))) matchedZones.push(3);
+
+  if (matchedZones.length === 0) {
+    matchedZones.push(1, 2, 3);
+  }
+
+  return {
+    kw: w.kw,
+    phases: matchedPhases,
+    zones: matchedZones
+  };
+}
+
+function toggleSfvLehreCollapse(id) {
+  state.sfvLehreCollapsed = state.sfvLehreCollapsed || {};
+  state.sfvLehreCollapsed[id] = !state.sfvLehreCollapsed[id];
+  renderTrainings();
+}
+
+function getSFVLehreDetailsHTML(t) {
+  const kwMatch = getLehreMatchForDate(t.date);
+  if (!kwMatch || !kwMatch.phases || !kwMatch.phases.length) {
+    return `<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:10px;border:1px dashed rgba(255,255,255,0.1);border-radius:8px;margin-bottom:12px;text-align:center">Kein SFV Lehre Fokus für diese Woche definiert.</div>`;
+  }
+
+  state.sfvLehreCollapsed = state.sfvLehreCollapsed || {};
+  const isCollapsed = state.sfvLehreCollapsed[t.id] === true;
+
+  // Let's create badges for the title block
+  const sfvBadges = kwMatch.phases.map(p => {
+    const data = SFV_LEHRE_DATA[p];
+    return `<span style="font-size:8.5px;font-weight:800;color:${data.color};background:${data.color}22;border:1px solid ${data.color}44;border-radius:5px;padding:1px 5px;margin-right:4px">${esc(data.title)}</span>`;
+  }).join('');
+
+  if (isCollapsed) {
+    return `<div style="border:1px solid rgba(201,168,76,0.25);border-radius:9px;margin-bottom:12px;background:rgba(201,168,76,0.02);overflow:hidden">
+      <div onclick="toggleSfvLehreCollapse('${t.id}')" style="background:rgba(201,168,76,0.08);padding:8px 11px;display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+        <div style="font-size:10px;font-weight:800;color:#c9a84c;display:flex;align-items:center;gap:5px">
+          <i class="ti ti-compass"></i> SFV SPIELPHILOSOPHIE REFERENZ (KW ${kwMatch.kw})
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${sfvBadges}
+          <i class="ti ti-chevron-down" style="font-size:14px;color:#c9a84c"></i>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  let html = `<div style="border:1px solid rgba(201,168,76,0.35);border-radius:9px;margin-bottom:12px;background:rgba(201,168,76,0.03);overflow:hidden">
+    <div onclick="toggleSfvLehreCollapse('${t.id}')" style="background:rgba(201,168,76,0.12);padding:8px 11px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid rgba(201,168,76,0.2)">
+      <div style="font-size:10px;font-weight:800;color:#c9a84c;display:flex;align-items:center;gap:5px">
+        <i class="ti ti-compass"></i> SFV SPIELPHILOSOPHIE REFERENZ (KW ${kwMatch.kw})
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:8px;font-weight:700;color:rgba(255,255,255,0.4);letter-spacing:0.04em">AUTOMATISCH VERKNÜPFT</span>
+        <i class="ti ti-chevron-up" style="font-size:14px;color:#c9a84c"></i>
+      </div>
+    </div>
+    <div style="padding:12px;display:flex;flex-direction:column;gap:12px">`;
+
+  kwMatch.phases.forEach(phaseKey => {
+    const data = SFV_LEHRE_DATA[phaseKey];
+    if (!data) return;
+
+    html += `<div style="border-left:3px solid ${data.color};padding-left:10px;margin-bottom:6px">
+      <div style="display:flex;align-items:baseline;gap:6px">
+        <span style="font-size:12px;font-weight:800;color:${data.color}">${esc(data.title)}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.45);font-style:italic">${esc(data.subtitle)}</span>
+      </div>
+      
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+        <!-- Ziele -->
+        <div>
+          <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:0.04em;text-transform:uppercase">Ziele:</span>
+          <ul style="margin:2px 0 0 14px;padding:0;font-size:11px;color:rgba(255,255,255,0.75);line-height:1.4">
+            ${data.ziele.map(z => `<li style="margin-bottom:2px">${esc(z)}</li>`).join('')}
+          </ul>
+        </div>
+        
+        <!-- Prinzipien -->
+        <div style="margin-top:4px">
+          <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:0.04em;text-transform:uppercase">Prinzipien:</span>
+          <ul style="margin:2px 0 0 14px;padding:0;font-size:11px;color:rgba(255,255,255,0.75);line-height:1.4">
+            ${data.prinzipien.map(p => `<li style="margin-bottom:2px">${esc(p)}</li>`).join('')}
+          </ul>
+        </div>
+        
+        <!-- Zonen-Verhalten -->
+        <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:0.04em;text-transform:uppercase">Zonen-Verhalten:</span>`;
+
+    kwMatch.zones.forEach(zoneNum => {
+      const zone = data.zones[zoneNum];
+      if (!zone) return;
+      html += `<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:6px;padding:6px 8px;margin-top:2px">
+        <div style="font-size:10.5px;font-weight:700;color:#e8edf3;display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:${data.color};color:#000;font-size:9px;font-weight:900">${zoneNum}</span>
+          <span>${esc(zone.title)}</span>
+        </div>
+        <ul style="margin:2px 0 0 14px;padding:0;font-size:10.5px;color:rgba(255,255,255,0.65);line-height:1.4">
+          ${zone.points.map(pt => {
+            if (pt.startsWith('Fallback:')) {
+              return `<li style="list-style:none;margin-left:-14px;font-weight:700;font-size:9.5px;color:#c9a84c;margin-top:4px">${esc(pt)}</li>`;
+            }
+            return `<li style="margin-bottom:2px">${esc(pt)}</li>`;
+          }).join('')}
+        </ul>
+      </div>`;
+    });
+
+    html += `</div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  return html;
+}
+
 function trainingCardHTML(t){
   const ty=TR_TYP[t.typ]||TR_TYP.training;
   const editing=state.trainEditId===t.id;
@@ -5030,6 +6360,17 @@ function trainingCardHTML(t){
   const gN=(t.groups||[]).length;
   const inp='font-size:12px;padding:7px 9px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#e2e8f0';
   const timeChip=t.time_from?`<span style="font-size:11px;font-weight:800;color:#e8edf3;background:rgba(255,255,255,0.07);border-radius:6px;padding:3px 7px;white-space:nowrap">${esc(t.time_from)}${t.time_to?'–'+esc(t.time_to):''}</span>`:'';
+  
+  // Get matching SFV Lehre phases for badges in closed card view
+  const kwMatch = getLehreMatchForDate(t.date);
+  let sfvBadges = '';
+  if (kwMatch && kwMatch.phases && kwMatch.phases.length) {
+    sfvBadges = kwMatch.phases.map(p => {
+      const data = SFV_LEHRE_DATA[p];
+      return `<span style="font-size:8.5px;font-weight:800;color:${data.color};background:${data.color}22;border:1px solid ${data.color}44;border-radius:5px;padding:1px 5px;margin-right:4px;white-space:nowrap">${esc(data.title)}</span>`;
+    }).join('');
+  }
+
   const badges=[
     gN?`<span style="font-size:9.5px;font-weight:800;color:#c9a84c;background:rgba(201,168,76,0.13);border-radius:6px;padding:2px 7px"><i class="ti ti-users"></i> ${gN}</span>`:'',
     att.tot?`<span style="font-size:9.5px;font-weight:800;color:#22c55e;background:rgba(34,197,94,0.13);border-radius:6px;padding:2px 7px"><i class="ti ti-checks"></i> ${att.p}/${att.tot}</span>`:''
@@ -5039,7 +6380,10 @@ function trainingCardHTML(t){
     ${timeChip}
     <div style="flex:1;min-width:0">
       <div style="font-size:12.5px;font-weight:700;color:#e8edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ty.label)}${t.titel?' · '+esc(t.titel):''}</div>
-      ${t.ort?`<div style="font-size:10px;color:rgba(255,255,255,0.42);margin-top:1px"><i class="ti ti-map-pin" style="font-size:10px"></i> ${esc(t.ort)}</div>`:''}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px">
+        ${t.ort?`<span style="font-size:10px;color:rgba(255,255,255,0.42);display:inline-flex;align-items:center;gap:3px"><i class="ti ti-map-pin" style="font-size:10px"></i> ${esc(t.ort)}</span>`:''}
+        ${sfvBadges?`<span style="color:rgba(255,255,255,0.15)">·</span>${sfvBadges}`:''}
+      </div>
     </div>
     <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">${badges}</div>
     <i class="ti ti-${editing?'chevron-up':'chevron-right'}" style="font-size:16px;color:rgba(255,255,255,0.3);flex-shrink:0"></i>
