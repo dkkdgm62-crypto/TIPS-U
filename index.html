@@ -23,6 +23,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(201,168,76,0.4)!i
 .btn-nav{display:flex;align-items:center;gap:10px;padding:10px 16px;border:none;border-radius:8px;background:transparent;color:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;font-weight:400;width:100%;text-align:left;margin:2px 0;transition:all .15s}
 .btn-nav.active{background:rgba(201,168,76,0.15);color:#c9a84c;font-weight:600}
 .btn-nav:hover{background:rgba(255,255,255,0.04)}
+.nav-group{margin:4px 0}
+.nav-group-header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:transparent;color:rgba(255,255,255,0.6);cursor:pointer;font-size:13px;font-weight:600;width:100%;text-align:left;transition:all .15s}
+.nav-group-header:hover{background:rgba(255,255,255,0.04);color:#fff}
+.nav-group-content{display:none;padding-left:12px;border-left:1px solid rgba(255,255,255,0.06);margin-left:24px}
+.nav-group.open .nav-group-content{display:block}
+.nav-group-chevron{margin-left:auto;font-size:12px;transition:transform .2s ease}
+.nav-group.open .nav-group-chevron{transform:rotate(180deg)}
+.nav-group.has-active .nav-group-header{color:#c9a84c;font-weight:700}
 .cycle-btn{padding:4px 10px;font-size:11px;font-weight:700;border-radius:5px;border:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);cursor:pointer;letter-spacing:.04em;transition:all .15s}
 .cycle-btn.active{background:#c9a84c;color:#fff}
 .note-select{width:64px;font-size:12px;padding:4px 2px;background:#1e2a3a;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-weight:600;cursor:pointer;text-align:center}
@@ -518,7 +526,7 @@ body.ro .edit-only{display:none!important}
 
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
-    <div style="padding:20px 16px 16px;flex:1">
+    <div style="padding:20px 16px 16px;flex:1;overflow-y:auto;min-height:0">
       <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:11px">
         <img data-team-logo src="" alt="FE12 OB" style="width:42px;height:42px;border-radius:9px;object-fit:cover;border:1px solid rgba(255,255,255,0.12);background:#0a1018;flex-shrink:0"/>
         <div>
@@ -528,16 +536,50 @@ body.ro .edit-only{display:none!important}
       </div>
       <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.2);letter-spacing:.1em;margin-bottom:8px;padding-left:16px">NAVIGATION</div>
       <button class="btn-nav active" id="nav-dashboard" onclick="showView('dashboard')"><i class="ti ti-layout-dashboard" style="font-size:16px;flex-shrink:0"></i>Dashboard</button>
-      <button class="btn-nav" id="nav-kader" onclick="showView('kader')"><i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>Kader</button>
-      <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
-      <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
-      <button class="btn-nav" id="nav-termine" onclick="showView('termine')"><i class="ti ti-calendar-event" style="font-size:16px;flex-shrink:0"></i>Termine</button>
-      <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>AWK</button>
-      <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
-      <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
-      <button class="btn-nav" id="nav-lms" onclick="showView('lms')"><i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>Masterclass</button>
-      <button class="btn-nav" id="nav-lehre" onclick="showView('lehre')"><i class="ti ti-compass" style="font-size:16px;flex-shrink:0"></i>SFV Lehre</button>
-      <button class="btn-nav" id="nav-taktikboard" onclick="showView('taktikboard')"><i class="ti ti-soccer-field" style="font-size:16px;flex-shrink:0"></i>Taktikboard Pro</button>
+      
+      <!-- Gruppe: Kader & Entwicklung -->
+      <div class="nav-group" id="group-kader">
+        <div class="nav-group-header" onclick="toggleNavGroup('kader')">
+          <i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>
+          <span>Kader &amp; Entwicklung</span>
+          <i class="ti ti-chevron-down nav-group-chevron"></i>
+        </div>
+        <div class="nav-group-content">
+          <button class="btn-nav" id="nav-kader" onclick="showView('kader')"><i class="ti ti-users" style="font-size:16px;flex-shrink:0"></i>Kader</button>
+          <button class="btn-nav" id="nav-detail" onclick="showView('detail')"><i class="ti ti-list-check" style="font-size:16px;flex-shrink:0"></i>TIPS/U</button>
+          <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
+          <button class="btn-nav" id="nav-vergleich" onclick="showView('vergleich')"><i class="ti ti-git-compare" style="font-size:16px;flex-shrink:0"></i>Vergleich</button>
+        </div>
+      </div>
+
+      <!-- Gruppe: Planung & Termine -->
+      <div class="nav-group" id="group-planung">
+        <div class="nav-group-header" onclick="toggleNavGroup('planung')">
+          <i class="ti ti-calendar" style="font-size:16px;flex-shrink:0"></i>
+          <span>Planung &amp; Termine</span>
+          <i class="ti ti-chevron-down nav-group-chevron"></i>
+        </div>
+        <div class="nav-group-content">
+          <button class="btn-nav" id="nav-makro" onclick="showView('makro')"><i class="ti ti-calendar-stats" style="font-size:16px;flex-shrink:0"></i>Makrozyklus</button>
+          <button class="btn-nav" id="nav-termine" onclick="showView('termine')"><i class="ti ti-calendar-event" style="font-size:16px;flex-shrink:0"></i>Termine</button>
+          <button class="btn-nav" id="nav-anwesenheit" onclick="showView('anwesenheit')"><i class="ti ti-checklist" style="font-size:16px;flex-shrink:0"></i>AWK</button>
+        </div>
+      </div>
+
+      <!-- Gruppe: Ausbildung & Taktik -->
+      <div class="nav-group" id="group-ausbildung">
+        <div class="nav-group-header" onclick="toggleNavGroup('ausbildung')">
+          <i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>
+          <span>Ausbildung &amp; Taktik</span>
+          <i class="ti ti-chevron-down nav-group-chevron"></i>
+        </div>
+        <div class="nav-group-content">
+          <button class="btn-nav" id="nav-lms" onclick="showView('lms')"><i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>Masterclass</button>
+          <button class="btn-nav" id="nav-lehre" onclick="showView('lehre')"><i class="ti ti-compass" style="font-size:16px;flex-shrink:0"></i>SFV Lehre</button>
+          <button class="btn-nav" id="nav-taktikboard" onclick="showView('taktikboard')"><i class="ti ti-soccer-field" style="font-size:16px;flex-shrink:0"></i>Taktikboard Pro</button>
+        </div>
+      </div>
+
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
@@ -1389,18 +1431,38 @@ function goBack(){
   if(state.navStack.length>0){ _navBack=true; showView(state.navStack.pop()); }
   else { showView('dashboard'); }
 }
+function toggleNavGroup(groupId) {
+  const group = document.getElementById('group-' + groupId);
+  if (group) {
+    group.classList.toggle('open');
+  }
+}
 function showView(v){
   if(!state.navStack) state.navStack=[];
   if(!_navBack && state.view && state.view!==v){ state.navStack.push(state.view); if(state.navStack.length>40) state.navStack.shift(); }
   _navBack=false;
   state.view=v;
   if(v!=='player') state.editPlayer=false;
+  
+  // Navigation-Active-Klassen bereinigen
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav-group').forEach(g=>g.classList.remove('has-active'));
+  
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
   const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',lehre:'Spielphilosophie',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv',taktikboard:'Taktikboard Pro'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   if(['termine','spiele','trainings'].includes(v)){ const tn=document.getElementById('nav-termine'); if(tn) tn.classList.add('active'); }
   if(v==='player'){ const kn=document.getElementById('nav-kader'); if(kn) kn.classList.add('active'); }
+  
+  // Übergeordnete Gruppen der aktiven Buttons automatisch öffnen und markieren
+  document.querySelectorAll('.btn-nav.active').forEach(ab => {
+    const parentGroup = ab.closest('.nav-group');
+    if (parentGroup) {
+      parentGroup.classList.add('open');
+      parentGroup.classList.add('has-active');
+    }
+  });
+
   const showSearch=['dashboard','kader'].includes(v);
   document.getElementById('searchBox').style.display=showSearch?'flex':'none';
   renderCurrentView();
