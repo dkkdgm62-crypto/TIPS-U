@@ -537,6 +537,7 @@ body.ro .edit-only{display:none!important}
       <button class="btn-nav" id="nav-si" onclick="showView('si')"><i class="ti ti-clipboard-list" style="font-size:16px;flex-shrink:0"></i>SMART+</button>
       <button class="btn-nav" id="nav-lms" onclick="showView('lms')"><i class="ti ti-school" style="font-size:16px;flex-shrink:0"></i>Masterclass</button>
       <button class="btn-nav" id="nav-lehre" onclick="showView('lehre')"><i class="ti ti-compass" style="font-size:16px;flex-shrink:0"></i>SFV Lehre</button>
+      <button class="btn-nav" id="nav-taktikboard" onclick="showView('taktikboard')"><i class="ti ti-soccer-field" style="font-size:16px;flex-shrink:0"></i>Taktikboard Pro</button>
       <button class="btn-nav" id="nav-verlauf" onclick="showView('verlauf')"><i class="ti ti-history" style="font-size:16px;flex-shrink:0"></i>Verlauf / Archiv</button>
     </div>
     <div style="padding:16px;border-top:1px solid rgba(255,255,255,0.06)">
@@ -1396,7 +1397,7 @@ function showView(v){
   if(v!=='player') state.editPlayer=false;
   document.querySelectorAll('.btn-nav').forEach(b=>b.classList.remove('active'));
   const nb=document.getElementById('nav-'+v);if(nb)nb.classList.add('active');
-  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',lehre:'Spielphilosophie',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv'};
+  const titles={dashboard:'Dashboard',kader:'Kader 2026/27',player:state.selPlayer?PLAYERS.find(x=>x.id===state.selPlayer)?.name||'Spielerprofil':'Spielerprofil',detail:'TIPS/U',vergleich:'Spieler-Vergleich',si:'SMART+',lms:'Masterclass',lehre:'Spielphilosophie',termine:'Termine · Spiele & Trainings',spiele:'Termine · Spiel',trainings:'Termine · Trainings',anwesenheit:'AWK – Anwesenheit & Einsätze',makro:'Makrozyklus 2026/27',verlauf:'Verlauf & Archiv',taktikboard:'Taktikboard Pro'};
   document.getElementById('pageTitle').textContent=titles[v]||v;
   if(['termine','spiele','trainings'].includes(v)){ const tn=document.getElementById('nav-termine'); if(tn) tn.classList.add('active'); }
   if(v==='player'){ const kn=document.getElementById('nav-kader'); if(kn) kn.classList.add('active'); }
@@ -1421,6 +1422,7 @@ function renderCurrentView(){
   else if(v==='si')renderSI();
   else if(v==='lms')renderLms();
   else if(v==='lehre')renderLehre();
+  else if(v==='taktikboard')renderTaktikboard();
   else if(v==='spiele')renderSpiele();
   else if(v==='termine')renderTermine();
   else if(v==='trainings')renderTrainings();
@@ -1428,6 +1430,13 @@ function renderCurrentView(){
   else if(v==='makro')renderMakro();
   else if(v==='verlauf')renderVerlauf();
   refreshStamps();
+}
+function renderTaktikboard() {
+  document.getElementById('mainContent').innerHTML = `
+    <div style="width: 100%; height: calc(100vh - 88px); display: flex; flex-direction: column;">
+      <iframe src="./7er9er11erfooteco-taktikboard-pro.html" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #0a0f1a;"></iframe>
+    </div>
+  `;
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
