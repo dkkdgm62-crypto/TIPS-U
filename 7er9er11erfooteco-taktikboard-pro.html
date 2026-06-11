@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOOTECO | Taktikboard Pro</title>
+<style>
+  :root{
+    --bg:#0a0f1a;
+    --panel:#101827;
+    --panel2:#0d1520;
+    --line:#1e2a3d;
+    --txt:#e8edf5;
+    --txt-dim:#8b98ad;
+    --orange:#e07b39;
+    --orange-soft:rgba(224,123,57,.16);
+    --blue:#3a86f5;
+    --green:#2ecc71;
+    --red:#e74c3c;
+    --radius:10px;
+    --mono:'SF Mono','Cascadia Code',Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+
+  /* ============ HEADER ============ */
+  header{
+    display:flex;align-items:center;gap:14px;
+    padding:10px 16px;
+    background:linear-gradient(180deg,#121b2c,#0d1520);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px;font-size:15px}
+  .logo .badge{
+    width:30px;height:30px;border-radius:8px;
+    background:linear-gradient(135deg,var(--orange),#b85a1f);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;color:#fff;box-shadow:0 2px 8px rgba(224,123,57,.35);
+  }
+  .logo small{display:block;font-weight:500;color:var(--txt-dim);font-size:10px;letter-spacing:1.5px;text-transform:uppercase}
+  .spacer{flex:1}
+  .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{
+    background:none;border:none;color:var(--txt-dim);
+    padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;
+    transition:all .15s;
+  }
+  .seg button.on{background:var(--orange);color:#fff}
+  select,.hbtn{
+    background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    padding:7px 10px;border-radius:8px;font-size:12.5px;font-family:inherit;cursor:pointer;
+  }
+  .hbtn:hover{border-color:var(--orange)}
+  .hbtn.accent{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600}
+  label.hlabel{font-size:10.5px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:1px;margin-right:-6px}
+
+  /* ============ MAIN LAYOUT ============ */
+  main{flex:1;display:flex;min-height:0}
+  /* Toolbar */
+  .toolbar{
+    width:58px;background:var(--panel2);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px;
+  }
+  .tool{
+    width:42px;height:42px;border-radius:9px;border:1px solid transparent;
+    background:none;color:var(--txt-dim);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;position:relative;
+    transition:all .12s;
+  }
+  .tool:hover{background:var(--panel);color:var(--txt)}
+  .tool.on{background:var(--orange-soft);border-color:var(--orange);color:var(--orange)}
+  .tool svg{width:21px;height:21px}
+  .tdiv{width:30px;height:1px;background:var(--line);margin:5px 0}
+  .tool .tip{
+    position:absolute;left:52px;top:50%;transform:translateY(-50%);
+    background:#1a2436;border:1px solid var(--line);color:var(--txt);
+    font-size:11px;padding:4px 9px;border-radius:6px;white-space:nowrap;
+    opacity:0;pointer-events:none;transition:opacity .15s;z-index:50;
+  }
+  .tool:hover .tip{opacity:1}
+
+  /* Canvas */
+  .stage{flex:1;position:relative;min-width:0;background:radial-gradient(ellipse at 50% 30%,#0e1726 0%,#080d16 75%)}
+  #board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .stage-hint{
+    position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    background:rgba(13,21,32,.85);border:1px solid var(--line);
+    font-size:11.5px;color:var(--txt-dim);padding:5px 14px;border-radius:20px;
+    pointer-events:none;backdrop-filter:blur(4px);
+  }
+
+  /* Sidebar */
+  aside{
+    width:272px;background:var(--panel2);border-left:1px solid var(--line);
+    overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px;
+  }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+  .card h3{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--orange);
+    margin-bottom:10px;display:flex;align-items:center;gap:6px;
+  }
+  .card h3::after{content:'';flex:1;height:1px;background:var(--line)}
+  .player-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .pnum{
+    width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:15px;flex-shrink:0;border:2px solid rgba(255,255,255,.25);
+  }
+  .pnum.home{background:linear-gradient(135deg,#e07b39,#c05f1e);color:#fff}
+  .pnum.away{background:linear-gradient(135deg,#3a86f5,#1f5cc4);color:#fff}
+  .player-head input{
+    flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    padding:6px 9px;border-radius:7px;font-size:13px;font-family:inherit;min-width:0;
+  }
+  .role-tag{font-size:10px;color:var(--txt-dim);font-family:var(--mono);letter-spacing:1px}
+  .stat{margin-bottom:8px}
+  .stat .srow{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px}
+  .stat .srow b{font-family:var(--mono);font-weight:600;color:var(--txt)}
+  .stat .srow span{color:var(--txt-dim)}
+  .bar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--orange),#f0a35e)}
+  .bar i.b{background:linear-gradient(90deg,var(--blue),#6da8ff)}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding:4px 0}
+  .sw{position:relative;width:36px;height:20px;flex-shrink:0}
+  .sw input{opacity:0;width:0;height:0}
+  .sw .sl{position:absolute;inset:0;background:var(--panel2);border:1px solid var(--line);border-radius:20px;cursor:pointer;transition:.2s}
+  .sw .sl::before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--txt-dim);border-radius:50%;transition:.2s}
+  .sw input:checked + .sl{background:var(--orange);border-color:var(--orange)}
+  .sw input:checked + .sl::before{transform:translateX(15px);background:#fff}
+  .legend{font-size:11.5px;color:var(--txt-dim);line-height:1.55}
+  .legend .li{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .lswatch{width:26px;height:0;border-top:2.5px solid var(--orange);flex-shrink:0}
+  .lswatch.dash{border-top-style:dashed}
+  .lswatch.zone{width:26px;height:13px;border:1.5px dashed var(--orange);background:var(--orange-soft);border-radius:3px}
+  .api-note{
+    font-size:10.5px;color:var(--txt-dim);background:var(--panel2);
+    border:1px dashed var(--line);border-radius:7px;padding:8px;line-height:1.5;margin-top:8px;
+  }
+  .api-note b{color:var(--green)}
+  .empty-note{font-size:12px;color:var(--txt-dim);line-height:1.6;text-align:center;padding:8px 0}
+
+  /* ============ TIMELINE ============ */
+  .timeline{
+    background:var(--panel2);border-top:1px solid var(--line);
+    padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .tl-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--orange);font-weight:700;white-space:nowrap}
+  .tbtn{
+    background:var(--panel);border:1px solid var(--line);color:var(--txt);
+    padding:7px 13px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .tbtn:hover{border-color:var(--orange)}
+  .tbtn.play{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600;min-width:108px;justify-content:center}
+  .phases{display:flex;gap:8px;flex:1;overflow-x:auto;padding:2px}
+  .phase{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:8px;
+    font-size:12px;white-space:nowrap;flex-shrink:0;transition:all .15s;
+  }
+  .phase.on{border-color:var(--orange);background:var(--orange-soft)}
+  .phase .pidx{
+    width:18px;height:18px;border-radius:50%;background:var(--orange);color:#fff;
+    font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .phase input{
+    background:none;border:none;color:var(--txt);font-size:12px;font-family:inherit;
+    width:90px;outline:none;
+  }
+  .phase .pdel{color:var(--txt-dim);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+  .phase .pdel:hover{color:var(--red)}
+  #scrub{flex:1;min-width:120px;max-width:260px;accent-color:var(--orange)}
+
+  footer{
+    text-align:center;font-size:10.5px;color:var(--txt-dim);
+    padding:6px;border-top:1px solid var(--line);background:var(--bg);
+    letter-spacing:.5px;
+  }
+  footer b{color:var(--orange)}
+
+  @media (max-width:980px){
+    aside{display:none}
+    .toolbar{width:50px}
+  }
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="badge">&#9917;</div>
+    <div>FOOTECO Taktikboard <span style="color:var(--orange)">PRO</span>
+      <small>Match Analysis &amp; Set-Piece Designer</small>
+    </div>
+  </div>
+  <div class="spacer"></div>
+
+  <label class="hlabel">Ansicht</label>
+  <div class="seg" id="viewSeg">
+    <button data-view="2d" class="on">2D Vogelperspektive</button>
+    <button data-view="3d">3D Isometrie</button>
+  </div>
+
+  <label class="hlabel">Spielform</label>
+  <div class="seg" id="modeSeg">
+    <button data-mode="m11" class="on">11er</button>
+    <button data-mode="m9">9er</button>
+    <button data-mode="m7">7er</button>
+  </div>
+
+  <label class="hlabel">Formation</label>
+  <select id="formHome" title="Formation Heimteam"></select>
+  <select id="formAway" title="Formation Gegner"></select>
+
+  <button class="hbtn" id="btnHeat" title="Heatmap-Layer ein/aus">&#128293; Heatmap</button>
+  <button class="hbtn" id="btnExport" title="Board als PNG exportieren">&#11015; PNG</button>
+</header>
+
+<main>
+  <!-- ===== TOOLBAR ===== -->
+  <div class="toolbar" id="tools">
+    <button class="tool on" data-tool="move" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+      <span class="tip">Bewegen / Ausw&auml;hlen &nbsp;(V)</span>
+    </button>
+    <div class="tdiv"></div>
+    <button class="tool" data-tool="pass" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-dasharray="4 3" d="M4 20L17 7"/><path d="M13 5h6v6"/></svg>
+      <span class="tip">Passweg (gestrichelt) &nbsp;(P)</span>
+    </button>
+    <button class="tool" data-tool="run" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L17 7"/><path d="M13 5h6v6"/></svg>
+      <span class="tip">Laufweg (Pfeil) &nbsp;(L)</span>
+    </button>
+    <button class="tool" data-tool="dribble" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 19c2-3 3 1 5-2s3 1 5-2 3 1 5-2"/><path d="M16 9h5v5"/></svg>
+      <span class="tip">Dribbling (Wellenlinie) &nbsp;(D)</span>
+    </button>
+    <button class="tool" data-tool="zone" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="2" stroke-dasharray="4 3"/></svg>
+      <span class="tip">Pressing-Zone aufziehen &nbsp;(Z)</span>
+    </button>
+    <div class="tdiv"></div>
+    <button class="tool" data-tool="erase" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 13l-6 6H8l-5-5L13 4l6 6v3z"/><path d="M5 21h14"/></svg>
+      <span class="tip">Radierer (Element antippen) &nbsp;(E)</span>
+    </button>
+    <button class="tool" id="btnUndo" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg>
+      <span class="tip">R&uuml;ckg&auml;ngig &nbsp;(Strg+Z)</span>
+    </button>
+    <button class="tool" id="btnClear" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+      <span class="tip">Alle Zeichnungen l&ouml;schen</span>
+    </button>
+  </div>
+
+  <!-- ===== STAGE ===== -->
+  <div class="stage">
+    <canvas id="board"></canvas>
+    <div class="stage-hint" id="hint">Werkzeug: Bewegen &mdash; Spieler ziehen, antippen f&uuml;r Spielerdaten</div>
+  </div>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside>
+    <div class="card" id="playerCard">
+      <h3>Spielerdaten</h3>
+      <div class="empty-note" id="noSel">Spieler auf dem Board antippen,<br>um Live-Daten anzuzeigen.</div>
+      <div id="selBody" style="display:none">
+        <div class="player-head">
+          <div class="pnum home" id="selNum">9</div>
+          <div style="flex:1;min-width:0">
+            <input id="selName" value="" spellcheck="false">
+            <div class="role-tag" id="selRole">ST &middot; HEIM</div>
+          </div>
+        </div>
+        <div id="statRows"></div>
+        <div class="switch-row">
+          <span>Heatmap dieses Spielers</span>
+          <label class="sw"><input type="checkbox" id="selHeat"><span class="sl"></span></label>
+        </div>
+        <div class="api-note">
+          <b>&#9679; Daten-Schnittstelle bereit</b><br>
+          Demo-Daten aktiv. Anbindung an Live-Tracking
+          (Supabase / Opta / StatsBomb) &uuml;ber <code>loadLiveData()</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Anzeige</h3>
+      <div class="switch-row">
+        <span>Gegner anzeigen</span>
+        <label class="sw"><input type="checkbox" id="swAway" checked><span class="sl"></span></label>
+      </div>
+      <div class="switch-row">
+        <span>Spielernamen</span>
+        <label class="sw"><input type="checkbox" id="swNames" checked><span class="sl"></span></label>
+      </div>
+      <div class="switch-row">
+        <span>Team-Heatmap (Heim)</span>
+        <label class="sw"><input type="checkbox" id="swTeamHeat"><span class="sl"></span></label>
+      </div>
+      <button class="tbtn" id="btnBallCenter" style="width:100%;justify-content:center;margin-top:8px">&#9917; Ball zur Mitte</button>
+    </div>
+
+    <div class="card">
+      <h3>Legende</h3>
+      <div class="legend">
+        <div class="li"><span class="lswatch dash" style="border-color:#ffd166"></span> Passweg</div>
+        <div class="li"><span class="lswatch" style="border-color:#fff"></span> Laufweg</div>
+        <div class="li"><span class="lswatch" style="border-color:#6da8ff;border-top-style:dotted"></span> Dribbling</div>
+        <div class="li"><span class="lswatch zone"></span> Pressing-Zone</div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ===== TIMELINE ===== -->
+<div class="timeline">
+  <span class="tl-label">&#9201; Animations-Timeline</span>
+  <button class="tbtn" id="btnAddPhase">&#10133; Phase speichern</button>
+  <button class="tbtn" id="btnUpdPhase" title="Aktive Phase mit aktueller Aufstellung &uuml;berschreiben">&#128190; Aktualisieren</button>
+  <button class="tbtn play" id="btnPlay">&#9654; Abspielen</button>
+  <input type="range" id="scrub" min="0" max="0" value="0" step="1" disabled>
+  <div class="phases" id="phaseList"></div>
+</div>
+
+<footer>FOOTECO Taktikboard Pro &middot; FE12 / NLZ Edition &middot; <b>System &amp; Development by Dogus Kaplan</b></footer>
+
+<script>
+'use strict';
+/* =====================================================================
+   FOOTECO TAKTIKBOARD PRO
+   Single-File App: 2D/3D-Pitch, Zeichentools, Heatmap, Spielerdaten,
+   Animations-Timeline. Vanilla JS, Canvas-Rendering, keine Frameworks.
+   ===================================================================== */
+
+// ---------- Spielformen (Platzmasse in Metern, SFV-orientiert) ----------
+var MODES = {
+  m11: { label: '11er', count: 11, L: 105, W: 68, penD: 16.5, penW: 40.32,
+         goalD: 5.5, goalW: 18.32, circleR: 9.15, spot: 11, mouth: 7.32,
+         forms: ['4-3-3','4-2-3-1','4-4-2','3-5-2','3-4-3'],
+         defHome: '4-3-3', defAway: '4-4-2' },
+  m9:  { label: '9er',  count: 9,  L: 72,  W: 54, penD: 13,   penW: 29,
+         goalD: 0,   goalW: 0,     circleR: 7,    spot: 9,  mouth: 5,
+         forms: ['3-3-2','3-2-3','2-4-2','3-4-1'],
+         defHome: '3-2-3', defAway: '3-3-2' },
+  m7:  { label: '7er',  count: 7,  L: 50,  W: 35, penD: 9,    penW: 18,
+         goalD: 0,   goalW: 0,     circleR: 5,    spot: 8,  mouth: 5,
+         forms: ['3-2-1','2-3-1','3-1-2','2-1-3'],
+         defHome: '2-3-1', defAway: '3-2-1' }
+};
+var MODE = 'm11';
+var FIELD_L = 105, FIELD_W = 68;
+var PEN_D = 16.5, PEN_W = 40.32, GOAL_D = 5.5, GOAL_W = 18.32;
+var CIRCLE_R = 9.15, SPOT = 11, GOAL_MOUTH = 7.32;
+
+function setModeDims(){
+  var m = MODES[MODE];
+  FIELD_L = m.L; FIELD_W = m.W;
+  PEN_D = m.penD; PEN_W = m.penW;
+  GOAL_D = m.goalD; GOAL_W = m.goalW;
+  CIRCLE_R = m.circleR; SPOT = m.spot; GOAL_MOUTH = m.mouth;
+}
+
+var canvas = document.getElementById('board');
+var ctx = canvas.getContext('2d');
+var DPR = Math.max(1, window.devicePixelRatio || 1);
+
+// ---------- State ----------
+var state = {
+  view: '2d',
+  tool: 'move',
+  players: [],
+  ball: { u: 0.53, v: 0.46 },
+  drawings: [],          // {type:'pass'|'run'|'dribble', u1,v1,u2,v2} | {type:'zone',u1,v1,u2,v2,label}
+  tempDraw: null,
+  phases: [],            // {name, snap:{players:[{id,u,v}], ball:{u,v}, drawings:[...]}}
+  activePhase: -1,
+  playing: false,
+  playPos: 0,            // float index in phases
+  heatGlobal: false,
+  teamHeat: false,
+  showAway: true,
+  showNames: true,
+  selected: null,        // player id
+  heatPlayer: null
+};
+var undoStack = [];
+var dragging = null;     // {kind:'player'|'ball', id, offU, offV}
+
+// ---------- Hilfsfunktionen ----------
+function clamp(x, a, b){ return x < a ? a : (x > b ? b : x); }
+function lerp(a, b, t){ return a + (b - a) * t; }
+function ease(t){ return t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; }
+function seedRand(seed){
+  var s = seed >>> 0;
+  return function(){ s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// ---------- Projektion (2D & 3D-Isometrie) ----------
+var proj = { mode: '2d' };
+
+function computeProjection(){
+  var W = canvas.width / DPR, H = canvas.height / DPR;
+  proj.mode = state.view;
+  if (state.view === '2d') {
+    var m = 30;
+    var s = Math.min((W - 2*m) / FIELD_L, (H - 2*m) / FIELD_W);
+    proj.s = s;
+    proj.ox = (W - FIELD_L * s) / 2;
+    proj.oy = (H - FIELD_W * s) / 2;
+  } else {
+    // Trapez-Projektion: u = Laenge (x), v = Tiefe (0 = ferne Seitenlinie)
+    proj.nearW = Math.min(W * 0.92, H * 2.1);
+    proj.farW  = proj.nearW * 0.58;
+    proj.topY  = H * 0.16;
+    proj.botY  = H * 0.94;
+    proj.cx    = W / 2;
+  }
+}
+
+// Feldkoordinaten (u,v in 0..1) -> Screen
+function P(u, v){
+  if (proj.mode === '2d') {
+    return { x: proj.ox + u * FIELD_L * proj.s, y: proj.oy + v * FIELD_W * proj.s };
+  }
+  var t = v;
+  var w = lerp(proj.farW, proj.nearW, t);
+  return { x: proj.cx + (u - 0.5) * w, y: lerp(proj.topY, proj.botY, t) };
+}
+// Screen -> Feldkoordinaten
+function UP(x, y){
+  if (proj.mode === '2d') {
+    return { u: (x - proj.ox) / (FIELD_L * proj.s), v: (y - proj.oy) / (FIELD_W * proj.s) };
+  }
+  var t = clamp((y - proj.topY) / (proj.botY - proj.topY), 0, 1);
+  var w = lerp(proj.farW, proj.nearW, t);
+  return { u: (x - proj.cx) / w + 0.5, v: t };
+}
+// Skalierungsfaktor fuer Token-Groesse je Tiefe
+function depthScale(v){
+  if (proj.mode === '2d') return 1;
+  return lerp(0.62, 1.18, v);
+}
+
+// ---------- Formationen [u, v, Rolle] je Spielform ----------
+var FORMATIONS = {
+  m11: {
+    '4-3-3':   [[.055,.50,'TW'],[.17,.16,'LV'],[.145,.38,'IV'],[.145,.62,'IV'],[.17,.84,'RV'],
+                [.265,.50,'DM'],[.33,.32,'ZM'],[.33,.68,'ZM'],[.43,.16,'LF'],[.455,.50,'ST'],[.43,.84,'RF']],
+    '4-2-3-1': [[.055,.50,'TW'],[.17,.16,'LV'],[.145,.38,'IV'],[.145,.62,'IV'],[.17,.84,'RV'],
+                [.25,.40,'DM'],[.25,.60,'DM'],[.355,.18,'LM'],[.355,.50,'ZOM'],[.355,.82,'RM'],[.455,.50,'ST']],
+    '4-4-2':   [[.055,.50,'TW'],[.17,.16,'LV'],[.145,.38,'IV'],[.145,.62,'IV'],[.17,.84,'RV'],
+                [.30,.15,'LM'],[.28,.40,'ZM'],[.28,.60,'ZM'],[.30,.85,'RM'],[.44,.40,'ST'],[.44,.60,'ST']],
+    '3-5-2':   [[.055,.50,'TW'],[.15,.28,'IV'],[.135,.50,'IV'],[.15,.72,'IV'],[.27,.09,'LS'],
+                [.27,.91,'RS'],[.28,.38,'ZM'],[.28,.62,'ZM'],[.36,.50,'ZOM'],[.45,.40,'ST'],[.45,.60,'ST']],
+    '3-4-3':   [[.055,.50,'TW'],[.15,.28,'IV'],[.135,.50,'IV'],[.15,.72,'IV'],[.27,.13,'LM'],
+                [.27,.42,'ZM'],[.27,.58,'ZM'],[.27,.87,'RM'],[.42,.18,'LF'],[.455,.50,'ST'],[.42,.82,'RF']]
+  },
+  m9: {
+    '3-2-3': [[.06,.50,'TW'],[.17,.24,'RV'],[.15,.50,'IV'],[.17,.76,'LV'],
+              [.27,.38,'ZM'],[.27,.62,'ZM'],[.40,.18,'RF'],[.44,.50,'ST'],[.40,.82,'LF']],
+    '3-3-2': [[.06,.50,'TW'],[.17,.24,'RV'],[.15,.50,'IV'],[.17,.76,'LV'],
+              [.28,.24,'RM'],[.26,.50,'ZM'],[.28,.76,'LM'],[.43,.38,'ST'],[.43,.62,'ST']],
+    '2-4-2': [[.06,.50,'TW'],[.16,.36,'IV'],[.16,.64,'IV'],[.28,.14,'RM'],
+              [.26,.40,'ZM'],[.26,.60,'ZM'],[.28,.86,'LM'],[.43,.38,'ST'],[.43,.62,'ST']],
+    '3-4-1': [[.06,.50,'TW'],[.17,.24,'RV'],[.15,.50,'IV'],[.17,.76,'LV'],
+              [.28,.15,'RM'],[.26,.42,'ZM'],[.26,.58,'ZM'],[.28,.85,'LM'],[.44,.50,'ST']]
+  },
+  m7: {
+    '2-3-1': [[.07,.50,'TW'],[.18,.34,'IV'],[.18,.66,'IV'],
+              [.31,.18,'RM'],[.29,.50,'ZM'],[.31,.82,'LM'],[.44,.50,'ST']],
+    '3-2-1': [[.07,.50,'TW'],[.19,.24,'RV'],[.17,.50,'IV'],[.19,.76,'LV'],
+              [.31,.36,'ZM'],[.31,.64,'ZM'],[.44,.50,'ST']],
+    '3-1-2': [[.07,.50,'TW'],[.19,.24,'RV'],[.17,.50,'IV'],[.19,.76,'LV'],
+              [.29,.50,'ZM'],[.43,.36,'ST'],[.43,.64,'ST']],
+    '2-1-3': [[.07,.50,'TW'],[.18,.34,'IV'],[.18,.66,'IV'],[.28,.50,'ZM'],
+              [.41,.20,'RF'],[.44,.50,'ST'],[.41,.80,'LF']]
+  }
+};
+var HOME_NAMES = ['Keller','Brunner','Steiner','Huber','Meier','Frei','Baumann','Wyss','Roth','Kaplan','Moser'];
+
+function buildTeam(team, formation){
+  var pts = FORMATIONS[MODE][formation];
+  var out = [];
+  for (var i = 0; i < pts.length; i++) {
+    var p = pts[i];
+    var u = p[0], v = p[1];
+    if (team === 'away') { u = 1 - u; v = 1 - v; }
+    out.push({
+      id: team + '_' + i,
+      team: team,
+      num: i + 1,
+      name: team === 'home' ? HOME_NAMES[i] : 'Gegner ' + (i + 1),
+      role: p[2],
+      u: u, v: v
+    });
+  }
+  return out;
+}
+function applyFormation(team, formation){
+  var fresh = buildTeam(team, formation);
+  var kept = state.players.filter(function(p){ return p.team !== team; });
+  // Namen/Nummern beibehalten, falls vorhanden
+  var old = state.players.filter(function(p){ return p.team === team; });
+  for (var i = 0; i < fresh.length; i++) {
+    if (old[i]) { fresh[i].name = old[i].name; fresh[i].num = old[i].num; fresh[i].id = old[i].id; }
+  }
+  state.players = kept.concat(fresh);
+  render();
+}
+
+function fillFormationSelects(){
+  var m = MODES[MODE];
+  ['formHome', 'formAway'].forEach(function(id, idx){
+    var sel = document.getElementById(id);
+    sel.innerHTML = '';
+    m.forms.forEach(function(f){
+      var o = document.createElement('option');
+      o.value = f; o.textContent = f;
+      sel.appendChild(o);
+    });
+    sel.value = idx === 0 ? m.defHome : m.defAway;
+  });
+}
+
+function setMode(mode){
+  MODE = mode;
+  setModeDims();
+  fillFormationSelects();
+  var m = MODES[MODE];
+  state.players = buildTeam('home', m.defHome).concat(buildTeam('away', m.defAway));
+  state.ball = { u: 0.53, v: 0.46 };
+  state.drawings = [];
+  state.tempDraw = null;
+  state.phases = [];
+  state.activePhase = -1;
+  state.selected = null;
+  state.heatPlayer = null;
+  undoStack = [];
+  selectPlayer(null);
+  renderPhases();
+  render();
+  flashHint('Spielform: ' + m.label + ' Fussball (' + m.L + ' \u00D7 ' + m.W + ' m, ' + m.count + ' Spieler)');
+}
+
+// ---------- Initiales Setup ----------
+setModeDims();
+state.players = buildTeam('home', MODES.m11.defHome).concat(buildTeam('away', MODES.m11.defAway));
+
+// ---------- Pitch-Rendering ----------
+function line(u1, v1, u2, v2){
+  var a = P(u1, v1), b = P(u2, v2);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+}
+function polyline(pts, close){
+  ctx.beginPath();
+  for (var i = 0; i < pts.length; i++) {
+    var s = P(pts[i][0], pts[i][1]);
+    if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+  }
+  if (close) ctx.closePath();
+}
+function fieldCircle(cu, cv, rMeters, a0, a1){
+  // Kreis in Feldmetern, als projizierte Polyline (funktioniert in 2D & 3D)
+  a0 = (a0 === undefined) ? 0 : a0;
+  a1 = (a1 === undefined) ? Math.PI * 2 : a1;
+  var pts = [];
+  var n = 48;
+  for (var i = 0; i <= n; i++) {
+    var a = a0 + (a1 - a0) * i / n;
+    pts.push([cu + Math.cos(a) * rMeters / FIELD_L, cv + Math.sin(a) * rMeters / FIELD_W]);
+  }
+  polyline(pts, false);
+  ctx.stroke();
+}
+
+function drawPitch(){
+  var W = canvas.width / DPR, H = canvas.height / DPR;
+
+  // Rasen + Maehstreifen (Anzahl an Platzlaenge gekoppelt)
+  var nStripes = Math.max(6, Math.round(FIELD_L / 7.5));
+  for (var i = 0; i < nStripes; i++) {
+    var u0 = i / nStripes, u1 = (i + 1) / nStripes;
+    var c00 = P(u0, 0), c10 = P(u1, 0), c11 = P(u1, 1), c01 = P(u0, 1);
+    ctx.beginPath();
+    ctx.moveTo(c00.x, c00.y); ctx.lineTo(c10.x, c10.y);
+    ctx.lineTo(c11.x, c11.y); ctx.lineTo(c01.x, c01.y);
+    ctx.closePath();
+    ctx.fillStyle = (i % 2 === 0) ? '#17483a' : '#133e32';
+    ctx.fill();
+  }
+
+  // 3D: Bande / Plattenkante
+  if (proj.mode === '3d') {
+    var bl = P(0, 1), br = P(1, 1);
+    ctx.fillStyle = '#0b2a21';
+    ctx.beginPath();
+    ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y);
+    ctx.lineTo(br.x, br.y + 14); ctx.lineTo(bl.x, bl.y + 14);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Linien
+  ctx.strokeStyle = 'rgba(255,255,255,.82)';
+  ctx.lineWidth = proj.mode === '2d' ? 1.6 : 1.4;
+  polyline([[0,0],[1,0],[1,1],[0,1]], true); ctx.stroke();   // Aussenlinien
+  line(.5, 0, .5, 1);                                         // Mittellinie
+  fieldCircle(.5, .5, CIRCLE_R);                              // Mittelkreis
+  // Anstosspunkt
+  var mid = P(.5, .5);
+  ctx.beginPath(); ctx.arc(mid.x, mid.y, 2.4, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.82)'; ctx.fill();
+
+  // Strafraeume / Tore beidseitig
+  for (var side = 0; side < 2; side++) {
+    var gx = side === 0 ? 0 : 1;
+    var dir = side === 0 ? 1 : -1;
+    var pd = PEN_D / FIELD_L * dir, gd = GOAL_D / FIELD_L * dir;
+    var pw = PEN_W / FIELD_W / 2, gw = GOAL_W / FIELD_W / 2, gm = GOAL_MOUTH / FIELD_W / 2;
+    // 16er
+    polyline([[gx, .5 - pw], [gx + pd, .5 - pw], [gx + pd, .5 + pw], [gx, .5 + pw]], false); ctx.stroke();
+    // Torraum (nur 11er; 9er/7er haben keinen markierten 5er)
+    if (GOAL_D > 0) {
+      polyline([[gx, .5 - gw], [gx + gd, .5 - gw], [gx + gd, .5 + gw], [gx, .5 + gw]], false); ctx.stroke();
+    }
+    // Elfmeter-/Penaltypunkt
+    var sp = P(gx + SPOT / FIELD_L * dir, .5);
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.2, 0, 7); ctx.fill();
+    // Strafraum-Bogen (nur wenn der Kreis ueber den Strafraum hinausragt)
+    if (CIRCLE_R > PEN_D - SPOT) {
+      var cu = gx + SPOT / FIELD_L * dir;
+      var halfAng = Math.acos((PEN_D - SPOT) / CIRCLE_R);
+      var a0 = side === 0 ? -halfAng : Math.PI - halfAng;
+      var a1 = side === 0 ?  halfAng : Math.PI + halfAng;
+      fieldCircle(cu, .5, CIRCLE_R, a0, a1);
+    }
+    // Tor
+    if (proj.mode === '2d') {
+      polyline([[gx, .5 - gm], [gx - 2/FIELD_L*dir, .5 - gm], [gx - 2/FIELD_L*dir, .5 + gm], [gx, .5 + gm]], false);
+      ctx.stroke();
+    } else {
+      // 3D-Tor: Pfosten + Latte
+      var p1 = P(gx, .5 - gm), p2 = P(gx, .5 + gm);
+      var hgt = 26 * depthScale(.5) * 0.55;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y); ctx.lineTo(p1.x, p1.y - hgt);
+      ctx.lineTo(p2.x, p2.y - hgt); ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+      // Netz angedeutet
+      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = .7;
+      for (var k = 1; k < 5; k++) {
+        var xx = lerp(p1.x, p2.x, k/5);
+        ctx.beginPath(); ctx.moveTo(xx, p1.y - hgt); ctx.lineTo(xx, lerp(p1.y, p2.y, k/5)); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,.82)'; ctx.lineWidth = 1.4;
+    }
+  }
+
+  // Eckbogen
+  var cr = 1 / FIELD_L;
+  fieldCircle(0, 0, 1, 0, Math.PI/2);
+  fieldCircle(1, 0, 1, Math.PI/2, Math.PI);
+  fieldCircle(1, 1, 1, Math.PI, Math.PI*1.5);
+  fieldCircle(0, 1, 1, Math.PI*1.5, Math.PI*2);
+}
+
+// ---------- Heatmap ----------
+var heatCanvas = document.createElement('canvas');
+heatCanvas.width = 420; heatCanvas.height = 272; // Feld-Raster
+var hctx = heatCanvas.getContext('2d');
+
+function genHeatBlobs(player){
+  // deterministische Demo-Heatmap rund um Position + Rollenachse
+  var rnd = seedRand(player.num * 7919 + (player.team === 'home' ? 13 : 977));
+  var blobs = [];
+  var spreadU = player.role === 'TW' ? 0.05 : 0.16;
+  var spreadV = player.role === 'TW' ? 0.10 : 0.13;
+  for (var i = 0; i < 16; i++) {
+    blobs.push({
+      u: clamp(player.u + (rnd() - 0.5) * spreadU * 2.4, 0.02, 0.98),
+      v: clamp(player.v + (rnd() - 0.5) * spreadV * 2.4, 0.03, 0.97),
+      r: 0.05 + rnd() * 0.07,
+      a: 0.35 + rnd() * 0.5
+    });
+  }
+  blobs.push({ u: player.u, v: player.v, r: 0.085, a: 1 });
+  return blobs;
+}
+
+function renderHeatToBuffer(playersForHeat){
+  hctx.clearRect(0, 0, heatCanvas.width, heatCanvas.height);
+  hctx.globalCompositeOperation = 'lighter';
+  for (var p = 0; p < playersForHeat.length; p++) {
+    var blobs = genHeatBlobs(playersForHeat[p]);
+    var teamFactor = playersForHeat.length > 1 ? 0.45 : 1;
+    for (var i = 0; i < blobs.length; i++) {
+      var b = blobs[i];
+      var x = b.u * heatCanvas.width, y = b.v * heatCanvas.height;
+      var r = b.r * heatCanvas.width;
+      var g = hctx.createRadialGradient(x, y, 0, x, y, r);
+      var a = b.a * teamFactor;
+      g.addColorStop(0,   'rgba(231,76,60,'  + (0.55*a) + ')');
+      g.addColorStop(0.4, 'rgba(243,156,18,' + (0.40*a) + ')');
+      g.addColorStop(0.75,'rgba(46,204,113,' + (0.22*a) + ')');
+      g.addColorStop(1,   'rgba(46,204,113,0)');
+      hctx.fillStyle = g;
+      hctx.beginPath(); hctx.arc(x, y, r, 0, 7); hctx.fill();
+    }
+  }
+  hctx.globalCompositeOperation = 'source-over';
+}
+
+function drawHeatmap(){
+  var targets = [];
+  if (state.teamHeat) {
+    targets = state.players.filter(function(p){ return p.team === 'home'; });
+  } else if (state.heatPlayer) {
+    var pl = state.players.find(function(p){ return p.id === state.heatPlayer; });
+    if (pl) targets = [pl];
+  }
+  if (!targets.length) return;
+  renderHeatToBuffer(targets);
+
+  ctx.save();
+  ctx.globalAlpha = 0.72;
+  if (proj.mode === '2d') {
+    var a = P(0, 0), b = P(1, 1);
+    ctx.drawImage(heatCanvas, a.x, a.y, b.x - a.x, b.y - a.y);
+  } else {
+    // Mode-7-Streifen: Heat-Buffer zeilenweise auf das Trapez mappen
+    var strips = 56;
+    for (var i = 0; i < strips; i++) {
+      var v0 = i / strips, v1 = (i + 1) / strips;
+      var l0 = P(0, v0), r0 = P(1, v0), l1 = P(0, v1);
+      var sy = v0 * heatCanvas.height;
+      var sh = heatCanvas.height / strips;
+      ctx.drawImage(heatCanvas, 0, sy, heatCanvas.width, sh,
+                    l0.x, l0.y, r0.x - l0.x, (l1.y - l0.y) + 1);
+    }
+  }
+  ctx.restore();
+}
+
+// ---------- Zeichnungen ----------
+function arrowHead(x1, y1, x2, y2, size, color){
+  var a = Math.atan2(y2 - y1, x2 - x1);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - size * Math.cos(a - 0.45), y2 - size * Math.sin(a - 0.45));
+  ctx.lineTo(x2 - size * Math.cos(a + 0.45), y2 - size * Math.sin(a + 0.45));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawDrawing(d, temp){
+  ctx.save();
+  if (temp) ctx.globalAlpha = 0.65;
+  if (d.type === 'zone') {
+    var c = [P(d.u1, d.v1), P(d.u2, d.v1), P(d.u2, d.v2), P(d.u1, d.v2)];
+    ctx.beginPath();
+    ctx.moveTo(c[0].x, c[0].y); ctx.lineTo(c[1].x, c[1].y);
+    ctx.lineTo(c[2].x, c[2].y); ctx.lineTo(c[3].x, c[3].y);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(224,123,57,.17)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(224,123,57,.9)';
+    ctx.lineWidth = 1.6; ctx.setLineDash([7, 5]);
+    ctx.stroke(); ctx.setLineDash([]);
+    var m = P((d.u1 + d.u2) / 2, (d.v1 + d.v2) / 2);
+    ctx.fillStyle = 'rgba(255,210,170,.95)';
+    ctx.font = '700 ' + Math.round(11 * depthScale((d.v1+d.v2)/2)) + 'px \'Segoe UI\', sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(d.label || 'PRESSING', m.x, m.y);
+    ctx.restore();
+    return;
+  }
+  var a = P(d.u1, d.v1), b = P(d.u2, d.v2);
+  var lw = 2.4 * depthScale((d.v1 + d.v2) / 2) * (proj.mode === '2d' ? 1 : 0.85);
+
+  if (d.type === 'pass') {
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = lw;
+    ctx.setLineDash([9, 7]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    arrowHead(a.x, a.y, b.x, b.y, 11, '#ffd166');
+  } else if (d.type === 'run') {
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    arrowHead(a.x, a.y, b.x, b.y, 12, '#ffffff');
+  } else if (d.type === 'dribble') {
+    // Wellenlinie im Feldraum sampeln und projizieren
+    ctx.strokeStyle = '#6da8ff'; ctx.lineWidth = lw;
+    var du = d.u2 - d.u1, dv = d.v2 - d.v1;
+    var len = Math.sqrt(du*du + dv*dv) || 0.0001;
+    var nu = -dv / len, nv = du / len;
+    var waves = Math.max(3, Math.round(len * 22));
+    ctx.beginPath();
+    for (var i = 0; i <= waves * 8; i++) {
+      var t = i / (waves * 8);
+      var off = Math.sin(t * waves * Math.PI * 2) * 0.008 * (1 - t * 0.5);
+      var s = P(d.u1 + du * t + nu * off, d.v1 + dv * t + nv * off);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    }
+    ctx.stroke();
+    arrowHead(a.x, a.y, b.x, b.y, 11, '#6da8ff');
+  }
+  ctx.restore();
+}
+
+// ---------- Spieler & Ball ----------
+function drawToken(p, sel){
+  var s = P(p.u, p.v);
+  var sc = depthScale(p.v);
+  var r = 13 * sc;
+  var col1 = p.team === 'home' ? '#e07b39' : '#3a86f5';
+  var col2 = p.team === 'home' ? '#a04e15' : '#1c4fa8';
+
+  // Schatten
+  ctx.beginPath();
+  ctx.ellipse(s.x, s.y + (proj.mode === '3d' ? 2 : 1.5), r * 1.05, r * (proj.mode === '3d' ? 0.42 : 0.95), 0, 0, 7);
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.fill();
+
+  var ty = proj.mode === '3d' ? s.y - r * 0.85 : s.y;
+
+  // Auswahlring
+  if (sel) {
+    ctx.beginPath(); ctx.arc(s.x, ty, r + 4.5, 0, 7);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Token
+  var g = ctx.createRadialGradient(s.x - r*0.35, ty - r*0.4, r*0.2, s.x, ty, r);
+  g.addColorStop(0, col1); g.addColorStop(1, col2);
+  ctx.beginPath(); ctx.arc(s.x, ty, r, 0, 7);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.6 * sc;
+  ctx.stroke();
+
+  // Nummer
+  ctx.fillStyle = '#fff';
+  ctx.font = '800 ' + Math.round(11.5 * sc) + 'px \'Segoe UI\', sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(p.num), s.x, ty + 0.5);
+
+  // Name
+  if (state.showNames) {
+    ctx.font = '600 ' + Math.round(9.5 * sc) + 'px \'Segoe UI\', sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.78)';
+    ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2.5;
+    var ny = ty + r + 10 * sc;
+    ctx.strokeText(p.name, s.x, ny);
+    ctx.fillText(p.name, s.x, ny);
+  }
+}
+
+function drawBall(b){
+  var s = P(b.u, b.v);
+  var sc = depthScale(b.v);
+  var r = 9.5 * sc;
+  var by = proj.mode === '3d' ? s.y - r * 0.9 : s.y;
+
+  // Schatten
+  ctx.beginPath();
+  ctx.ellipse(s.x, s.y + 2, r * 0.95, r * (proj.mode === '3d' ? 0.38 : 0.85), 0, 0, 7);
+  ctx.fillStyle = 'rgba(0,0,0,.38)'; ctx.fill();
+
+  // Oranger Markierungs-Glow + Ring (damit der Ball nie untergeht)
+  var glow = ctx.createRadialGradient(s.x, by, r, s.x, by, r * 2.2);
+  glow.addColorStop(0, 'rgba(224,123,57,.45)');
+  glow.addColorStop(1, 'rgba(224,123,57,0)');
+  ctx.beginPath(); ctx.arc(s.x, by, r * 2.2, 0, 7);
+  ctx.fillStyle = glow; ctx.fill();
+  ctx.beginPath(); ctx.arc(s.x, by, r + 3, 0, 7);
+  ctx.strokeStyle = 'rgba(224,123,57,.95)'; ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  // Ballkoerper
+  var g = ctx.createRadialGradient(s.x - r*0.35, by - r*0.35, r*0.15, s.x, by, r);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#c4cbd6');
+  ctx.beginPath(); ctx.arc(s.x, by, r, 0, 7);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#2c333f'; ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // Klassisches Pentagon-Muster
+  ctx.fillStyle = '#2c333f';
+  var pr = r * 0.34;
+  ctx.beginPath();
+  for (var i = 0; i < 5; i++) {
+    var a = -Math.PI/2 + i * Math.PI*2/5;
+    var px = s.x + Math.cos(a) * pr, py = by + Math.sin(a) * pr;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  // Naehte zu den Randfuenfecken
+  ctx.strokeStyle = 'rgba(44,51,63,.65)'; ctx.lineWidth = 1;
+  for (var j = 0; j < 5; j++) {
+    var a2 = -Math.PI/2 + j * Math.PI*2/5;
+    ctx.beginPath();
+    ctx.moveTo(s.x + Math.cos(a2) * pr, by + Math.sin(a2) * pr);
+    ctx.lineTo(s.x + Math.cos(a2) * r * 0.92, by + Math.sin(a2) * r * 0.92);
+    ctx.stroke();
+  }
+}
+
+// ---------- Haupt-Render ----------
+function visiblePlayers(){
+  return state.players.filter(function(p){ return state.showAway || p.team === 'home'; });
+}
+
+function render(override){
+  var W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * DPR) || canvas.height !== Math.round(H * DPR)) {
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  computeProjection();
+
+  drawPitch();
+  if (state.heatGlobal || state.teamHeat || state.heatPlayer) drawHeatmap();
+
+  // Zeichnungen
+  var dws = override && override.drawings ? override.drawings : state.drawings;
+  for (var i = 0; i < dws.length; i++) drawDrawing(dws[i], false);
+  if (state.tempDraw) drawDrawing(state.tempDraw, true);
+
+  // Spieler (im 3D-Modus nach Tiefe sortieren)
+  var ps = visiblePlayers().slice();
+  var pos = override && override.positions ? override.positions : null;
+  function getUV(p){ return pos && pos[p.id] ? pos[p.id] : p; }
+  if (proj.mode === '3d') ps.sort(function(a, b){ return getUV(a).v - getUV(b).v; });
+  for (var j = 0; j < ps.length; j++) {
+    var pp = ps[j], uv = getUV(pp);
+    drawToken({ u: uv.u, v: uv.v, num: pp.num, name: pp.name, team: pp.team }, pp.id === state.selected);
+  }
+  drawBall(override && override.ball ? override.ball : state.ball);
+}
+
+// ---------- Hit-Tests ----------
+function hitPlayer(x, y){
+  var ps = visiblePlayers();
+  var best = null, bd = 1e9;
+  for (var i = 0; i < ps.length; i++) {
+    var s = P(ps[i].u, ps[i].v);
+    var ty = proj.mode === '3d' ? s.y - 13 * depthScale(ps[i].v) * 0.85 : s.y;
+    var d = Math.hypot(x - s.x, y - ty);
+    if (d < 18 * depthScale(ps[i].v) && d < bd) { bd = d; best = ps[i]; }
+  }
+  return best;
+}
+function hitBall(x, y){
+  var s = P(state.ball.u, state.ball.v);
+  var by = proj.mode === '3d' ? s.y - 9.5 * depthScale(state.ball.v) * 0.9 : s.y;
+  return Math.hypot(x - s.x, y - by) < 20;
+}
+function distToSeg(px, py, x1, y1, x2, y2){
+  var dx = x2 - x1, dy = y2 - y1;
+  var l2 = dx*dx + dy*dy;
+  var t = l2 ? clamp(((px - x1) * dx + (py - y1) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+function hitDrawing(x, y){
+  for (var i = state.drawings.length - 1; i >= 0; i--) {
+    var d = state.drawings[i];
+    if (d.type === 'zone') {
+      var a = P(Math.min(d.u1, d.u2), Math.min(d.v1, d.v2));
+      var b = P(Math.max(d.u1, d.u2), Math.max(d.v1, d.v2));
+      // grob: in 3D ueber Feldkoordinaten testen
+      var uv = UP(x, y);
+      if (uv.u >= Math.min(d.u1,d.u2) && uv.u <= Math.max(d.u1,d.u2) &&
+          uv.v >= Math.min(d.v1,d.v2) && uv.v <= Math.max(d.v1,d.v2)) return i;
+    } else {
+      var s1 = P(d.u1, d.v1), s2 = P(d.u2, d.v2);
+      if (distToSeg(x, y, s1.x, s1.y, s2.x, s2.y) < 11) return i;
+    }
+  }
+  return -1;
+}
+
+// ---------- Pointer-Events ----------
+function evtXY(e){
+  var r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+canvas.addEventListener('pointerdown', function(e){
+  if (state.playing) return;
+  canvas.setPointerCapture(e.pointerId);
+  var pt = evtXY(e);
+  var uv = UP(pt.x, pt.y);
+
+  if (state.tool === 'move') {
+    if (hitBall(pt.x, pt.y)) { dragging = { kind: 'ball' }; return; }
+    var p = hitPlayer(pt.x, pt.y);
+    if (p) {
+      dragging = { kind: 'player', id: p.id };
+      selectPlayer(p.id);
+      render();
+    } else {
+      selectPlayer(null); render();
+    }
+  } else if (state.tool === 'erase') {
+    var idx = hitDrawing(pt.x, pt.y);
+    if (idx >= 0) { pushUndo(); state.drawings.splice(idx, 1); render(); }
+  } else {
+    // Zeichenwerkzeuge
+    state.tempDraw = {
+      type: state.tool,
+      u1: clamp(uv.u, 0, 1), v1: clamp(uv.v, 0, 1),
+      u2: clamp(uv.u, 0, 1), v2: clamp(uv.v, 0, 1),
+      label: state.tool === 'zone' ? 'PRESSING' : undefined
+    };
+  }
+});
+
+canvas.addEventListener('pointermove', function(e){
+  if (state.playing) return;
+  var pt = evtXY(e);
+  var uv = UP(pt.x, pt.y);
+  if (dragging) {
+    if (dragging.kind === 'ball') {
+      state.ball.u = clamp(uv.u, 0, 1); state.ball.v = clamp(uv.v, 0, 1);
+    } else {
+      var p = state.players.find(function(q){ return q.id === dragging.id; });
+      if (p) { p.u = clamp(uv.u, 0, 1); p.v = clamp(uv.v, 0, 1); }
+    }
+    render();
+  } else if (state.tempDraw) {
+    state.tempDraw.u2 = clamp(uv.u, 0, 1);
+    state.tempDraw.v2 = clamp(uv.v, 0, 1);
+    render();
+  }
+});
+
+canvas.addEventListener('pointerup', function(e){
+  if (dragging) { dragging = null; return; }
+  if (state.tempDraw) {
+    var d = state.tempDraw;
+    var minLen = Math.hypot(d.u2 - d.u1, d.v2 - d.v1);
+    state.tempDraw = null;
+    if (minLen > 0.015) { pushUndo(); state.drawings.push(d); }
+    render();
+  }
+});
+
+// ---------- Undo ----------
+function pushUndo(){
+  undoStack.push(JSON.stringify(state.drawings));
+  if (undoStack.length > 60) undoStack.shift();
+}
+function undo(){
+  if (!undoStack.length) return;
+  state.drawings = JSON.parse(undoStack.pop());
+  render();
+}
+
+// ---------- Spielerauswahl & Demo-Statistiken ----------
+function demoStats(p){
+  var rnd = seedRand(p.num * 31337 + (p.team === 'home' ? 5 : 11));
+  function v(min, max, dec){ return (min + rnd() * (max - min)).toFixed(dec === undefined ? 1 : dec); }
+  var off = ['ST','LF','RF','ZOM'].indexOf(p.role) >= 0;
+  return [
+    { l: 'Distanz',        val: v(8.4, 12.3) + ' km',   pct: rnd()*40+55 },
+    { l: 'Sprints (>25 km/h)', val: v(12, 38, 0),       pct: rnd()*45+45 },
+    { l: 'Top-Speed',      val: v(28.5, 35.2) + ' km/h',pct: rnd()*35+58 },
+    { l: 'Passquote',      val: v(72, 94, 0) + ' %',    pct: rnd()*25+68, b: true },
+    { l: 'Zweik&auml;mpfe gewonnen', val: v(42, 71, 0) + ' %', pct: rnd()*35+45, b: true },
+    { l: off ? 'xG + xA' : 'Ballaktionen', val: off ? v(0.12, 0.85, 2) : v(38, 96, 0), pct: rnd()*50+40, b: true }
+  ];
+}
+
+function selectPlayer(id){
+  state.selected = id;
+  var noSel = document.getElementById('noSel');
+  var body = document.getElementById('selBody');
+  if (!id) { noSel.style.display = ''; body.style.display = 'none'; return; }
+  var p = state.players.find(function(q){ return q.id === id; });
+  if (!p) return;
+  noSel.style.display = 'none'; body.style.display = '';
+  var numEl = document.getElementById('selNum');
+  numEl.textContent = p.num;
+  numEl.className = 'pnum ' + p.team;
+  document.getElementById('selName').value = p.name;
+  document.getElementById('selRole').textContent = p.role + ' \u00B7 ' + (p.team === 'home' ? 'HEIM' : 'GEGNER');
+  document.getElementById('selHeat').checked = state.heatPlayer === id;
+
+  var rows = demoStats(p);
+  var html = '';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    html += '<div class="stat"><div class="srow"><span>' + r.l + '</span><b>' + r.val + '</b></div>' +
+            '<div class="bar"><i' + (r.b ? ' class="b"' : '') + ' style="width:' + Math.round(r.pct) + '%"></i></div></div>';
+  }
+  document.getElementById('statRows').innerHTML = html;
+}
+
+document.getElementById('selName').addEventListener('input', function(){
+  var p = state.players.find(function(q){ return q.id === state.selected; });
+  if (p) { p.name = this.value; render(); }
+});
+document.getElementById('selHeat').addEventListener('change', function(){
+  state.heatPlayer = this.checked ? state.selected : null;
+  if (this.checked) { state.teamHeat = false; document.getElementById('swTeamHeat').checked = false; }
+  render();
+});
+
+// Schnittstelle fuer echte Tracking-Daten (Supabase / Provider-API)
+function loadLiveData(playerId, payload){
+  /* Erwartetes Format: { distanz, sprints, topspeed, passquote, zweikaempfe, heatmapBlobs:[{u,v,r,a}] }
+     Hier andocken: Supabase-RPC oder Provider-Webhook. */
+  console.log('loadLiveData bereit:', playerId, payload);
+}
+
+// ---------- Timeline / Phasen ----------
+function snapshot(){
+  return {
+    players: state.players.map(function(p){ return { id: p.id, u: p.u, v: p.v }; }),
+    ball: { u: state.ball.u, v: state.ball.v },
+    drawings: JSON.parse(JSON.stringify(state.drawings))
+  };
+}
+function applySnapshot(s){
+  for (var i = 0; i < s.players.length; i++) {
+    var p = state.players.find(function(q){ return q.id === s.players[i].id; });
+    if (p) { p.u = s.players[i].u; p.v = s.players[i].v; }
+  }
+  state.ball = { u: s.ball.u, v: s.ball.v };
+  state.drawings = JSON.parse(JSON.stringify(s.drawings));
+}
+
+var PHASE_NAMES = ['Anlauf', 'Block', 'Abschluss', 'Umschalten', 'Phase 5', 'Phase 6', 'Phase 7', 'Phase 8'];
+
+function addPhase(){
+  var name = PHASE_NAMES[Math.min(state.phases.length, PHASE_NAMES.length - 1)];
+  state.phases.push({ name: name, snap: snapshot() });
+  state.activePhase = state.phases.length - 1;
+  renderPhases();
+}
+function updatePhase(){
+  if (state.activePhase < 0) return;
+  state.phases[state.activePhase].snap = snapshot();
+  flashHint('Phase \u201E' + state.phases[state.activePhase].name + '\u201C aktualisiert');
+}
+function renderPhases(){
+  var list = document.getElementById('phaseList');
+  list.innerHTML = '';
+  state.phases.forEach(function(ph, i){
+    var el = document.createElement('div');
+    el.className = 'phase' + (i === state.activePhase ? ' on' : '');
+    var idx = document.createElement('div'); idx.className = 'pidx'; idx.textContent = i + 1;
+    var inp = document.createElement('input'); inp.value = ph.name;
+    inp.addEventListener('input', function(){ ph.name = inp.value; });
+    inp.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+    var del = document.createElement('span'); del.className = 'pdel'; del.innerHTML = '&times;';
+    del.addEventListener('click', function(e){
+      e.stopPropagation();
+      state.phases.splice(i, 1);
+      if (state.activePhase >= state.phases.length) state.activePhase = state.phases.length - 1;
+      renderPhases();
+    });
+    el.appendChild(idx); el.appendChild(inp); el.appendChild(del);
+    el.addEventListener('click', function(){
+      state.activePhase = i;
+      applySnapshot(ph.snap);
+      renderPhases(); render();
+    });
+    list.appendChild(el);
+  });
+  var scrub = document.getElementById('scrub');
+  scrub.max = Math.max(0, (state.phases.length - 1) * 100);
+  scrub.disabled = state.phases.length < 2;
+}
+
+function interpolated(pos){
+  // pos: float 0..n-1 -> Positionen/Ball/Drawings fuer render(override)
+  var k = Math.floor(pos);
+  var k2 = Math.min(k + 1, state.phases.length - 1);
+  var f = ease(pos - k);
+  var A = state.phases[k].snap, B = state.phases[k2].snap;
+  var positions = {};
+  for (var i = 0; i < A.players.length; i++) {
+    var a = A.players[i];
+    var b = B.players.find(function(q){ return q.id === a.id; }) || a;
+    positions[a.id] = { u: lerp(a.u, b.u, f), v: lerp(a.v, b.v, f) };
+  }
+  return {
+    positions: positions,
+    ball: { u: lerp(A.ball.u, B.ball.u, f), v: lerp(A.ball.v, B.ball.v, f) },
+    drawings: (f < 0.5 ? A : B).drawings
+  };
+}
+
+var playRAF = null;
+function play(){
+  if (state.phases.length < 2) { flashHint('Mindestens 2 Phasen speichern, um abzuspielen'); return; }
+  if (state.playing) { stopPlay(); return; }
+  state.playing = true;
+  document.getElementById('btnPlay').innerHTML = '&#9632; Stopp';
+  var dur = 1500; // ms pro Phase
+  var t0 = performance.now();
+  var total = (state.phases.length - 1) * dur;
+  function frame(t){
+    var el = t - t0;
+    if (el >= total) {
+      applySnapshot(state.phases[state.phases.length - 1].snap);
+      state.activePhase = state.phases.length - 1;
+      stopPlay(); renderPhases(); render();
+      return;
+    }
+    var pos = el / dur;
+    document.getElementById('scrub').value = Math.round(pos * 100);
+    render(interpolated(pos));
+    playRAF = requestAnimationFrame(frame);
+  }
+  playRAF = requestAnimationFrame(frame);
+}
+function stopPlay(){
+  state.playing = false;
+  if (playRAF) cancelAnimationFrame(playRAF);
+  document.getElementById('btnPlay').innerHTML = '&#9654; Abspielen';
+}
+
+document.getElementById('scrub').addEventListener('input', function(){
+  if (state.phases.length < 2) return;
+  stopPlay();
+  render(interpolated(this.value / 100));
+});
+
+// ---------- UI-Verdrahtung ----------
+var TOOL_HINTS = {
+  move:   'Werkzeug: Bewegen \u2014 Spieler ziehen, antippen f\u00FCr Spielerdaten',
+  pass:   'Werkzeug: Passweg \u2014 von Startpunkt zum Ziel ziehen (gestrichelt)',
+  run:    'Werkzeug: Laufweg \u2014 von Spieler in Laufrichtung ziehen (Pfeil)',
+  dribble:'Werkzeug: Dribbling \u2014 Wellenlinie von Start zu Ziel ziehen',
+  zone:   'Werkzeug: Pressing-Zone \u2014 Rechteck \u00FCber den Raum aufziehen',
+  erase:  'Werkzeug: Radierer \u2014 Linie oder Zone antippen zum L\u00F6schen'
+};
+function setTool(t){
+  state.tool = t;
+  document.querySelectorAll('#tools .tool[data-tool]').forEach(function(b){
+    b.classList.toggle('on', b.dataset.tool === t);
+  });
+  document.getElementById('hint').textContent = TOOL_HINTS[t];
+  canvas.style.cursor = t === 'move' ? 'grab' : 'crosshair';
+}
+document.querySelectorAll('#tools .tool[data-tool]').forEach(function(b){
+  b.addEventListener('click', function(){ setTool(b.dataset.tool); });
+});
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnClear').addEventListener('click', function(){
+  if (!state.drawings.length) return;
+  pushUndo(); state.drawings = []; render();
+});
+
+document.querySelectorAll('#viewSeg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    state.view = b.dataset.view;
+    document.querySelectorAll('#viewSeg button').forEach(function(q){ q.classList.toggle('on', q === b); });
+    render();
+  });
+});
+
+document.querySelectorAll('#modeSeg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    if (MODE === b.dataset.mode) return;
+    stopPlay();
+    document.querySelectorAll('#modeSeg button').forEach(function(q){ q.classList.toggle('on', q === b); });
+    setMode(b.dataset.mode);
+  });
+});
+
+document.getElementById('formHome').addEventListener('change', function(){ applyFormation('home', this.value); });
+document.getElementById('formAway').addEventListener('change', function(){ applyFormation('away', this.value); });
+
+document.getElementById('btnHeat').addEventListener('click', function(){
+  // Schneller Toggle: Team-Heatmap Heim
+  state.teamHeat = !state.teamHeat;
+  if (state.teamHeat) state.heatPlayer = null;
+  document.getElementById('swTeamHeat').checked = state.teamHeat;
+  this.style.borderColor = state.teamHeat ? 'var(--orange)' : '';
+  this.style.color = state.teamHeat ? 'var(--orange)' : '';
+  render();
+});
+document.getElementById('swTeamHeat').addEventListener('change', function(){
+  state.teamHeat = this.checked;
+  if (this.checked) state.heatPlayer = null;
+  render();
+});
+document.getElementById('swAway').addEventListener('change', function(){
+  state.showAway = this.checked; render();
+});
+document.getElementById('swNames').addEventListener('change', function(){
+  state.showNames = this.checked; render();
+});
+
+document.getElementById('btnBallCenter').addEventListener('click', function(){
+  state.ball = { u: 0.53, v: 0.46 };
+  flashHint('Ball zur\u00FCck zur Mitte');
+  render();
+});
+
+document.getElementById('btnAddPhase').addEventListener('click', addPhase);
+document.getElementById('btnUpdPhase').addEventListener('click', updatePhase);
+document.getElementById('btnPlay').addEventListener('click', play);
+
+document.getElementById('btnExport').addEventListener('click', function(){
+  var a = document.createElement('a');
+  a.download = 'footeco-taktikboard.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+// Tastatur-Shortcuts
+document.addEventListener('keydown', function(e){
+  if (e.target.tagName === 'INPUT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  var map = { v:'move', p:'pass', l:'run', d:'dribble', z:'zone', e:'erase' };
+  var t = map[e.key.toLowerCase()];
+  if (t) setTool(t);
+});
+
+// Hinweis-Flash
+var hintTimer = null;
+function flashHint(msg){
+  var h = document.getElementById('hint');
+  h.textContent = msg;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(function(){ h.textContent = TOOL_HINTS[state.tool]; }, 2500);
+}
+
+// ---------- Resize & Start ----------
+var ro = new ResizeObserver(function(){ render(); });
+ro.observe(canvas);
+window.addEventListener('resize', render);
+fillFormationSelects();
+render();
+renderPhases();
+</script>
+</body>
+</html>
