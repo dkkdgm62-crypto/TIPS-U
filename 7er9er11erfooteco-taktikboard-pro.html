@@ -1411,6 +1411,8 @@ function fsElement(){ return document.fullscreenElement || document.webkitFullsc
 function enterTablet(){
   tabletOn = true;
   document.body.classList.add('tablet');
+  // In der FE12-App (iframe): Eltern-Seite bittet um reine Vollansicht (iPad kann kein iframe-Fullscreen)
+  try { if (window.parent !== window) window.parent.postMessage({ type: 'tb-tablet', on: true }, '*'); } catch (e) {}
   var de = document.documentElement;
   try {
     if (de.requestFullscreen) de.requestFullscreen();
@@ -1427,6 +1429,7 @@ function enterTablet(){
 function exitTablet(){
   tabletOn = false;
   document.body.classList.remove('tablet');
+  try { if (window.parent !== window) window.parent.postMessage({ type: 'tb-tablet', on: false }, '*'); } catch (e) {}
   if (screen.orientation && screen.orientation.unlock) {
     try { screen.orientation.unlock(); } catch (e) {}
   }
