@@ -213,6 +213,17 @@
     background:rgba(13,21,32,.88);border:1px solid var(--line);color:var(--txt);
     font-size:20px;cursor:pointer;backdrop-filter:blur(5px)}
   body.tablet #sunFloat.on{border-color:var(--orange);color:var(--orange);background:var(--orange-soft)}
+  #tabletCtrl{display:none}
+  body.tablet #tabletCtrl{display:flex;position:absolute;top:12px;left:12px;z-index:60;
+    gap:8px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 150px)}
+  body.tablet #tabletCtrl .tc-seg{display:flex;background:rgba(13,21,32,.9);
+    border:1px solid var(--line);border-radius:11px;overflow:hidden;backdrop-filter:blur(5px)}
+  body.tablet #tabletCtrl .tc-seg button{background:none;border:none;color:var(--txt-dim);
+    padding:11px 15px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit}
+  body.tablet #tabletCtrl .tc-seg button.on{background:var(--orange);color:#fff}
+  body.tablet #tabletCtrl select{background:rgba(13,21,32,.9);border:1px solid var(--line);
+    color:var(--txt);padding:11px 12px;border-radius:11px;font-size:14px;font-weight:600;
+    font-family:inherit;backdrop-filter:blur(5px);cursor:pointer}
   /* iPad-Fallback: Geraet quer -> Inhalt per CSS zurueck ins Hochformat drehen */
   body.rotp{position:absolute;overflow:hidden}
   body.rotp.rl{transform:rotate(-90deg);transform-origin:left top;width:100vh;height:100vw;top:100%;left:0}
@@ -305,6 +316,15 @@
     <div class="stage-hint" id="hint">Werkzeug: Bewegen &mdash; Spieler ziehen, antippen f&uuml;r Spielerdaten</div>
     <button id="sunFloat" title="Sonnenmodus">&#9728;&#65039;</button>
     <button id="tabletExit" title="Tablet-Modus beenden">&#10005;</button>
+    <div id="tabletCtrl">
+      <div class="tc-seg" id="tcMode">
+        <button data-mode="m11" class="on">11er</button>
+        <button data-mode="m9">9er</button>
+        <button data-mode="m7">7er</button>
+      </div>
+      <select id="tcFormHome" title="Formation Heim"></select>
+      <select id="tcFormAway" title="Formation Gegner"></select>
+    </div>
   </div>
 
   <!-- ===== SIDEBAR ===== -->
@@ -1415,7 +1435,9 @@ function enterTablet(){
   // iPad-Safari erlaubt einem iframe KEIN Vollbild und kein Ausbrechen aus der App.
   // Loesung: Board als eigene, alleinstehende Vollseite oeffnen -> nur Feld, keine FE12-Navigation.
   if (inIframe() && !isStandalone()) {
-    var url = location.pathname + '?tablet=1';
+    var url = location.pathname + '?tablet=1&mode=' + MODE
+            + '&fh=' + encodeURIComponent(document.getElementById('formHome').value)
+            + '&fa=' + encodeURIComponent(document.getElementById('formAway').value);
     var win = null;
     try { win = window.open(url, '_blank'); } catch (e) {}
     if (!win) {
@@ -1491,6 +1513,46 @@ document.addEventListener('webkitfullscreenchange', function(){ if (!fsElement()
 document.getElementById('btnTablet').addEventListener('click', enterTablet);
 document.getElementById('tabletExit').addEventListener('click', exitTablet);
 
+// ---------- Tablet-Steuerpanel (Spielform & Formation im Vollbild) ----------
+function fillTabletForms(){
+  var m = MODES[MODE];
+  [['tcFormHome', m.defHome, 'formHome'], ['tcFormAway', m.defAway, 'formAway']].forEach(function(t){
+    var sel = document.getElementById(t[0]);
+    if (!sel) return;
+    var cur = document.getElementById(t[2]).value || t[1];
+    sel.innerHTML = '';
+    m.forms.forEach(function(f){
+      var o = document.createElement('option');
+      o.value = f; o.textContent = f;
+      sel.appendChild(o);
+    });
+    sel.value = cur;
+  });
+}
+function syncTabletMode(){
+  document.querySelectorAll('#tcMode button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.mode === MODE);
+  });
+  fillTabletForms();
+}
+document.querySelectorAll('#tcMode button').forEach(function(b){
+  b.addEventListener('click', function(){
+    if (MODE === b.dataset.mode) return;
+    stopPlay();
+    document.querySelectorAll('#modeSeg button').forEach(function(q){ q.classList.toggle('on', q.dataset.mode === b.dataset.mode); });
+    setMode(b.dataset.mode);
+    syncTabletMode();
+  });
+});
+document.getElementById('tcFormHome').addEventListener('change', function(){
+  document.getElementById('formHome').value = this.value;
+  applyFormation('home', this.value);
+});
+document.getElementById('tcFormAway').addEventListener('change', function(){
+  document.getElementById('formAway').value = this.value;
+  applyFormation('away', this.value);
+});
+
 // ---------- Sonnenmodus (Hochkontrast fuer draussen) ----------
 function syncSunUI(){
   var on = state.sunMode;
@@ -1518,6 +1580,18 @@ renderPhases();
 
 // Alleinstehend mit ?tablet=1 geoeffnet -> direkt in die reine Tablet-Vollansicht
 if (isStandalone()) {
+  // Spielform & Formationen aus der URL uebernehmen (vom Tippen auf "Tablet" mitgegeben)
+  var _q = new URLSearchParams(location.search);
+  var _m = _q.get('mode');
+  if (_m && MODES[_m] && _m !== MODE) {
+    document.querySelectorAll('#modeSeg button').forEach(function(q){ q.classList.toggle('on', q.dataset.mode === _m); });
+    setMode(_m);
+  }
+  var _fh = _q.get('fh'), _fa = _q.get('fa');
+  var mm = MODES[MODE];
+  if (_fh && mm.forms.indexOf(_fh) >= 0) { document.getElementById('formHome').value = _fh; applyFormation('home', _fh); }
+  if (_fa && mm.forms.indexOf(_fa) >= 0) { document.getElementById('formAway').value = _fa; applyFormation('away', _fa); }
+  syncTabletMode();
   document.body.classList.add('tablet');
   tabletOn = true;
   applyRotation();
