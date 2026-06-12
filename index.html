@@ -1495,32 +1495,10 @@ function renderCurrentView(){
 }
 function renderTaktikboard() {
   document.getElementById('mainContent').innerHTML = `
-    <div id="tbWrap" style="width: 100%; height: calc(100vh - 88px); display: flex; flex-direction: column;">
-      <iframe id="tbFrame" src="./7er9er11erfooteco-taktikboard-pro.html" allowfullscreen allow="fullscreen *" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #0a0f1a;"></iframe>
+    <div style="width: 100%; height: calc(100vh - 88px); display: flex; flex-direction: column;">
+      <iframe src="./7er9er11erfooteco-taktikboard-pro.html" allowfullscreen allow="fullscreen *" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #0a0f1a;"></iframe>
     </div>
   `;
-}
-// Tablet-Vollansicht: Board meldet sich per postMessage, App legt das iframe fix über alles (iPad-tauglich)
-if (!window._tbMsgHooked) {
-  window._tbMsgHooked = true;
-  window._tbWrapCss = null;
-  window.addEventListener('message', function(e){
-    var d = e && e.data;
-    if (!d || d.type !== 'tb-tablet') return;
-    var w = document.getElementById('tbWrap');
-    var f = document.getElementById('tbFrame');
-    if (!w || !f) return;
-    if (d.on) {
-      if (window._tbWrapCss === null) window._tbWrapCss = w.style.cssText;
-      w.style.cssText = 'position:fixed;inset:0;z-index:99999;width:100vw;height:100dvh;background:#0a0f1a;display:flex;flex-direction:column;margin:0;padding:0;';
-      f.style.borderRadius = '0';
-      document.body.style.overflow = 'hidden';
-    } else {
-      if (window._tbWrapCss !== null) { w.style.cssText = window._tbWrapCss; window._tbWrapCss = null; }
-      f.style.borderRadius = '8px';
-      document.body.style.overflow = '';
-    }
-  });
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
