@@ -1408,11 +1408,25 @@ function flashHint(msg){
 
 // ---------- Tablet-Vollbild (Hochformat fixiert) ----------
 function fsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+function inIframe(){ try { return window.self !== window.top; } catch (e) { return true; } }
+function isStandalone(){ return /[?&]tablet=1/.test(location.search); }
+
 function enterTablet(){
+  // iPad-Safari erlaubt einem iframe KEIN Vollbild und kein Ausbrechen aus der App.
+  // Loesung: Board als eigene, alleinstehende Vollseite oeffnen -> nur Feld, keine FE12-Navigation.
+  if (inIframe() && !isStandalone()) {
+    var url = location.pathname + '?tablet=1';
+    var win = null;
+    try { win = window.open(url, '_blank'); } catch (e) {}
+    if (!win) {
+      // Popup blockiert -> ganzen Tab auf die Board-Seite umleiten
+      try { window.top.location.href = url; } catch (e) { location.href = url; }
+    }
+    return;
+  }
+  // Top-Level (PC/Android) oder bereits alleinstehende Seite: Tablet-Layout + echtes Vollbild
   tabletOn = true;
   document.body.classList.add('tablet');
-  // In der FE12-App (iframe): Eltern-Seite bittet um reine Vollansicht (iPad kann kein iframe-Fullscreen)
-  try { if (window.parent !== window) window.parent.postMessage({ type: 'tb-tablet', on: true }, '*'); } catch (e) {}
   var de = document.documentElement;
   try {
     if (de.requestFullscreen) de.requestFullscreen();
@@ -1423,13 +1437,20 @@ function enterTablet(){
     screen.orientation.lock('portrait').catch(function(){});
   }
   applyRotation();
-  flashHint('Tablet-Modus: Hochformat fixiert \u2014 \u2715 oben rechts beendet');
+  flashHint('Tablet-Modus: Hochformat fixiert \u2014 \u2715 oben rechts schliesst');
   requestAnimationFrame(render);
 }
 function exitTablet(){
+  // Alleinstehende Seite, die per Button geoeffnet wurde -> Tab schliessen, zurueck zur FE12-App
+  if (isStandalone()) {
+    if (window.opener) { try { window.close(); return; } catch (e) {} }
+    if (window.history.length > 1) { window.history.back(); return; }
+    // Letzter Ausweg: zurueck zur App ohne ?tablet=1
+    location.href = location.pathname;
+    return;
+  }
   tabletOn = false;
   document.body.classList.remove('tablet');
-  try { if (window.parent !== window) window.parent.postMessage({ type: 'tb-tablet', on: false }, '*'); } catch (e) {}
   if (screen.orientation && screen.orientation.unlock) {
     try { screen.orientation.unlock(); } catch (e) {}
   }
@@ -1494,6 +1515,14 @@ window.addEventListener('resize', render);
 fillFormationSelects();
 render();
 renderPhases();
+
+// Alleinstehend mit ?tablet=1 geoeffnet -> direkt in die reine Tablet-Vollansicht
+if (isStandalone()) {
+  document.body.classList.add('tablet');
+  tabletOn = true;
+  applyRotation();
+  requestAnimationFrame(render);
+}
 </script>
 </body>
 </html>
