@@ -975,7 +975,8 @@ async function deletePlayerModal(id){
 // ═══════════════════════════════════════════════════
 const gap=(i,s)=>i&&s?parseFloat((s-i).toFixed(2)):null;
 const avgVals=v=>{const f=v.filter(x=>x!=null);return f.length?parseFloat((f.reduce((a,b)=>a+b,0)/f.length).toFixed(2)):null};
-const noteColor=v=>!v?'#6b7280':v<2?'#ef4444':v<3?'#f59e0b':v<4?'#22c55e':'#3b82f6';
+const NOTE_RAMP=['#ef4444','#f97316','#fbbf24','#a3e635','#22c55e','#06b6d4','#3b82f6'];
+const noteColor=v=>{if(!v)return '#6b7280';const b=Math.max(0,Math.min(6,Math.floor((v-1)/0.5)));return NOTE_RAMP[b];};
 const gapColor=g=>g==null?'#9ca3af':g>=2?'#ef4444':g>=1?'#f59e0b':'#22c55e';
 const gapBg=g=>g==null?'transparent':g>=2?'rgba(239,68,68,0.12)':g>=1?'rgba(245,158,11,0.12)':'rgba(34,197,94,0.1)';
 const initials=n=>{const p=n.split(',');return((p[0]?.[0]||'')+(p[1]?.trim()?.[0]||'')).toUpperCase()};
@@ -2321,7 +2322,19 @@ const TIPS_MAX = TIPS_NCRIT*4;
 const TIPS_ENTW = ['früh','tend. früh','normal','tend. spät','spät'];
 const TIPS_LEGEND = '(leer) = noch nicht beurteilbar · 1 = schwach · 2 = genügend · 3 = gut · 4 = sehr gut';
 const critIdD = (k,i)=>k+(i+1);
-const detColor = v=>({1:'#ef4444',2:'#f59e0b',3:'#22c55e',4:'#3b82f6'}[v]||'#6b7280');
+// Farbe: je 2 aufeinanderfolgende 0.25-Schritte gleich, dann wechseln (rot -> blau)
+const DET_COLS = ['#dc2626','#ea580c','#d97706','#65a30d','#16a34a','#0d9488','#2563eb'];
+const detColor = v=>{
+  if(v==null||v==='') return '#6b7280';
+  const band = Math.floor((v-1)/0.5 + 1e-9);
+  return DET_COLS[Math.max(0,Math.min(DET_COLS.length-1,band))];
+};
+// Kompakte Beschriftung: 1, 1¼, 1½, 1¾, 2 …
+const detLabel = v=>{
+  const w=Math.floor(v), f=+(v-w).toFixed(2);
+  const fr = f===0.25?'¼':f===0.5?'½':f===0.75?'¾':'';
+  return fr ? (w+fr) : String(w);
+};
 
 function ensureTips(pid,cy){
   if(!state.tipsDetail) state.tipsDetail={};
@@ -2396,13 +2409,13 @@ function renderTipsDetail(){
     const rows=c.items.map((it,i)=>{
       const cid=critIdD(c.key,i);
       const cur=t.scores[cid];
-      const btns=[1,2,3,4].map(v=>{
+      const btns=NOTES.map(v=>{
         const active=cur===v;
-        return `<button onclick="setTipsScore(${pid},'${cy}','${cid}',${v})" style="width:34px;height:34px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;transition:all .12s;border:1px solid ${active?detColor(v):'rgba(255,255,255,0.12)'};background:${active?detColor(v):'rgba(255,255,255,0.03)'};color:${active?'#fff':'rgba(255,255,255,0.4)'}">${v}</button>`;
+        return `<button onclick="setTipsScore(${pid},'${cy}','${cid}',${v})" style="width:34px;height:34px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;transition:all .12s;border:1px solid ${active?detColor(v):'rgba(255,255,255,0.12)'};background:${active?detColor(v):'rgba(255,255,255,0.03)'};color:${active?'#fff':'rgba(255,255,255,0.4)'}">${detLabel(v)}</button>`;
       }).join('');
       return `<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
         <div style="flex:1;min-width:180px;font-size:12.5px;line-height:1.45;color:#e2e8f0"><span style="color:rgba(255,255,255,0.35)">Er/Sie</span> ${esc(it)}</div>
-        <div style="display:flex;gap:5px;flex-shrink:0">${btns}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;max-width:100%">${btns}</div>
       </div>`;
     }).join('');
     return `<div class="card" style="overflow:hidden;margin-bottom:12px">
