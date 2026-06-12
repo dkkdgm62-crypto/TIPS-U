@@ -607,18 +607,59 @@ var FORMATIONS = {
 };
 var HOME_NAMES = ['Keller','Brunner','Steiner','Huber','Meier','Frei','Baumann','Wyss','Roth','Kaplan','Moser'];
 
+// ---------- Echter Kader (aus der FE12-App via localStorage) ----------
+var ROSTER = null;        // [{nr,name,tw,rae}] oder null
+var ROSTER_TEAM = '';
+function loadRoster(){
+  try {
+    var raw = localStorage.getItem('footeco_roster_v1');
+    if (!raw) { ROSTER = null; return; }
+    var data = JSON.parse(raw);
+    ROSTER = (data && data.players && data.players.length) ? data.players : null;
+    ROSTER_TEAM = (data && data.team) || 'FE12 Old Boys';
+  } catch (e) { ROSTER = null; }
+}
+loadRoster();
+// Nur Nachname kompakt anzeigen (Format "Nachname, Vorname" -> "Nachname")
+function shortName(full){
+  if (!full) return '';
+  var s = String(full).split(',')[0].trim();
+  return s || String(full).trim();
+}
+// Liefert die echten Spieler in Aufstellungs-Reihenfolge: erst Torhüter (für TW-Slot), dann Feldspieler nach Nummer
+function rosterOrdered(){
+  if (!ROSTER) return null;
+  var gk = ROSTER.filter(function(p){ return p.tw; });
+  var out = ROSTER.filter(function(p){ return !p.tw; });
+  return { gk: gk, field: out };
+}
+
 function buildTeam(team, formation){
   var pts = FORMATIONS[MODE][formation];
   var out = [];
+  var ord = team === 'home' ? rosterOrdered() : null;
+  var gkUsed = false, fieldIdx = 0;
   for (var i = 0; i < pts.length; i++) {
     var p = pts[i];
     var u = p[0], v = p[1];
     if (team === 'away') { u = 1 - u; v = 1 - v; }
+    var nm, nr;
+    if (team === 'home' && ord) {
+      var real = null;
+      if (p[2] === 'TW' && !gkUsed && ord.gk.length) { real = ord.gk[0]; gkUsed = true; }
+      else if (fieldIdx < ord.field.length) { real = ord.field[fieldIdx++]; }
+      if (real) { nm = shortName(real.name); nr = parseInt(real.nr) || (i + 1); }
+      else { nm = HOME_NAMES[i] || ('Spieler ' + (i + 1)); nr = i + 1; }
+    } else if (team === 'home') {
+      nm = HOME_NAMES[i] || ('Spieler ' + (i + 1)); nr = i + 1;
+    } else {
+      nm = 'Gegner ' + (i + 1); nr = i + 1;
+    }
     out.push({
       id: team + '_' + i,
       team: team,
-      num: i + 1,
-      name: team === 'home' ? HOME_NAMES[i] : 'Gegner ' + (i + 1),
+      num: nr,
+      name: nm,
       role: p[2],
       u: u, v: v
     });
