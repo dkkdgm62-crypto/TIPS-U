@@ -283,6 +283,11 @@
   <select id="formHome" title="Formation Heimteam"></select>
   <select id="formAway" title="Formation Gegner"></select>
 
+  <label class="hlabel">Spielz&uuml;ge</label>
+  <select id="playSelect" title="Gespeicherten Spielzug w&auml;hlen"><option value="">&mdash; w&auml;hlen &mdash;</option></select>
+  <button class="hbtn" id="btnSavePlay" title="Aktuelle Phasen als Spielzug speichern (max. 6)">&#128190; Spielzug speichern</button>
+  <button class="hbtn" id="btnDelPlay" title="Gew&auml;hlten Spielzug l&ouml;schen">&#128465;&#65039;</button>
+
   <button class="hbtn" id="btnHeat" title="Heatmap-Layer ein/aus">&#128293; Heatmap</button>
   <button class="hbtn" id="btnSun" title="Sonnenmodus &ndash; hoher Kontrast f&uuml;r draussen">&#9728;&#65039; Sonne</button>
   <button class="hbtn" id="btnExport" title="Board als PNG exportieren">&#11015; PNG</button>
@@ -355,6 +360,7 @@
       </div>
       <select id="tcFormHome" title="Formation Heim"></select>
       <select id="tcFormAway" title="Formation Gegner"></select>
+      <select id="tcPlaySelect" title="Spielzug w&auml;hlen"><option value="">&mdash; Spielzug &mdash;</option></select>
     </div>
   </div>
 
@@ -419,6 +425,7 @@
   <button class="tbtn" id="btnAddPhase">&#10133; Phase speichern</button>
   <button class="tbtn" id="btnUpdPhase" title="Aktive Phase mit aktueller Aufstellung &uuml;berschreiben">&#128190; Aktualisieren</button>
   <button class="tbtn play" id="btnPlay">&#9654; Abspielen</button>
+  <button class="tbtn" id="btnResetPhase" title="Zur Startphase / Startformation zur&uuml;cksetzen">&#8635; Start</button>
   <input type="range" id="scrub" min="0" max="0" value="0" step="1" disabled>
   <div class="phases" id="phaseList"></div>
 </div>
@@ -1349,9 +1356,14 @@ function applySnapshot(s){
   state.drawings = JSON.parse(JSON.stringify(s.drawings));
 }
 
-var PHASE_NAMES = ['Anlauf', 'Block', 'Abschluss', 'Umschalten', 'Phase 5', 'Phase 6', 'Phase 7', 'Phase 8'];
+var PHASE_NAMES = ['Anlauf', 'Block', 'Abschluss', 'Umschalten', 'Phase 5', 'Phase 6'];
+var MAX_PHASES = 6;
 
 function addPhase(){
+  if (state.phases.length >= MAX_PHASES) {
+    flashHint('Maximal ' + MAX_PHASES + ' Phasen pro Spielzug');
+    return;
+  }
   var name = PHASE_NAMES[Math.min(state.phases.length, PHASE_NAMES.length - 1)];
   state.phases.push({ name: name, snap: snapshot() });
   state.activePhase = state.phases.length - 1;
@@ -1543,6 +1555,114 @@ document.getElementById('btnBallCenter').addEventListener('click', function(){
 document.getElementById('btnAddPhase').addEventListener('click', addPhase);
 document.getElementById('btnUpdPhase').addEventListener('click', updatePhase);
 document.getElementById('btnPlay').addEventListener('click', play);
+
+// ---------- Spielzüge (Phasen-Sets speichern & vorführen) ----------
+var PLAYS_KEY = 'footeco_plays_v1';
+function loadPlays(){
+  try { return JSON.parse(localStorage.getItem(PLAYS_KEY) || '[]') || []; } catch (e) { return []; }
+}
+function persistPlays(arr){
+  try { localStorage.setItem(PLAYS_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+function refreshPlaySelect(selId){
+  var plays = loadPlays();
+  ['playSelect', 'tcPlaySelect'].forEach(function(sid){
+    var sel = document.getElementById(sid);
+    if (!sel) return;
+    var cur = (selId !== undefined) ? String(selId) : sel.value;
+    var ph = sid === 'tcPlaySelect' ? '\u2014 Spielzug \u2014' : '\u2014 w\u00E4hlen \u2014';
+    sel.innerHTML = '<option value="">' + ph + '</option>';
+    plays.forEach(function(p){
+      var o = document.createElement('option');
+      o.value = p.id; o.textContent = p.name + ' (' + p.phases.length + ' \u00B7 ' + MODES[p.mode].label + ')';
+      sel.appendChild(o);
+    });
+    sel.value = plays.some(function(p){ return String(p.id) === cur; }) ? cur : '';
+  });
+}
+function savePlay(){
+  if (!state.phases.length) { flashHint('Erst Phasen speichern, dann als Spielzug sichern'); return; }
+  var def = 'Spielzug ' + (loadPlays().length + 1);
+  var name = window.prompt('Name des Spielzugs:', def);
+  if (name === null) return;
+  name = (name.trim() || def);
+  var play = {
+    id: Date.now(),
+    name: name,
+    mode: MODE,
+    fh: document.getElementById('formHome').value,
+    fa: document.getElementById('formAway').value,
+    phases: JSON.parse(JSON.stringify(state.phases.slice(0, MAX_PHASES)))
+  };
+  var arr = loadPlays(); arr.push(play); persistPlays(arr);
+  refreshPlaySelect(play.id);
+  flashHint('Spielzug \u201E' + name + '\u201C gespeichert (' + play.phases.length + ' Phasen)');
+}
+function applyModeUI(mode){
+  document.querySelectorAll('#modeSeg button').forEach(function(q){ q.classList.toggle('on', q.dataset.mode === mode); });
+  document.querySelectorAll('#tcMode button').forEach(function(q){ q.classList.toggle('on', q.dataset.mode === mode); });
+}
+function loadPlay(id){
+  var play = loadPlays().find(function(p){ return String(p.id) === String(id); });
+  if (!play) return;
+  stopPlay();
+  if (play.mode !== MODE) { applyModeUI(play.mode); setMode(play.mode); }
+  var mm = MODES[MODE];
+  var fh = (mm.forms.indexOf(play.fh) >= 0) ? play.fh : mm.defHome;
+  var fa = (mm.forms.indexOf(play.fa) >= 0) ? play.fa : mm.defAway;
+  document.getElementById('formHome').value = fh; applyFormation('home', fh);
+  document.getElementById('formAway').value = fa; applyFormation('away', fa);
+  if (typeof fillTabletForms === 'function') fillTabletForms();
+  state.phases = JSON.parse(JSON.stringify(play.phases));
+  state.activePhase = 0;
+  if (state.phases.length) applySnapshot(state.phases[0].snap);
+  clearMulti();
+  renderPhases(); render();
+  flashHint('Spielzug \u201E' + play.name + '\u201C geladen \u2014 \u25B6 Abspielen zum Vorf\u00FChren');
+}
+function deletePlay(){
+  var sel = document.getElementById('playSelect');
+  var id = sel.value;
+  if (!id) { flashHint('Erst einen Spielzug w\u00E4hlen'); return; }
+  var play = loadPlays().find(function(p){ return String(p.id) === String(id); });
+  if (!window.confirm('Spielzug \u201E' + (play ? play.name : '') + '\u201C l\u00F6schen?')) return;
+  persistPlays(loadPlays().filter(function(p){ return String(p.id) !== String(id); }));
+  refreshPlaySelect('');
+  flashHint('Spielzug gel\u00F6scht');
+}
+function resetToStart(){
+  stopPlay();
+  document.getElementById('scrub').value = 0;
+  if (state.phases.length) {
+    state.activePhase = 0;
+    applySnapshot(state.phases[0].snap);
+    renderPhases();
+    flashHint('Zur\u00FCck zur Startphase \u201E' + state.phases[0].name + '\u201C');
+  } else {
+    // Keine Phasen: Spieler auf Startformation, Ball zur Mitte
+    var fh = document.getElementById('formHome').value;
+    var fa = document.getElementById('formAway').value;
+    applyFormation('home', fh);
+    applyFormation('away', fa);
+    state.ball = { u: 0.53, v: 0.46 };
+    flashHint('Startformation gesetzt');
+  }
+  clearMulti();
+  render();
+}
+document.getElementById('btnSavePlay').addEventListener('click', savePlay);
+document.getElementById('btnDelPlay').addEventListener('click', deletePlay);
+document.getElementById('btnResetPhase').addEventListener('click', resetToStart);
+document.getElementById('playSelect').addEventListener('change', function(){
+  if (this.value) loadPlay(this.value);
+  var tc = document.getElementById('tcPlaySelect'); if (tc) tc.value = this.value;
+});
+var _tcPlay = document.getElementById('tcPlaySelect');
+if (_tcPlay) _tcPlay.addEventListener('change', function(){
+  if (this.value) loadPlay(this.value);
+  document.getElementById('playSelect').value = this.value;
+});
+refreshPlaySelect();
 
 document.getElementById('btnExport').addEventListener('click', function(){
   var a = document.createElement('a');
