@@ -98,6 +98,24 @@
     font-size:11.5px;color:var(--txt-dim);padding:5px 14px;border-radius:20px;
     pointer-events:none;backdrop-filter:blur(4px);
   }
+  #selFilter{display:none}
+  body.show-selfilter #selFilter{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:40;
+    background:rgba(13,21,32,.9);border:1px solid var(--line);border-radius:12px;
+    padding:7px 10px;backdrop-filter:blur(5px);
+  }
+  #selFilter .sf-lbl{font-size:11px;color:var(--txt-dim);text-transform:uppercase;letter-spacing:1px}
+  #selFilter .sf-seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  #selFilter .sf-seg button{background:none;border:none;color:var(--txt-dim);
+    padding:8px 13px;cursor:pointer;font-size:12.5px;font-weight:700;font-family:inherit}
+  #selFilter .sf-seg button.on{background:var(--orange);color:#fff}
+  #selFilter .sf-clear{background:var(--panel2);border:1px solid var(--line);color:var(--txt-dim);
+    padding:8px 12px;border-radius:9px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
+  #selFilter .sf-clear:hover{border-color:var(--orange);color:var(--txt)}
+  body.tablet #selFilter{top:70px}
+  body.tablet #selFilter .sf-seg button{padding:11px 16px;font-size:14px}
+  body.tablet #selFilter .sf-clear{padding:11px 15px;font-size:13.5px}
 
   /* Sidebar */
   aside{
@@ -278,6 +296,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
       <span class="tip">Bewegen / Ausw&auml;hlen &nbsp;(V)</span>
     </button>
+    <button class="tool" data-tool="select" title="">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/><circle cx="8.5" cy="8.5" r="1.6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>
+      <span class="tip">Mehrere markieren &amp; zusammen bewegen &nbsp;(A)</span>
+    </button>
     <div class="tdiv"></div>
     <button class="tool" data-tool="pass" title="">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-dasharray="4 3" d="M4 20L17 7"/><path d="M13 5h6v6"/></svg>
@@ -314,6 +336,15 @@
   <div class="stage">
     <canvas id="board"></canvas>
     <div class="stage-hint" id="hint">Werkzeug: Bewegen &mdash; Spieler ziehen, antippen f&uuml;r Spielerdaten</div>
+    <div id="selFilter">
+      <span class="sf-lbl">Lasso markiert:</span>
+      <div class="sf-seg" id="sfSeg">
+        <button data-f="both" class="on">Beide</button>
+        <button data-f="home">Heim</button>
+        <button data-f="away">Gegner</button>
+      </div>
+      <button class="sf-clear" id="sfClear" title="Auswahl aufheben">Auswahl l&ouml;schen</button>
+    </div>
     <button id="sunFloat" title="Sonnenmodus">&#9728;&#65039;</button>
     <button id="tabletExit" title="Tablet-Modus beenden">&#10005;</button>
     <div id="tabletCtrl">
@@ -454,10 +485,14 @@ var state = {
   showNames: true,
   selected: null,        // player id
   heatPlayer: null,
-  sunMode: false         // Hochkontrast fuer Sonnenlicht
+  sunMode: false,        // Hochkontrast fuer Sonnenlicht
+  multiSel: [],          // Mehrfachauswahl: Spieler-IDs
+  selFilter: 'both'      // Lasso-Filter: 'both' | 'home' | 'away'
 };
 var undoStack = [];
 var dragging = null;     // {kind:'player'|'ball', id, offU, offV}
+var marquee = null;      // Lasso-Rechteck {u1,v1,u2,v2}
+var groupDrag = null;    // {startU,startV, base:{id:{u,v}}}
 
 // ---------- Hilfsfunktionen ----------
 function clamp(x, a, b){ return x < a ? a : (x > b ? b : x); }
@@ -622,6 +657,8 @@ function setMode(mode){
   state.activePhase = -1;
   state.selected = null;
   state.heatPlayer = null;
+  state.multiSel = [];
+  marquee = null; groupDrag = null;
   undoStack = [];
   selectPlayer(null);
   renderPhases();
@@ -1017,6 +1054,7 @@ function render(override){
   var dws = override && override.drawings ? override.drawings : state.drawings;
   for (var i = 0; i < dws.length; i++) drawDrawing(dws[i], false);
   if (state.tempDraw) drawDrawing(state.tempDraw, true);
+  if (marquee) drawMarquee(marquee);
 
   // Spieler (im 3D-Modus nach Tiefe sortieren)
   var ps = visiblePlayers().slice();
@@ -1026,8 +1064,40 @@ function render(override){
   for (var j = 0; j < ps.length; j++) {
     var pp = ps[j], uv = getUV(pp);
     drawToken({ u: uv.u, v: uv.v, num: pp.num, name: pp.name, team: pp.team }, pp.id === state.selected);
+    if (state.multiSel.indexOf(pp.id) >= 0) drawSelRing(uv.u, uv.v);
   }
   drawBall(override && override.ball ? override.ball : state.ball);
+}
+
+// Markierungsring fuer Mehrfachauswahl
+function drawSelRing(u, v){
+  var s = P(u, v);
+  var sc = depthScale(v);
+  var r = (proj.tokR || 13) * sc + 6;
+  var ty = proj.mode === '3d' ? s.y - (proj.tokR || 13) * sc * 0.85 : s.y;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(s.x, ty, r, 0, 7);
+  ctx.strokeStyle = '#ffd166'; ctx.lineWidth = Math.max(2.4, r * 0.13);
+  ctx.setLineDash([5, 4]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// Lasso-Rechteck waehrend des Aufziehens
+function drawMarquee(m){
+  var c = [P(m.u1, m.v1), P(m.u2, m.v1), P(m.u2, m.v2), P(m.u1, m.v2)];
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(c[0].x, c[0].y); ctx.lineTo(c[1].x, c[1].y);
+  ctx.lineTo(c[2].x, c[2].y); ctx.lineTo(c[3].x, c[3].y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,209,102,.14)';
+  ctx.fill();
+  ctx.strokeStyle = '#ffd166';
+  ctx.lineWidth = Math.max(1.8, (proj.tokR || 13) * 0.1);
+  ctx.setLineDash([8, 5]);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
 }
 
 // ---------- Hit-Tests ----------
@@ -1087,15 +1157,36 @@ canvas.addEventListener('pointerdown', function(e){
   var pt = evtXY(e);
   var uv = UP(pt.x, pt.y);
 
-  if (state.tool === 'move') {
-    if (hitBall(pt.x, pt.y)) { dragging = { kind: 'ball' }; return; }
+  if (state.tool === 'move' || state.tool === 'select') {
+    if (state.tool === 'move' && hitBall(pt.x, pt.y)) { dragging = { kind: 'ball' }; return; }
     var p = hitPlayer(pt.x, pt.y);
-    if (p) {
-      dragging = { kind: 'player', id: p.id };
-      selectPlayer(p.id);
-      render();
+    if (p && state.multiSel.indexOf(p.id) >= 0) {
+      // Spieler ist Teil der Mehrfachauswahl -> ganze Gruppe verschieben
+      groupDrag = { startU: clamp(uv.u, 0, 1), startV: clamp(uv.v, 0, 1), base: {} };
+      state.multiSel.forEach(function(id){
+        var q = state.players.find(function(x){ return x.id === id; });
+        if (q) groupDrag.base[id] = { u: q.u, v: q.v };
+      });
+      return;
+    }
+    if (state.tool === 'move') {
+      if (p) {
+        clearMulti();
+        dragging = { kind: 'player', id: p.id };
+        selectPlayer(p.id);
+        render();
+      } else {
+        clearMulti(); selectPlayer(null); render();
+      }
     } else {
-      selectPlayer(null); render();
+      // Lasso-Werkzeug: auf Spieler getippt (nicht in Auswahl) -> Einzelauswahl, sonst Rechteck aufziehen
+      if (p) {
+        state.multiSel = [p.id];
+        selectPlayer(p.id);
+        render();
+      } else {
+        marquee = { u1: clamp(uv.u, 0, 1), v1: clamp(uv.v, 0, 1), u2: clamp(uv.u, 0, 1), v2: clamp(uv.v, 0, 1) };
+      }
     }
   } else if (state.tool === 'erase') {
     var idx = hitDrawing(pt.x, pt.y);
@@ -1115,7 +1206,20 @@ canvas.addEventListener('pointermove', function(e){
   if (state.playing) return;
   var pt = evtXY(e);
   var uv = UP(pt.x, pt.y);
-  if (dragging) {
+  if (groupDrag) {
+    var du = clamp(uv.u, 0, 1) - groupDrag.startU;
+    var dv = clamp(uv.v, 0, 1) - groupDrag.startV;
+    state.multiSel.forEach(function(id){
+      var q = state.players.find(function(x){ return x.id === id; });
+      var b = groupDrag.base[id];
+      if (q && b) { q.u = clamp(b.u + du, 0, 1); q.v = clamp(b.v + dv, 0, 1); }
+    });
+    render();
+  } else if (marquee) {
+    marquee.u2 = clamp(uv.u, 0, 1);
+    marquee.v2 = clamp(uv.v, 0, 1);
+    render();
+  } else if (dragging) {
     if (dragging.kind === 'ball') {
       state.ball.u = clamp(uv.u, 0, 1); state.ball.v = clamp(uv.v, 0, 1);
     } else {
@@ -1131,6 +1235,25 @@ canvas.addEventListener('pointermove', function(e){
 });
 
 canvas.addEventListener('pointerup', function(e){
+  if (groupDrag) { groupDrag = null; return; }
+  if (marquee) {
+    var m = marquee; marquee = null;
+    var span = Math.hypot(m.u2 - m.u1, m.v2 - m.v1);
+    if (span > 0.02) {
+      var u0 = Math.min(m.u1, m.u2), u1 = Math.max(m.u1, m.u2);
+      var v0 = Math.min(m.v1, m.v2), v1 = Math.max(m.v1, m.v2);
+      var picked = visiblePlayers().filter(function(p){
+        if (state.selFilter === 'home' && p.team !== 'home') return false;
+        if (state.selFilter === 'away' && p.team !== 'away') return false;
+        return p.u >= u0 && p.u <= u1 && p.v >= v0 && p.v <= v1;
+      }).map(function(p){ return p.id; });
+      state.multiSel = picked;
+      selectPlayer(null);
+      flashHint(picked.length ? (picked.length + ' Spieler markiert \u2014 zum Verschieben einen davon ziehen') : 'Keine Spieler im Bereich');
+    }
+    render();
+    return;
+  }
   if (dragging) { dragging = null; return; }
   if (state.tempDraw) {
     var d = state.tempDraw;
@@ -1327,12 +1450,17 @@ document.getElementById('scrub').addEventListener('input', function(){
 // ---------- UI-Verdrahtung ----------
 var TOOL_HINTS = {
   move:   'Werkzeug: Bewegen \u2014 Spieler ziehen, antippen f\u00FCr Spielerdaten',
+  select: 'Werkzeug: Markieren \u2014 Rechteck \u00FCber Spieler ziehen, dann gemeinsam verschieben',
   pass:   'Werkzeug: Passweg \u2014 von Startpunkt zum Ziel ziehen (gestrichelt)',
   run:    'Werkzeug: Laufweg \u2014 von Spieler in Laufrichtung ziehen (Pfeil)',
   dribble:'Werkzeug: Dribbling \u2014 Wellenlinie von Start zu Ziel ziehen',
   zone:   'Werkzeug: Pressing-Zone \u2014 Rechteck \u00FCber den Raum aufziehen',
   erase:  'Werkzeug: Radierer \u2014 Linie oder Zone antippen zum L\u00F6schen'
 };
+function clearMulti(){
+  if (state.multiSel.length) { state.multiSel = []; }
+  marquee = null; groupDrag = null;
+}
 function setTool(t){
   state.tool = t;
   document.querySelectorAll('#tools .tool[data-tool]').forEach(function(b){
@@ -1340,10 +1468,25 @@ function setTool(t){
   });
   document.getElementById('hint').textContent = TOOL_HINTS[t];
   canvas.style.cursor = t === 'move' ? 'grab' : 'crosshair';
+  // Filter-Pill nur beim Lasso-Werkzeug; bei Zeichentools Auswahl aufheben
+  document.body.classList.toggle('show-selfilter', t === 'select');
+  if (t !== 'move' && t !== 'select') { clearMulti(); render(); }
 }
 document.querySelectorAll('#tools .tool[data-tool]').forEach(function(b){
   b.addEventListener('click', function(){ setTool(b.dataset.tool); });
 });
+
+// Lasso-Filter (Heim / Gegner / Beide) + Auswahl loeschen
+document.querySelectorAll('#sfSeg button').forEach(function(b){
+  b.addEventListener('click', function(){
+    state.selFilter = b.dataset.f;
+    document.querySelectorAll('#sfSeg button').forEach(function(q){ q.classList.toggle('on', q === b); });
+  });
+});
+document.getElementById('sfClear').addEventListener('click', function(){
+  clearMulti(); selectPlayer(null); render();
+});
+
 document.getElementById('btnUndo').addEventListener('click', undo);
 document.getElementById('btnClear').addEventListener('click', function(){
   if (!state.drawings.length) return;
@@ -1412,7 +1555,7 @@ document.getElementById('btnExport').addEventListener('click', function(){
 document.addEventListener('keydown', function(e){
   if (e.target.tagName === 'INPUT') return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
-  var map = { v:'move', p:'pass', l:'run', d:'dribble', z:'zone', e:'erase' };
+  var map = { v:'move', a:'select', p:'pass', l:'run', d:'dribble', z:'zone', e:'erase' };
   var t = map[e.key.toLowerCase()];
   if (t) setTool(t);
 });
