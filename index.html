@@ -796,6 +796,15 @@ function rebuildPlayers(){
     const na=parseInt(a.nr)||9999, nb=parseInt(b.nr)||9999;
     return na-nb || a.id-b.id;
   });
+  syncRosterForBoard();
+}
+
+// Überträgt den echten Kader ins localStorage, damit das Taktikboard (iframe & Tablet-Tab) ihn nutzt
+function syncRosterForBoard(){
+  try {
+    const roster = PLAYERS.map(p=>({ nr:p.nr, name:p.name, tw:!!p.tw, rae:!!p.rae }));
+    localStorage.setItem('footeco_roster_v1', JSON.stringify({ team:'FE12 Old Boys', updated:Date.now(), players:roster }));
+  } catch(e){}
 }
 
 // Stellt sicher, dass state-Einträge für alle (auch neue) Spieler existieren
@@ -1494,6 +1503,7 @@ function renderCurrentView(){
   refreshStamps();
 }
 function renderTaktikboard() {
+  try { syncRosterForBoard(); } catch(e){}
   document.getElementById('mainContent').innerHTML = `
     <div style="width: 100%; height: calc(100vh - 88px); display: flex; flex-direction: column;">
       <iframe src="./7er9er11erfooteco-taktikboard-pro.html" allowfullscreen allow="fullscreen *" style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #0a0f1a;"></iframe>
